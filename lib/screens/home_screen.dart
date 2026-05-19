@@ -6,6 +6,7 @@ import '../core/theme/mbongo_theme.dart';
 import '../features/auth/presentation/auth_notifier.dart';
 import '../features/wallet/presentation/wallet_notifier.dart';
 import '../models/service_item.dart';
+import '../services/kyc_guard_service.dart';
 import '../store/mbongo_store.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import '../widgets/home/banner_carousel.dart';
@@ -16,6 +17,7 @@ import 'appro/approvals_screen.dart';
 import 'cards/virtual_cards_screen.dart';
 import 'exchange/exchange_money_screen.dart';
 import 'login_screen.dart';
+import 'profile/kyc_status_screen.dart';
 import 'request_money/request_money_screen.dart';
 import 'transactions_screen.dart';
 import 'transfer/send_money_screen.dart';
@@ -23,8 +25,32 @@ import 'transfer/transfer_international_screen.dart';
 import 'tv/tv_subscription_screen.dart';
 import 'withdraw/withdraw_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+const _kycSensitiveServices = {
+  'Envoyer', 'Demander', 'Changer', 'International',
+  'Retirer', 'Mes cartes', 'Unites', 'Abonnement TV', 'Deposer',
+};
+
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  String _kycStatus = 'non_commence';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKyc();
+  }
+
+  Future<void> _loadKyc() async {
+    final status = await KycGuardService.syncRemoteStatus();
+    if (!mounted) return;
+    setState(() => _kycStatus = status);
+  }
 
   String _money(num value) {
     return value.toStringAsFixed(0).replaceAllMapped(
@@ -34,7 +60,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final walletAsync = ref.watch(walletProvider);
     final currentUser = ref.watch(authProvider).valueOrNull;
 
@@ -115,7 +141,7 @@ class HomeScreen extends ConsumerWidget {
                           return ServiceTile(
                             item: item,
                             iconColor: _iconColor(item.title, palette),
-                            onTap: () => _onServiceTap(context, item.title),
+                            onTap: () => _onServiceTap(item.title),
                           );
                         },
                       ),
@@ -603,76 +629,107 @@ class HomeScreen extends ConsumerWidget {
     return palette.accent;
   }
 
-  void _onServiceTap(BuildContext context, String title) {
-    if (title.contains('Envoyer')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SendMoneyScreen()),
-      );
-      return;
+  Widget? _screenForService(String title) {
+    if (title.contains('Envoyer')) return const SendMoneyScreen();
+    if (title.contains('Demander')) return const RequestMoneyScreen();
+    if (title.contains('Changer')) return const ExchangeMoneyScreen();
+    if (title.contains('International')) return const TransferInternationalScreen();
+    if (title.contains('Retirer')) return const WithdrawScreen();
+    if (title.contains('cartes')) return const VirtualCardsScreen();
+    if (title.contains('Unites')) return const BuyAirtimeScreen();
+    if (title.contains('TV')) return const TvSubscriptionScreen();
+    if (title.contains('Deposer')) return const ApproMbongoScreen();
+    if (title.contains('Approuver')) return const ApprovalsScreen();
+    return null;
+  }
+
+  Future<void> _onServiceTap(String title) async {
+    final screen = _screenForService(title);
+    if (screen == null) return;
+
+    final isSensitive = _kycSensitiveServices.any((s) => title.contains(s));
+    if (isSensitive && _kycStatus != 'valide') {
+      final access = await KycGuardService.sensitiveOperationAccess();
+      if (!mounted) return;
+      if (!access.allowed) {
+        _showKycBlock(access.message);
+        return;
+      }
     }
-    if (title.contains('Demander')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const RequestMoneyScreen()),
-      );
-      return;
-    }
-    if (title.contains('Changer')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ExchangeMoneyScreen()),
-      );
-      return;
-    }
-    if (title.contains('International')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const TransferInternationalScreen()),
-      );
-      return;
-    }
-    if (title.contains('Retirer')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const WithdrawScreen()),
-      );
-      return;
-    }
-    if (title.contains('cartes')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const VirtualCardsScreen()),
-      );
-      return;
-    }
-    if (title.contains('Unites')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const BuyAirtimeScreen()),
-      );
-      return;
-    }
-    if (title.contains('TV')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const TvSubscriptionScreen()),
-      );
-      return;
-    }
-    if (title.contains('Deposer')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ApproMbongoScreen()),
-      );
-      return;
-    }
-    if (title.contains('Approuver')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ApprovalsScreen()),
-      );
-    }
+
+    if (!mounted) return;
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _showKycBlock(String message) {
+    final palette = MbongoThemeController.current;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: palette.panel,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.36)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.lock_rounded, color: AppColors.gold),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Opération bloquée',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: const TextStyle(
+                color: AppColors.textSoft,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const KycStatusScreen()),
+                  );
+                },
+                child: const Text('Voir mon dossier KYC'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fermer'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

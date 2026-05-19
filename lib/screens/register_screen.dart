@@ -38,7 +38,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   bool loading = false;
   bool hidePin = true;
-  String documentType = 'Carte nationale';
+  String documentType = 'Carte d\'électeur';
+
+  bool get _requiresBackPhoto => documentType != 'Passeport';
   XFile? kycSelfie;
   XFile? kycDocumentFront;
   XFile? kycDocumentBack;
@@ -52,11 +54,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (sheetNameCtrl.text.trim().isNotEmpty) total++;
     if (kycSelfie != null) total++;
     if (kycDocumentFront != null) total++;
-    if (kycDocumentBack != null) total++;
+    if (_requiresBackPhoto && kycDocumentBack != null) total++;
     return total;
   }
 
-  double get _kycProgress => _kycCompletedSteps / (widget.resumeKyc ? 7 : 8);
+  int get _kycTotalSteps {
+    final base = widget.resumeKyc ? 6 : 7;
+    return _requiresBackPhoto ? base + 1 : base;
+  }
+
+  double get _kycProgress => _kycCompletedSteps / _kycTotalSteps;
 
   bool get _identityFieldsReady =>
       nameCtrl.text.trim().isNotEmpty &&
@@ -69,7 +76,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       sheetNameCtrl.text.trim().isNotEmpty &&
       kycSelfie != null &&
       kycDocumentFront != null &&
-      kycDocumentBack != null;
+      (!_requiresBackPhoto || kycDocumentBack != null);
 
   Future<void> createAccount() async {
     final name = nameCtrl.text.trim();
@@ -92,8 +99,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
 
-    if (kycDocumentFront == null || kycDocumentBack == null) {
-      _toast('Ajoutez la piece d identite recto et verso.');
+    if (kycDocumentFront == null) {
+      _toast(documentType == 'Passeport'
+          ? 'Ajoutez la photo de la page d\'identité du passeport.'
+          : 'Ajoutez le recto de votre pièce d\'identité.');
+      return;
+    }
+    if (_requiresBackPhoto && kycDocumentBack == null) {
+      _toast('Ajoutez le verso de votre pièce d\'identité.');
       return;
     }
 
@@ -655,33 +668,67 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             color: AppColors.cyan.withValues(alpha: 0.16),
                           ),
                         ),
-                        child: const Column(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Selfie KYC',
+                            const Text(
+                              'Selfie avec feuille manuscrite',
                               style: TextStyle(
                                 color: AppColors.text,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Prenez une photo selfie avec une feuille visible.',
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Écrivez lisiblement vos noms complets sur une feuille blanche, puis prenez un selfie en tenant la feuille visible.',
                               style: TextStyle(
                                 color: AppColors.textSoft,
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
+                                height: 1.4,
                               ),
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Sur la feuille, ecrivez votre nom complet et MBONGO.',
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.07),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Exemple à écrire sur la feuille :',
+                                    style: TextStyle(
+                                      color: AppColors.textSoft,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'NOM : ___________\nPOST-NOM : ___________\nPRÉNOM : ___________\nDATE : ${DateTime.now().day.toString().padLeft(2,'0')}/${DateTime.now().month.toString().padLeft(2,'0')}/${DateTime.now().year}\nSIGNATURE : __________',
+                                    style: const TextStyle(
+                                      color: AppColors.text,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      fontFamily: 'monospace',
+                                      height: 1.6,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              '• Feuille blanche · stylo bleu ou noir\n• Écriture lisible, sans ratures\n• Photo dans un endroit bien éclairé',
                               style: TextStyle(
                                 color: AppColors.textSoft,
-                                fontSize: 12.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
+                                height: 1.5,
                               ),
                             ),
                           ],
@@ -703,8 +750,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                         items: const [
                           DropdownMenuItem(
-                            value: 'Carte nationale',
-                            child: Text('Carte nationale'),
+                            value: 'Carte d\'électeur',
+                            child: Text('Carte d\'électeur'),
                           ),
                           DropdownMenuItem(
                             value: 'Passeport',
@@ -734,26 +781,52 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           prefixIcon: Icon(Icons.numbers_rounded),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _captureCard(
-                              title: 'Recto',
-                              file: kycDocumentFront,
-                              onTap: () => _showDocumentPickerSheet(true),
-                            ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.cyan.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.cyan.withValues(alpha: 0.20)),
+                        ),
+                        child: Text(
+                          documentType == 'Passeport'
+                              ? 'Prenez une photo claire de la page d\'identité de votre passeport.'
+                              : 'Prenez d\'abord la photo du recto, puis celle du verso.',
+                          style: const TextStyle(
+                            color: AppColors.textSoft,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _captureCard(
-                              title: 'Verso',
-                              file: kycDocumentBack,
-                              onTap: () => _showDocumentPickerSheet(false),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
+                      const SizedBox(height: 12),
+                      if (documentType == 'Passeport')
+                        _captureCard(
+                          title: 'Page d\'identité',
+                          file: kycDocumentFront,
+                          onTap: () => _showDocumentPickerSheet(true),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _captureCard(
+                                title: 'Recto',
+                                file: kycDocumentFront,
+                                onTap: () => _showDocumentPickerSheet(true),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _captureCard(
+                                title: 'Verso',
+                                file: kycDocumentBack,
+                                onTap: () => _showDocumentPickerSheet(false),
+                              ),
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: sheetNameCtrl,

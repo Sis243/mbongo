@@ -33,15 +33,15 @@ class _MbongoMoneyParticlesState extends State<MbongoMoneyParticles>
       (_) => _ParticleNode(
         x: _random.nextDouble(),
         y: _random.nextDouble(),
-        r: 2 + _random.nextDouble() * 3.5,
-        dx: (_random.nextDouble() - 0.5) * 0.02,
-        dy: (_random.nextDouble() - 0.5) * 0.02,
+        r: 1.5 + _random.nextDouble() * 2.0,
+        dx: (_random.nextDouble() - 0.5) * 0.006,
+        dy: (_random.nextDouble() - 0.5) * 0.006,
       ),
     );
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 30),
     )..repeat();
   }
 
@@ -128,8 +128,9 @@ class _MbongoMoneyParticlesPainter extends CustomPainter {
     for (int i = 0; i < positions.length; i++) {
       for (int j = i + 1; j < positions.length; j++) {
         final d = (positions[i] - positions[j]).distance;
-        if (d < 90) {
-          canvas.drawLine(positions[i], positions[j], linePaint);
+        if (d < 120) {
+          final fade = linePaint..color = color.withValues(alpha: color.a * (1 - d / 120));
+          canvas.drawLine(positions[i], positions[j], fade);
         }
       }
     }

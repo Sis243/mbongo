@@ -7,15 +7,36 @@ import '../../core/utils/money.dart';
 import '../../features/wallet/domain/wallet_state.dart';
 import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../models/account_model.dart';
+import '../../services/kyc_guard_service.dart';
 import '../../widgets/cards/wallet_card.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../exchange/exchange_money_screen.dart';
+import '../profile/kyc_status_screen.dart';
 import '../request_money/request_money_screen.dart';
 import '../transfer/send_money_screen.dart';
 import '../withdraw/withdraw_screen.dart';
 
-class WalletScreen extends ConsumerWidget {
+class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
+
+  @override
+  ConsumerState<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends ConsumerState<WalletScreen> {
+  String _kycStatus = 'non_commence';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKyc();
+  }
+
+  Future<void> _loadKyc() async {
+    final status = await KycGuardService.syncRemoteStatus();
+    if (!mounted) return;
+    setState(() => _kycStatus = status);
+  }
 
   AccountModel _toAccountModel(WalletData walletData) => AccountModel(
         id: walletData.id,
@@ -26,8 +47,91 @@ class WalletScreen extends ConsumerWidget {
         selected: true,
       );
 
+  Future<void> _guardedNavigate(Widget screen) async {
+    final access = await KycGuardService.sensitiveOperationAccess();
+    if (!mounted) return;
+    if (access.allowed) {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    } else {
+      _showKycBlock(access.message);
+    }
+  }
+
+  void _showKycBlock(String message) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        final palette = MbongoThemeController.current;
+        return Container(
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: palette.panel,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.36)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.lock_rounded, color: AppColors.gold),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Opération bloquée',
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const KycStatusScreen()),
+                    );
+                  },
+                  child: const Text('Voir mon dossier KYC'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Fermer'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final walletAsync = ref.watch(walletProvider);
     final palette = MbongoThemeController.current;
     final walletData = walletAsync.valueOrNull;
@@ -81,6 +185,8 @@ class WalletScreen extends ConsumerWidget {
             children: [
               _buildHeader(currentWallet, palette),
               const SizedBox(height: 18),
+              if (_kycStatus != 'valide') _buildKycBanner(palette),
+              if (_kycStatus != 'valide') const SizedBox(height: 14),
               WalletCard(
                 wallet: currentWallet,
                 gradient: palette.cardGradient,
@@ -88,7 +194,7 @@ class WalletScreen extends ConsumerWidget {
               const SizedBox(height: 18),
               _buildWalletBoard(currentWallet, inflow, outflow, palette),
               const SizedBox(height: 18),
-              _buildActionMatrix(context, palette),
+              _buildActionMatrix(palette),
               const SizedBox(height: 18),
               _buildHealthStrip(currentWallet, palette),
               const SizedBox(height: 18),
@@ -248,7 +354,48 @@ class WalletScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionMatrix(BuildContext context, MbongoThemePalette palette) {
+  Widget _buildKycBanner(MbongoThemePalette palette) {
+    final label = switch (_kycStatus) {
+      'en_attente' => 'Dossier KYC en cours de vérification.',
+      'refuse' => 'Dossier KYC refusé. Reprenez le dossier.',
+      _ => 'Complétez votre vérification KYC pour débloquer les opérations.',
+    };
+    final color = _kycStatus == 'refuse' ? AppColors.red : AppColors.gold;
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const KycStatusScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.36)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_rounded, color: color, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: color, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionMatrix(MbongoThemePalette palette) {
     final items = [
       (
         'Envoyer',
@@ -302,12 +449,7 @@ class WalletScreen extends ConsumerWidget {
             final item = items[index];
             return InkWell(
               borderRadius: BorderRadius.circular(18),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => item.$4),
-                );
-              },
+              onTap: () => _guardedNavigate(item.$4),
               child: Ink(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(

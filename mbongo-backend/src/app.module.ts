@@ -10,6 +10,8 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
 import { AdminAuthModule } from './admin-auth/admin-auth.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { OtpModule } from './otp/otp.module';
 import { validateEnvironment } from './config/validate-env';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -32,6 +34,8 @@ import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filte
     KycModule,
     BackofficeModule,
     AdminAuthModule,
+    NotificationsModule,
+    OtpModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

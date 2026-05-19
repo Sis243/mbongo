@@ -110,6 +110,7 @@ model User {
   phone     String     @unique
   email     String?    @unique
   pinHash   String
+  fcmToken  String?
   status    UserStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
 
@@ -634,4 +635,16 @@ model Currency {
   updatedAt DateTime @updatedAt
 
   @@index([isEnabled])
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  purpose   String   @default("register")
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone, purpose, used])
 }

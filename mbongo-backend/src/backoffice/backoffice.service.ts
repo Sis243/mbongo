@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import * as bcrypt from 'bcrypt';
 import { CardsService } from '../cards/cards.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { FcmService } from '../notifications/fcm.service';
 import type { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 
 type ChannelMode = 'sandbox' | 'live';
@@ -134,6 +135,7 @@ export class BackofficeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cardsService: CardsService,
+    private readonly fcm: FcmService,
   ) {}
 
   private parseJsonArray(value?: string | null): string[] {
@@ -2603,6 +2605,27 @@ export class BackofficeService {
       throw new BadRequestException('userId obligatoire pour audience SINGLE_USER');
     }
 
+    let fcmResult = { sent: 0, failed: 0 };
+
+    // Deliver PUSH notifications via FCM
+    if (body.channel === 'PUSH' && !body.scheduledAt) {
+      if (body.audience === 'ALL_USERS') {
+        fcmResult = await this.fcm.sendToAll(this.prisma, body.title, body.message);
+      } else if (body.audience === 'SINGLE_USER' && body.userId) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: body.userId },
+          select: { fcmToken: true },
+        });
+        if (user?.fcmToken) {
+          fcmResult = await this.fcm.send({
+            token: user.fcmToken,
+            title: body.title,
+            body: body.message,
+          });
+        }
+      }
+    }
+
     const notification = await this.prisma.notification.create({
       data: {
         title: body.title,
@@ -2617,6 +2640,6 @@ export class BackofficeService {
       },
     });
 
-    return { sent: true, notification };
+    return { sent: true, notification, fcm: fcmResult };
   }
 }

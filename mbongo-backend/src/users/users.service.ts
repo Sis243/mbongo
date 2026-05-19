@@ -12,6 +12,7 @@ export class UsersService {
     const phone = data.phone.trim();
     const pin = data.pin.trim();
     const email = data.email?.trim() || null;
+    const fcmToken = data.fcmToken?.trim() || null;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { phone },
@@ -29,6 +30,7 @@ export class UsersService {
         phone,
         email,
         pinHash,
+        ...(fcmToken && { fcmToken }),
         wallet: {
           create: {
             balance: 0,

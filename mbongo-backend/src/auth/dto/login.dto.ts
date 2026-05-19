@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 export class LoginDto {
   @IsString()
@@ -10,4 +10,8 @@ export class LoginDto {
   @Length(4, 8)
   @Matches(/^[0-9]+$/)
   pin: string;
+
+  @IsOptional()
+  @IsString()
+  fcmToken?: string;
 }

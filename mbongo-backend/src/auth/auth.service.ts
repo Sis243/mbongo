@@ -42,6 +42,13 @@ export class AuthService {
       throw new UnauthorizedException('Numero ou PIN incorrect');
     }
 
+    if (body.fcmToken) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { fcmToken: body.fcmToken },
+      });
+    }
+
     const tokens = await this.issueTokens(user, metadata);
     return {
       user: this.usersService.toPublicUser(user),

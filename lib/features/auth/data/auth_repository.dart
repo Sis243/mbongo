@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/dio_client.dart';
@@ -19,13 +20,22 @@ class AuthRepository {
       : _client = client,
         _storage = storage;
 
+  Future<String?> _getFcmToken() async {
+    try {
+      return await FirebaseMessaging.instance.getToken();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<AppUser> login({
     required String phone,
     required String pin,
   }) async {
+    final fcmToken = await _getFcmToken();
     final data = await _client.post(
       '/auth/login',
-      {'phone': phone, 'pin': pin},
+      {'phone': phone, 'pin': pin, if (fcmToken != null) 'fcmToken': fcmToken},
       auth: false,
     );
 
@@ -50,9 +60,10 @@ class AuthRepository {
     required String phone,
     required String pin,
   }) async {
+    final fcmToken = await _getFcmToken();
     final data = await _client.post(
       '/auth/register',
-      {'name': name, 'phone': phone, 'pin': pin},
+      {'name': name, 'phone': phone, 'pin': pin, if (fcmToken != null) 'fcmToken': fcmToken},
       auth: false,
     );
 

@@ -1,4 +1,4 @@
-name: Build & Release APK
+name: Build & Release
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
     permissions:
@@ -38,7 +38,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mbongo-debug-apk
+          name: mbongo-android-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 30
 
@@ -46,19 +46,74 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: "Mbongo APK - Build ${{ github.run_number }}"
+          name: "Mbongo Build ${{ github.run_number }}"
           body: |
-            ## Mbongo Android APK
+            ## Mbongo — Build ${{ github.run_number }}
 
-            **Comment installer sur ton téléphone Android :**
-            1. Télécharge `app-debug.apk` ci-dessous
-            2. Sur ton téléphone : Paramètres → Sécurité → Activer "Sources inconnues"
-            3. Ouvre le fichier APK téléchargé et installe
-            4. Lance l'app Mbongo
+            ### Android
+            **Installer sur Android :**
+            1. Télécharge `app-debug.apk`
+            2. Paramètres → Sécurité → Activer "Sources inconnues"
+            3. Ouvre l'APK et installe
 
-            Build automatique depuis le commit `${{ github.sha }}`
-          files: build/app/outputs/flutter-apk/app-debug.apk
+            ### iOS (IPA non signé)
+            **Installer sur iPhone via AltStore :**
+            1. Installe [AltStore](https://altstore.io) sur ton PC/Mac
+            2. Connecte ton iPhone en USB
+            3. Dans AltStore → "My Apps" → "+" → sélectionne `mbongo.ipa`
+            4. L'app expire tous les 7 jours (reconnecte pour renouveler)
+
+            ---
+            Build depuis commit `${{ github.sha }}`
+          files: |
+            build/app/outputs/flutter-apk/app-debug.apk
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --no-codesign --debug
+
+      - name: Package IPA
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/Runner.app
+          zip -r ../../../mbongo.ipa Payload
+          echo "IPA created at mbongo.ipa"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mbongo-ios-ipa
+          path: mbongo.ipa
+          retention-days: 30
+
+      - name: Add IPA to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          files: mbongo.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

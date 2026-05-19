@@ -1,0 +1,636 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+enum KycStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum KycDocumentSide {
+  FRONT
+  BACK
+  SELFIE
+  PROOF
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+}
+
+enum MerchantStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum TerminalStatus {
+  ONLINE
+  OFFLINE
+  CHECK
+}
+
+enum ReceiptStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+enum DisputeStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum DisputePriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  DRAFT
+  QUEUED
+  SENT
+  FAILED
+  CANCELED
+}
+
+enum NotificationAudience {
+  ALL_USERS
+  SINGLE_USER
+  BACKOFFICE
+}
+
+enum CashAgentStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ChannelMode {
+  sandbox
+  live
+}
+
+enum ChannelHealth {
+  healthy
+  warning
+  offline
+}
+
+model User {
+  id        String     @id @default(uuid())
+  name      String
+  phone     String     @unique
+  email     String?    @unique
+  pinHash   String
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+
+  wallet         Wallet?
+  virtualCards   VirtualCard[]
+  sessions       UserSession[]
+  kycSubmissions KycSubmission[]
+  auditLogs      AuditLog[]
+  disputes       Dispute[]
+  notifications  Notification[]
+
+  @@index([status])
+}
+
+model UserSession {
+  id               String    @id @default(uuid())
+  userId           String
+  refreshTokenHash String
+  refreshTokenId   String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model Wallet {
+  id            String              @id @default(uuid())
+  balance       Float               @default(0)
+  userId        String              @unique
+  user          User                @relation(fields: [userId], references: [id])
+  ledgerEntries WalletLedgerEntry[]
+}
+
+model Transaction {
+  id              String              @id @default(uuid())
+  type            String
+  status          TransactionStatus   @default(SUCCESS)
+  amount          Float
+  fee             Float               @default(0)
+  currency        String              @default("CDF")
+  idempotencyKey  String?             @unique
+  senderId        String?
+  receiverId      String?
+  agentId         String?
+  reference       String?
+  metadata        String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  ledgerEntries   WalletLedgerEntry[]
+  disputes        Dispute[]
+  agent           CashAgent?          @relation(fields: [agentId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([agentId, createdAt])
+  @@index([reference])
+}
+
+model CashAgent {
+  id                String          @id @default(uuid())
+  code              String          @unique
+  name              String
+  phone             String?
+  location          String?
+  status            CashAgentStatus @default(ACTIVE)
+  dailyCashInLimit  Float           @default(5000000)
+  dailyCashOutLimit Float           @default(5000000)
+  commissionBalance Float           @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  transactions Transaction[]
+  commissionPayouts CashAgentCommissionPayout[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CashAgentCommissionPayout {
+  id              String   @id @default(uuid())
+  agentId         String
+  amount          Float
+  previousBalance Float
+  nextBalance     Float
+  reference       String?
+  note            String?
+  paidByAdminId   String?
+  createdAt       DateTime @default(now())
+
+  agent CashAgent @relation(fields: [agentId], references: [id])
+
+  @@index([agentId, createdAt])
+  @@index([createdAt])
+}
+
+model WalletLedgerEntry {
+  id            String       @id @default(uuid())
+  walletId      String
+  transactionId String?
+  entryType     String
+  direction     String
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  description   String?
+  metadata      String?
+  createdAt     DateTime     @default(now())
+
+  wallet      Wallet       @relation(fields: [walletId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@index([transactionId])
+}
+
+model VirtualCard {
+  id         String   @id @default(uuid())
+  userId     String
+  holderName String
+  currency   String
+  brand      String
+  maskedPan  String
+  last4      String
+  expiry     String
+  balance    Float    @default(0)
+  status     String   @default("ACTIVE")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User                   @relation(fields: [userId], references: [id])
+  operations VirtualCardOperation[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model VirtualCardOperation {
+  id            String   @id @default(uuid())
+  cardId        String
+  type          String
+  amount        Float?
+  balanceBefore Float?
+  balanceAfter  Float?
+  statusBefore  String?
+  statusAfter   String?
+  actorType     String
+  actorId       String?
+  metadata      String?
+  createdAt     DateTime @default(now())
+
+  card VirtualCard @relation(fields: [cardId], references: [id])
+
+  @@index([cardId, createdAt])
+  @@index([type, createdAt])
+}
+
+model KycSubmission {
+  id              String    @id @default(uuid())
+  userId          String
+  status          KycStatus @default(DRAFT)
+  documentType    String?
+  rejectionReason String?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id])
+  documents KycDocument[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model KycDocument {
+  id               String          @id @default(uuid())
+  submissionId     String
+  side             KycDocumentSide
+  fileUrl          String
+  fileMimeType     String?
+  providerRef      String?
+  verificationData String?
+  createdAt        DateTime        @default(now())
+
+  submission KycSubmission @relation(fields: [submissionId], references: [id])
+
+  @@index([submissionId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+}
+
+model Dispute {
+  id              String          @id @default(uuid())
+  userId          String?
+  transactionId   String?
+  subject         String
+  description     String
+  status          DisputeStatus   @default(OPEN)
+  priority        DisputePriority @default(MEDIUM)
+  resolution      String?
+  assignedAdminId String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  resolvedAt      DateTime?
+
+  user        User?        @relation(fields: [userId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([priority, createdAt])
+  @@index([userId, createdAt])
+  @@index([transactionId])
+}
+
+model Notification {
+  id               String               @id @default(uuid())
+  title            String
+  body             String
+  channel          NotificationChannel
+  status           NotificationStatus   @default(QUEUED)
+  audience         NotificationAudience @default(ALL_USERS)
+  userId           String?
+  templateKey      String?
+  failureReason    String?
+  createdByAdminId String?
+  scheduledAt      DateTime?
+  sentAt           DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([channel, createdAt])
+  @@index([audience, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum ContactMessageStatus {
+  NEW
+  READ
+  REPLIED
+}
+
+enum PaymentLinkStatus {
+  ACTIVE
+  EXPIRED
+  CLOSED
+  PAID
+}
+
+model ContactMessage {
+  id        String               @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String?
+  status    ContactMessageStatus @default(NEW)
+  readAt    DateTime?
+  repliedAt DateTime?
+  replyNote String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model NewsletterSubscriber {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  name        String?
+  isActive    Boolean   @default(true)
+  subscribedAt DateTime @default(now())
+  unsubscribedAt DateTime?
+
+  @@index([isActive])
+  @@index([subscribedAt])
+}
+
+model ErrorLog {
+  id        String   @id @default(uuid())
+  level     String   @default("error")
+  message   String
+  stack     String?
+  context   String?
+  path      String?
+  method    String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([level, createdAt])
+  @@index([createdAt])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String?
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+model PaymentLink {
+  id          String            @id @default(uuid())
+  createdByAdminId String?
+  title       String
+  amount      Float
+  currency    String            @default("CDF")
+  status      PaymentLinkStatus @default(ACTIVE)
+  description String?
+  expiresAt   DateTime?
+  paidAt      DateTime?
+  paidByUserId String?
+  transactionId String?
+  metadata    String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model AdminUser {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  pinHash   String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  roles AdminUserRole[]
+}
+
+model AdminRole {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  users       AdminUserRole[]
+  permissions AdminRolePermission[]
+}
+
+model AdminPermission {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  roles AdminRolePermission[]
+}
+
+model AdminUserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+
+  user AdminUser @relation(fields: [userId], references: [id])
+  role AdminRole @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+}
+
+model AdminRolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       AdminRole       @relation(fields: [roleId], references: [id])
+  permission AdminPermission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model IntegrationChannel {
+  id            String        @id
+  name          String
+  category      String
+  enabled       Boolean       @default(true)
+  mode          ChannelMode   @default(sandbox)
+  health        ChannelHealth @default(healthy)
+  webhookUrl    String?
+  successRate   Int           @default(0)
+  pendingEvents Int           @default(0)
+  apiKeyPreview String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([enabled])
+  @@index([mode])
+  @@index([health])
+}
+
+model Merchant {
+  id          String         @id @default(uuid())
+  name        String
+  category    String?
+  location    String?
+  status      MerchantStatus @default(PENDING)
+  dailyVolume Float          @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  terminals MerchantTerminal[]
+  receipts  MerchantReceipt[]
+  roles     MerchantRole[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MerchantTerminal {
+  id                String         @id
+  merchantId        String
+  location          String?
+  status            TerminalStatus @default(OFFLINE)
+  lastMethod        String?
+  lastSeen          DateTime?
+  transactionsCount Int            @default(0)
+  health            ChannelHealth  @default(healthy)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  receipts MerchantReceipt[]
+
+  @@index([merchantId])
+  @@index([status])
+}
+
+model MerchantReceipt {
+  id          String        @id @default(uuid())
+  merchantId  String
+  terminalId  String?
+  method      String
+  amount      Float
+  currency    String        @default("CDF")
+  status      ReceiptStatus @default(SUCCESS)
+  location    String?
+  customerRef String?
+  steps       String?
+  createdAt   DateTime      @default(now())
+
+  merchant Merchant          @relation(fields: [merchantId], references: [id])
+  terminal MerchantTerminal? @relation(fields: [terminalId], references: [id])
+
+  @@index([merchantId, createdAt])
+  @@index([terminalId])
+  @@index([status])
+}
+
+model MerchantRole {
+  id          String   @id @default(uuid())
+  merchantId  String
+  name        String
+  role        String
+  permissions String?
+  createdAt   DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@index([role])
+}
+
+model TransactionFee {
+  id                     String   @id
+  title                  String
+  fixedFee               Float    @default(0)
+  percentFee             Float    @default(0)
+  minAmount              Float    @default(0)
+  maxAmount              Float    @default(5000000)
+  dailyLimit             Float    @default(1000000)
+  monthlyLimit           Float    @default(30000000)
+  agentFixedCommission   Float    @default(250)
+  agentPercentCommission Float    @default(0.5)
+  currency               String   @default("CDF")
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model Currency {
+  id        String   @id
+  country   String
+  name      String
+  symbol    String
+  rateLabel String
+  rate      Float    @default(1)
+  isEnabled Boolean  @default(false)
+  isDefault Boolean  @default(false)
+  roles     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isEnabled])
+}

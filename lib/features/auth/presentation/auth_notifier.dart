@@ -1,0 +1,47 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../data/auth_repository.dart';
+import '../domain/app_user.dart';
+
+// AuthProvider — source unique de vérité pour la session
+final authProvider = AsyncNotifierProvider<AuthNotifier, AppUser?>(
+  AuthNotifier.new,
+);
+
+class AuthNotifier extends AsyncNotifier<AppUser?> {
+  @override
+  Future<AppUser?> build() async {
+    return ref.read(authRepositoryProvider).restoreSession();
+  }
+
+  Future<void> login({required String phone, required String pin}) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(authRepositoryProvider).login(phone: phone, pin: pin),
+    );
+  }
+
+  Future<void> register({
+    required String name,
+    required String phone,
+    required String pin,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(authRepositoryProvider).register(
+            name: name,
+            phone: phone,
+            pin: pin,
+          ),
+    );
+  }
+
+  Future<void> logout() async {
+    await ref.read(authRepositoryProvider).logout();
+    state = const AsyncData(null);
+  }
+
+  bool get isAuthenticated => state.valueOrNull != null;
+
+  AppUser? get currentUser => state.valueOrNull;
+}

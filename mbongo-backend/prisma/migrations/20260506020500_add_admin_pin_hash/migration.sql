@@ -1,0 +1,1 @@
+ALTER TABLE "AdminUser" ADD COLUMN "pinHash" TEXT;

@@ -1,0 +1,49 @@
+name: mbongo
+description: "MBONGO V3"
+publish_to: "none"
+
+version: 3.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  # State management
+  flutter_riverpod: ^2.6.1
+  # Navigation
+  go_router: ^14.8.1
+  # HTTP
+  dio: ^5.8.0+1
+  http: ^1.2.2
+  # Storage
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.3.2
+  # UI / Features
+  intl: ^0.20.2
+  local_auth: ^2.3.0
+  fl_chart: ^0.68.0
+  pdf: ^3.11.1
+  printing: ^5.13.4
+  file_picker: ^10.3.7
+  image_picker: ^1.2.1
+  camera: ^0.12.0+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icon/mbongo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/mbongo.png"

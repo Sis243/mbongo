@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "958059982436",
+    "project_id": "mbongo-b6d1a",
+    "storage_bucket": "mbongo-b6d1a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:958059982436:android:5dda6b28a9961c409c7971",
+        "android_client_info": {
+          "package_name": "com.example.mbongo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnUo0CRXOQM7WeJ4ugAE9ikkgR03LvudU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:958059982436:android:abdeef821e626a3a9c7971",
+        "android_client_info": {
+          "package_name": "com.mbongo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnUo0CRXOQM7WeJ4ugAE9ikkgR03LvudU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

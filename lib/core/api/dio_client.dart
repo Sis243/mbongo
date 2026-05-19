@@ -27,8 +27,8 @@ class DioClient {
 
     _dio = Dio(BaseOptions(
       baseUrl: base,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 6),
+      receiveTimeout: const Duration(seconds: 15),
       headers: {'Accept': 'application/json'},
     ));
 
@@ -55,11 +55,7 @@ class DioClient {
   static String _resolveBaseUrl() {
     const env = String.fromEnvironment('MBONGO_API_BASE_URL');
     if (env.isNotEmpty) return env;
-    if (kIsWeb) return 'http://localhost:3000';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3000';
-    }
-    return 'http://localhost:3000';
+    return 'https://mbongo-backend.vercel.app';
   }
 
   // ── Public helpers ───────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/app_colors.dart';
+import '../features/auth/domain/app_user.dart';
 import '../features/auth/presentation/auth_notifier.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 
@@ -97,8 +98,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
 
-    // Wait for auth state to finish loading
-    final authState = await ref.read(authProvider.future);
+    // Timeout safety: FlutterSecureStorage can hang on some Android devices
+    AppUser? authState;
+    try {
+      authState = await ref
+          .read(authProvider.future)
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {
+      authState = null;
+    }
     if (!mounted) return;
 
     if (authState != null) {

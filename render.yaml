@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: mbongo-api
+    runtime: node
+    rootDir: mbongo-backend
+    buildCommand: npm ci && npm run db:generate && npm run build
+    startCommand: npm run start:prod
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PUBLIC_API_URL
+        fromService:
+          type: web
+          name: mbongo-api
+          property: host
+      - key: API_URL
+        fromService:
+          type: web
+          name: mbongo-api
+          property: host
+      - key: KYC_UPLOAD_DIR
+        value: ./uploads/kyc
+      - key: ADMIN_DEFAULT_PIN
+        value: "123456"

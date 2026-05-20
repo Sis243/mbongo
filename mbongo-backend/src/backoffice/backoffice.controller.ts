@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentAdmin } from '../admin-auth/decorators/current-admin.decorator';
 import { RequireAdminPermissions } from '../admin-auth/decorators/require-admin-permissions.decorator';
 import { AdminPermissionGuard } from '../admin-auth/guards/admin-permission.guard';
@@ -402,5 +402,67 @@ export class BackofficeController {
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
     return this.backofficeService.sendNotification(body, admin);
+  }
+
+  /* ─── AppSetting generic key-value ─── */
+
+  @Get('settings/:key')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  getSetting(@Param('key') key: string) {
+    return this.backofficeService.getSetting(key);
+  }
+
+  @Put('settings/:key')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  putSetting(@Param('key') key: string, @Body() body: { value: unknown }) {
+    return this.backofficeService.putSetting(key, body.value);
+  }
+
+  /* ─── Admin roles with permissions ─── */
+
+  @Get('admin-roles/detail')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  listAdminRolesWithPermissions() {
+    return this.backofficeService.listAdminRolesWithPermissions();
+  }
+
+  @Patch('admin-roles/:id/permissions')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  updateRolePermissions(@Param('id') id: string, @Body() body: { permissions: string[] }) {
+    return this.backofficeService.updateRolePermissions(id, body.permissions);
+  }
+
+  /* ─── Exchange rates ─── */
+
+  @Get('exchange-rates')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  listExchangeRates() {
+    return this.backofficeService.listExchangeRates();
+  }
+
+  @Patch('exchange-rates/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  updateExchangeRate(@Param('id') id: string, @Body() body: { rate: number; rateLabel?: string }) {
+    return this.backofficeService.updateExchangeRate(id, body.rate, body.rateLabel);
+  }
+
+  /* ─── Admin profile & security ─── */
+
+  @Get('admin/me')
+  getMyProfile(@CurrentAdmin() admin: AdminJwtPayload) {
+    return this.backofficeService.getAdminProfile(admin.sub);
+  }
+
+  @Patch('admin/me')
+  updateMyProfile(@CurrentAdmin() admin: AdminJwtPayload, @Body() body: { email?: string }) {
+    return this.backofficeService.updateAdminProfile(admin.sub, body);
+  }
+
+  @Post('admin/me/change-pin')
+  changeMyPin(
+    @CurrentAdmin() admin: AdminJwtPayload,
+    @Body() body: { currentPin: string; newPin: string },
+  ) {
+    return this.backofficeService.changeAdminPin(admin.sub, body.currentPin, body.newPin);
   }
 }

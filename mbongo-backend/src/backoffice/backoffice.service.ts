@@ -2642,4 +2642,123 @@ export class BackofficeService {
 
     return { sent: true, notification, fcm: fcmResult };
   }
+
+  /* ─── AppSetting generic key-value store ─── */
+
+  async getSetting(key: string) {
+    const row = await this.prisma.appSetting.findUnique({ where: { key } });
+    if (!row) return { key, value: null };
+    try {
+      return { key, value: JSON.parse(row.value ?? 'null') };
+    } catch {
+      return { key, value: row.value };
+    }
+  }
+
+  async putSetting(key: string, value: unknown) {
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    const row = await this.prisma.appSetting.upsert({
+      where: { key },
+      create: { key, value: serialized },
+      update: { value: serialized },
+    });
+    return { key: row.key, value };
+  }
+
+  /* ─── Admin roles with permissions ─── */
+
+  async listAdminRolesWithPermissions() {
+    const roles = await this.prisma.adminRole.findMany({
+      include: {
+        permissions: { include: { permission: true } },
+        users: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return roles.map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      adminCount: r.users.length,
+      permissions: r.permissions.map((p) => p.permission.name),
+    }));
+  }
+
+  async updateRolePermissions(roleId: string, permissionNames: string[]) {
+    const role = await this.prisma.adminRole.findUnique({ where: { id: roleId } });
+    if (!role) throw new NotFoundException('Rôle introuvable');
+
+    const perms = await Promise.all(
+      permissionNames.map((name) =>
+        this.prisma.adminPermission.upsert({
+          where: { name },
+          create: { name },
+          update: {},
+        }),
+      ),
+    );
+
+    await this.prisma.adminRolePermission.deleteMany({ where: { roleId } });
+    await this.prisma.adminRolePermission.createMany({
+      data: perms.map((p) => ({ roleId, permissionId: p.id })),
+      skipDuplicates: true,
+    });
+
+    return { roleId, permissions: permissionNames };
+  }
+
+  /* ─── Admin profile ─── */
+
+  async getAdminProfile(adminId: string) {
+    const admin = await this.prisma.adminUser.findUnique({
+      where: { id: adminId },
+      select: { id: true, phone: true, email: true, isActive: true, createdAt: true, roles: { include: { role: true } } },
+    });
+    if (!admin) throw new NotFoundException('Admin introuvable');
+    return { ...admin, roles: admin.roles.map((r) => r.role.name) };
+  }
+
+  async updateAdminProfile(adminId: string, data: { email?: string }) {
+    const updated = await this.prisma.adminUser.update({
+      where: { id: adminId },
+      data: { email: data.email ?? undefined },
+      select: { id: true, phone: true, email: true, isActive: true },
+    });
+    return updated;
+  }
+
+  async changeAdminPin(adminId: string, currentPin: string, newPin: string) {
+    const admin = await this.prisma.adminUser.findUnique({ where: { id: adminId } });
+    if (!admin) throw new NotFoundException('Admin introuvable');
+    if (admin.pinHash) {
+      const valid = await bcrypt.compare(currentPin, admin.pinHash);
+      if (!valid) throw new BadRequestException('PIN actuel incorrect');
+    }
+    const hash = await bcrypt.hash(newPin, 10);
+    await this.prisma.adminUser.update({ where: { id: adminId }, data: { pinHash: hash } });
+    return { changed: true };
+  }
+
+  /* ─── Exchange rates (via Currency model) ─── */
+
+  async listExchangeRates() {
+    const currencies = await this.prisma.currency.findMany({ orderBy: { id: 'asc' } });
+    return currencies.map((c) => ({
+      id: c.id,
+      from: 'USD',
+      to: c.id,
+      rate: c.rate,
+      label: c.rateLabel,
+      enabled: c.isEnabled,
+      updatedAt: c.updatedAt,
+    }));
+  }
+
+  async updateExchangeRate(id: string, rate: number, rateLabel?: string) {
+    const updated = await this.prisma.currency.update({
+      where: { id },
+      data: { rate, ...(rateLabel ? { rateLabel } : {}) },
+    });
+    return { id: updated.id, rate: updated.rate, rateLabel: updated.rateLabel, updatedAt: updated.updatedAt };
+  }
 }

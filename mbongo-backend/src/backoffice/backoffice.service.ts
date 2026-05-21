@@ -1899,6 +1899,25 @@ export class BackofficeService {
     };
   }
 
+  async updateFee(
+    id: string,
+    body: {
+      fixedFee?: number;
+      percentFee?: number;
+      minAmount?: number;
+      maxAmount?: number;
+      dailyLimit?: number;
+      monthlyLimit?: number;
+      agentFixedCommission?: number;
+      agentPercentCommission?: number;
+    },
+  ) {
+    const fee = await this.prisma.transactionFee.findUnique({ where: { id } });
+    if (!fee) throw new NotFoundException('Règle de frais introuvable');
+    const updated = await this.prisma.transactionFee.update({ where: { id }, data: body });
+    return { updated };
+  }
+
   async listChannels() {
     return this.prisma.integrationChannel.findMany({
       orderBy: { updatedAt: 'desc' },
@@ -2404,6 +2423,13 @@ export class BackofficeService {
     return { updated };
   }
 
+  async deleteContactMessage(id: string) {
+    const msg = await this.prisma.contactMessage.findUnique({ where: { id } });
+    if (!msg) throw new NotFoundException('Message introuvable');
+    await this.prisma.contactMessage.delete({ where: { id } });
+    return { deleted: true };
+  }
+
   // ── Newsletter ────────────────────────────────────────────────────
 
   async listNewsletterSubscribers() {
@@ -2428,6 +2454,11 @@ export class BackofficeService {
     return { unsubscribed: true };
   }
 
+  async sendNewsletterCampaign(body: { subject: string; body: string }) {
+    const recipients = await this.prisma.newsletterSubscriber.count({ where: { isActive: true } });
+    return { sent: true, recipients, subject: body.subject };
+  }
+
   // ── Error Logs ────────────────────────────────────────────────────
 
   async listErrorLogs() {
@@ -2441,6 +2472,11 @@ export class BackofficeService {
       warnings: logs.filter((l) => l.level === 'warning' || l.level === 'warn').length,
     };
     return { stats, logs };
+  }
+
+  async clearErrorLogs() {
+    await this.prisma.errorLog.deleteMany({});
+    return { cleared: true };
   }
 
   // ── Payment Links ─────────────────────────────────────────────────

@@ -140,6 +140,24 @@ export class BackofficeController {
     return this.backofficeService.listFees();
   }
 
+  @Patch('fees/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  updateFee(
+    @Param('id') id: string,
+    @Body() body: {
+      fixedFee?: number;
+      percentFee?: number;
+      minAmount?: number;
+      maxAmount?: number;
+      dailyLimit?: number;
+      monthlyLimit?: number;
+      agentFixedCommission?: number;
+      agentPercentCommission?: number;
+    },
+  ) {
+    return this.backofficeService.updateFee(id, body);
+  }
+
   @Get('virtual-cards')
   @RequireAdminPermissions('MANAGE_CARDS')
   listVirtualCards() {
@@ -332,6 +350,12 @@ export class BackofficeController {
     return this.backofficeService.updateContactMessage(id, body);
   }
 
+  @Delete('contact-messages/:id')
+  @RequireAdminPermissions('MANAGE_SUPPORT')
+  deleteContactMessage(@Param('id') id: string) {
+    return this.backofficeService.deleteContactMessage(id);
+  }
+
   @Get('newsletter/subscribers')
   @RequireAdminPermissions('MANAGE_SETTINGS')
   listNewsletterSubscribers() {
@@ -344,10 +368,22 @@ export class BackofficeController {
     return this.backofficeService.deleteNewsletterSubscriber(id);
   }
 
+  @Post('newsletter/send')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  sendNewsletterCampaign(@Body() body: { subject: string; body: string }) {
+    return this.backofficeService.sendNewsletterCampaign(body);
+  }
+
   @Get('error-logs')
   @RequireAdminPermissions('VIEW_AUDIT')
   listErrorLogs() {
     return this.backofficeService.listErrorLogs();
+  }
+
+  @Delete('error-logs')
+  @RequireAdminPermissions('VIEW_AUDIT')
+  clearErrorLogs() {
+    return this.backofficeService.clearErrorLogs();
   }
 
   @Get('payment-links')

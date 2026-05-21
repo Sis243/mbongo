@@ -153,4 +153,49 @@ class WalletRepository {
         if (location != null) 'location': location,
         if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
       });
+
+  Future<Map<String, dynamic>> transferInternational({
+    required String beneficiary,
+    required String country,
+    required double amount,
+    required String reason,
+    String? idempotencyKey,
+  }) =>
+      _client.post('/transactions/transfer-international', {
+        'beneficiary': beneficiary,
+        'country': country,
+        'amount': amount,
+        'reason': reason,
+        if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+      });
+
+  Future<Map<String, dynamic>> requestMoney({
+    required double amount,
+    String? targetPhone,
+    String? targetId,
+    String? reason,
+    String? channel,
+    String? idempotencyKey,
+  }) =>
+      _client.post('/transactions/request-money', {
+        'amount': amount,
+        if (targetPhone != null) 'targetPhone': targetPhone,
+        if (targetId != null) 'targetId': targetId,
+        if (reason != null) 'reason': reason,
+        if (channel != null) 'channel': channel,
+        if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+      });
+
+  Future<List<Map<String, dynamic>>> fetchPendingApprovals() async {
+    final resp = await _client.get('/transactions/pending-approvals');
+    final list = resp['data'] ?? resp;
+    if (list is! List) return [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> approveRequest(String id) =>
+      _client.post('/transactions/$id/approve', {});
+
+  Future<Map<String, dynamic>> rejectRequest(String id) =>
+      _client.post('/transactions/$id/reject', {});
 }

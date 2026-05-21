@@ -4,7 +4,9 @@ import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateAirtimePurchaseDto } from './dto/create-airtime-purchase.dto';
 import { CreateDepositDto } from './dto/create-deposit.dto';
+import { CreateInternationalTransferDto } from './dto/create-international-transfer.dto';
 import { CreateMerchantPaymentDto } from './dto/create-merchant-payment.dto';
+import { CreateMoneyRequestDto } from './dto/create-money-request.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { CreateTvPaymentDto } from './dto/create-tv-payment.dto';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
@@ -76,5 +78,36 @@ export class TransactionsController {
       ...body,
       userId: user.userId,
     });
+  }
+
+  @Post('transfer-international')
+  createInternationalTransfer(@Body() body: CreateInternationalTransferDto, @CurrentUser() user: JwtRequestUser) {
+    return this.transactionsService.createInternationalTransfer({
+      ...body,
+      senderId: user.userId,
+    });
+  }
+
+  @Post('request-money')
+  createMoneyRequest(@Body() body: CreateMoneyRequestDto, @CurrentUser() user: JwtRequestUser) {
+    return this.transactionsService.createMoneyRequest({
+      ...body,
+      requesterId: user.userId,
+    });
+  }
+
+  @Get('pending-approvals')
+  listPendingApprovals(@CurrentUser() user: JwtRequestUser) {
+    return this.transactionsService.listPendingApprovals(user.userId);
+  }
+
+  @Post(':id/approve')
+  approveRequest(@Param('id') id: string, @CurrentUser() user: JwtRequestUser) {
+    return this.transactionsService.processApproval(id, user.userId, 'approve');
+  }
+
+  @Post(':id/reject')
+  rejectRequest(@Param('id') id: string, @CurrentUser() user: JwtRequestUser) {
+    return this.transactionsService.processApproval(id, user.userId, 'reject');
   }
 }

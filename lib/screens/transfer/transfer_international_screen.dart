@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
+import '../../features/wallet/data/wallet_repository.dart';
 import '../../services/kyc_guard_service.dart';
 import '../../widgets/common/kyc_action_banner.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
@@ -9,22 +11,23 @@ import '../profile/kyc_status_screen.dart';
 import '../register_screen.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 
-class TransferInternationalScreen extends StatefulWidget {
+class TransferInternationalScreen extends ConsumerStatefulWidget {
   const TransferInternationalScreen({super.key});
 
   @override
-  State<TransferInternationalScreen> createState() =>
+  ConsumerState<TransferInternationalScreen> createState() =>
       _TransferInternationalScreenState();
 }
 
 class _TransferInternationalScreenState
-    extends State<TransferInternationalScreen> {
+    extends ConsumerState<TransferInternationalScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final beneficiaryController = TextEditingController();
   final countryController = TextEditingController();
   final amountController = TextEditingController();
   final reasonController = TextEditingController();
+  bool _submitting = false;
   KycAccess _kycAccess = const KycAccess(
     allowed: false,
     status: 'non_commence',
@@ -60,6 +63,41 @@ class _TransferInternationalScreenState
     await Navigator.push(context, route);
     if (!mounted) return;
     await _loadKycAccess();
+  }
+
+  Future<void> _submit() async {
+    if (!_kycAccess.allowed) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_kycAccess.message)));
+      return;
+    }
+    if (!_formKey.currentState!.validate()) return;
+    final amount = double.tryParse(amountController.text.trim().replaceAll(',', '.'));
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Montant invalide.')));
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref.read(walletRepositoryProvider).transferInternational(
+            beneficiary: beneficiaryController.text.trim(),
+            country: countryController.text.trim(),
+            amount: amount,
+            reason: reasonController.text.trim(),
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.green,
+          content: Text('Demande de transfert international enregistree. En attente de traitement.'),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -202,28 +240,11 @@ class _TransferInternationalScreenState
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (!_kycAccess.allowed) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(_kycAccess.message)),
-                          );
-                          return;
-                        }
-                        if (!_formKey.currentState!.validate()) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            backgroundColor: AppColors.green,
-                            content: Text(
-                              "Demande de transfert international enregistree.",
-                            ),
-                          ),
-                        );
-                        Navigator.pop(context);
-                      },
+                      onPressed: _submitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: palette.accentStrong,
                       ),
-                      child: const Text("Proceder"),
+                      child: Text(_submitting ? "Envoi en cours..." : "Proceder"),
                     ),
                   ),
                 ],

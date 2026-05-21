@@ -1,37 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../core/utils/money.dart';
-import '../../store/mbongo_store.dart';
-import '../../widgets/cards/wallet_card.dart';
+import '../../features/wallet/data/wallet_repository.dart';
+import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import 'request_money_success_screen.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 
-class RequestMoneyScreen extends StatefulWidget {
+class RequestMoneyScreen extends ConsumerStatefulWidget {
   const RequestMoneyScreen({super.key});
 
   @override
-  State<RequestMoneyScreen> createState() => _RequestMoneyScreenState();
+  ConsumerState<RequestMoneyScreen> createState() => _RequestMoneyScreenState();
 }
 
-class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
-  int walletIndex = 0;
+class _RequestMoneyScreenState extends ConsumerState<RequestMoneyScreen> {
   int channelIndex = 0;
+  bool _submitting = false;
 
   final amountController = TextEditingController();
   final phoneController = TextEditingController();
   final reasonController = TextEditingController();
 
   final List<String> channels = ['Mbongo', 'Alias', 'Compte'];
-
-  @override
-  void initState() {
-    super.initState();
-    final selected = MbongoStore.wallets.value.indexWhere((e) => e.selected);
-    walletIndex = selected == -1 ? 0 : selected;
-  }
 
   @override
   void dispose() {
@@ -41,9 +35,9 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    final wallets = MbongoStore.wallets.value;
-    final selectedWallet = wallets[walletIndex];
+  Future<void> _submit() async {
+    final walletData = ref.read(walletProvider).valueOrNull;
+    final currency = walletData?.currency ?? 'CDF';
     final amount =
         double.tryParse(amountController.text.trim().replaceAll(',', '.'));
 
@@ -62,18 +56,33 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RequestMoneySuccessScreen(
-          amount: amount,
-          currency: selectedWallet.currency,
-          channel: channels[channelIndex],
-          phone: phoneController.text.trim(),
-          reason: reasonController.text.trim(),
+    setState(() => _submitting = true);
+    try {
+      await ref.read(walletRepositoryProvider).requestMoney(
+            amount: amount,
+            targetPhone: phoneController.text.trim(),
+            reason: reasonController.text.trim(),
+            channel: channels[channelIndex],
+          );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RequestMoneySuccessScreen(
+            amount: amount,
+            currency: currency,
+            channel: channels[channelIndex],
+            phone: phoneController.text.trim(),
+            reason: reasonController.text.trim(),
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _toast(e.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   void _toast(String message) {
@@ -85,7 +94,8 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = MbongoThemeController.current;
-    final wallets = MbongoStore.wallets.value;
+    final walletData = ref.watch(walletProvider).valueOrNull;
+    final currency = walletData?.currency ?? 'CDF';
 
     return Scaffold(
       backgroundColor: palette.shellBottom,
@@ -116,53 +126,8 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
                 children: [
                   _buildHeaderCard(),
                   const SizedBox(height: 18),
-                  SizedBox(
-                    height: 200,
-                    child: PageView.builder(
-                      controller: PageController(viewportFraction: 0.93),
-                      itemCount: wallets.length,
-                      onPageChanged: (index) {
-                        setState(() => walletIndex = index);
-                        MbongoStore.selectWallet(wallets[index].id);
-                      },
-                      itemBuilder: (_, i) {
-                        final wallet = wallets[i];
-                        final gradient = wallet.currency == "CDF"
-                            ? palette.cardGradient
-                            : [
-                                palette.cardGradient.first,
-                                palette.accentStrong,
-                              ];
-
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: WalletCard(
-                            wallet: wallet,
-                            gradient: gradient,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      wallets.length,
-                      (i) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        width: i == walletIndex ? 22 : 10,
-                        height: 10,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: i == walletIndex
-                              ? palette.accent
-                              : AppColors.border,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
-                  ),
+                  if (walletData != null)
+                    _buildBalanceCard(walletData.balance, currency, palette),
                   const SizedBox(height: 18),
                   _buildLightCard(
                     title: "Canal de demande",
@@ -218,9 +183,9 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
                           label: "Montant",
                           hint: "Ex: 500",
                           prefix: Text(
-                            Money.symbol(wallets[walletIndex].currency),
+                            Money.symbol(currency),
                             style: TextStyle(
-                              color: wallets[walletIndex].currency == "CDF"
+                              color: currency == "CDF"
                                   ? palette.accent
                                   : palette.accentStrong,
                               fontWeight: FontWeight.w900,
@@ -252,17 +217,58 @@ class _RequestMoneyScreenState extends State<RequestMoneyScreen> {
                   ),
                   const SizedBox(height: 18),
                   ElevatedButton(
-                    onPressed: _submit,
+                    onPressed: _submitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: palette.accentStrong,
                     ),
-                    child: const Text("Envoyer la demande"),
+                    child: Text(_submitting ? "Envoi en cours..." : "Envoyer la demande"),
                   ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard(double balance, String currency, MbongoThemePalette palette) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: palette.cardGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: palette.glow.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 28),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Solde disponible",
+                style: TextStyle(color: Color(0xFFE8EEF8), fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "$currency ${balance.toStringAsFixed(2)}",
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -7,7 +7,9 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAirtimePurchaseDto } from './dto/create-airtime-purchase.dto';
 import { CreateDepositDto } from './dto/create-deposit.dto';
+import { CreateInternationalTransferDto } from './dto/create-international-transfer.dto';
 import { CreateMerchantPaymentDto } from './dto/create-merchant-payment.dto';
+import { CreateMoneyRequestDto } from './dto/create-money-request.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { CreateTvPaymentDto } from './dto/create-tv-payment.dto';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
@@ -480,6 +482,116 @@ export class TransactionsService {
         terminalLabel: body.terminalLabel ?? '',
         location: body.location ?? '',
       },
+    });
+  }
+
+  async createInternationalTransfer(body: CreateInternationalTransferDto) {
+    const senderId = this.requireUserId(body.senderId);
+    await this.assertKycApproved(senderId);
+    const idempotencyKey = this.normalizeIdempotencyKey(body.idempotencyKey);
+    const existing = await this.findIdempotentTransaction(senderId, idempotencyKey);
+    if (existing) return this.serializeTransaction(existing);
+
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        type: 'INTERNATIONAL_TRANSFER',
+        status: 'PENDING',
+        amount: body.amount,
+        fee: 0,
+        idempotencyKey: idempotencyKey ?? undefined,
+        senderId,
+        reference: this.createReference('INT'),
+        metadata: JSON.stringify({
+          beneficiary: body.beneficiary,
+          country: body.country,
+          reason: body.reason,
+          providerStatus: 'PENDING_COMPLIANCE',
+        }),
+      },
+    });
+    return this.serializeTransaction(transaction);
+  }
+
+  async createMoneyRequest(body: CreateMoneyRequestDto) {
+    const requesterId = this.requireUserId(body.requesterId);
+    const idempotencyKey = this.normalizeIdempotencyKey(body.idempotencyKey);
+    const existing = await this.findIdempotentTransaction(requesterId, idempotencyKey);
+    if (existing) return this.serializeTransaction(existing);
+
+    let targetUserId: string | undefined;
+    if (body.targetId?.trim()) {
+      targetUserId = body.targetId.trim();
+    } else if (body.targetPhone?.trim()) {
+      const user = await this.prisma.user.findUnique({ where: { phone: body.targetPhone.trim() } });
+      if (user) targetUserId = user.id;
+    }
+
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        type: 'MONEY_REQUEST',
+        status: 'PENDING',
+        amount: body.amount,
+        fee: 0,
+        idempotencyKey: idempotencyKey ?? undefined,
+        senderId: requesterId,
+        receiverId: targetUserId ?? undefined,
+        reference: this.createReference('REQ'),
+        metadata: JSON.stringify({
+          reason: body.reason ?? '',
+          channel: body.channel ?? 'Mbongo',
+          targetPhone: body.targetPhone ?? '',
+        }),
+      },
+    });
+    return this.serializeTransaction(transaction);
+  }
+
+  async listPendingApprovals(userId: string) {
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        receiverId: userId,
+        status: 'PENDING',
+        type: 'MONEY_REQUEST',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return transactions.map((t) => this.serializeTransaction(t));
+  }
+
+  async processApproval(transactionId: string, userId: string, action: 'approve' | 'reject') {
+    const transaction = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
+    if (!transaction || transaction.receiverId !== userId || transaction.status !== 'PENDING') {
+      throw new BadRequestException('Approbation introuvable ou non autorisee');
+    }
+
+    if (action === 'reject') {
+      const updated = await this.prisma.transaction.update({
+        where: { id: transactionId },
+        data: { status: 'FAILED' },
+      });
+      return this.serializeTransaction(updated);
+    }
+
+    const senderId = transaction.senderId!;
+    const senderWallet = await this.prisma.wallet.findUnique({ where: { userId: userId } });
+    if (!senderWallet || senderWallet.balance < transaction.amount) {
+      throw new BadRequestException('Solde insuffisant');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.debitWallet(tx, senderWallet, transaction.amount);
+      const requesterWallet = await this.prisma.wallet.findUnique({ where: { userId: senderId } });
+      if (requesterWallet) {
+        await tx.wallet.update({
+          where: { id: requesterWallet.id },
+          data: { balance: { increment: transaction.amount } },
+        });
+      }
+      const updated = await tx.transaction.update({
+        where: { id: transactionId },
+        data: { status: 'SUCCESS' },
+      });
+      return this.serializeTransaction(updated);
     });
   }
 

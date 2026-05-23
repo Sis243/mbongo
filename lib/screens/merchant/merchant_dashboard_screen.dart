@@ -7,6 +7,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../core/utils/money.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
+import '../payment_links/payment_links_screen.dart';
+import '../withdraw/withdraw_screen.dart';
 
 final _merchantAccountsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final client = ref.read(dioClientProvider);
@@ -107,7 +109,7 @@ class MerchantDashboardScreen extends ConsumerWidget {
                         icon: Icons.link_rounded,
                         label: 'Lien paiement',
                         color: AppColors.cyan,
-                        onTap: () => Navigator.pushNamed(context, '/merchant/links'),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentLinksScreen())),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -116,7 +118,7 @@ class MerchantDashboardScreen extends ConsumerWidget {
                         icon: Icons.arrow_upward_rounded,
                         label: 'Retirer',
                         color: AppColors.orange,
-                        onTap: () => Navigator.pushNamed(context, '/merchant/withdraw'),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawScreen())),
                       ),
                     ),
                   ],

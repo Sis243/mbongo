@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../core/utils/money.dart' as money_util;
 import '../../widgets/common/mbongo_money_particles.dart';
+import 'agent_cashin_screen.dart';
 
 final _agentStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final client = ref.read(dioClientProvider);
@@ -103,7 +104,7 @@ class AgentDashboardScreen extends ConsumerWidget {
                   color: AppColors.green,
                   title: 'Cash-In',
                   subtitle: 'Déposer de l\'argent sur le compte d\'un client',
-                  onTap: () => Navigator.pushNamed(context, '/agent/cashin'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AgentCashInScreen())),
                 ),
                 const SizedBox(height: 12),
                 _ActionCard(
@@ -111,7 +112,7 @@ class AgentDashboardScreen extends ConsumerWidget {
                   color: AppColors.orange,
                   title: 'Cash-Out',
                   subtitle: 'Retirer de l\'argent du compte d\'un client',
-                  onTap: () => Navigator.pushNamed(context, '/agent/cashout'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AgentCashOutScreen())),
                 ),
                 const SizedBox(height: 12),
                 statsAsync.when(

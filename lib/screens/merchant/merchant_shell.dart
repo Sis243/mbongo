@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../features/auth/presentation/auth_notifier.dart';
+import '../../screens/exchange/exchange_money_screen.dart';
 import '../../screens/payment_links/payment_links_screen.dart';
-import '../../screens/transactions_screen.dart';
 import '../../screens/profile/security_screen.dart';
+import '../../screens/profile/support_screen.dart';
+import '../../screens/transactions_screen.dart';
+import '../../screens/withdraw/withdraw_screen.dart';
 import 'merchant_api_key_screen.dart';
 import 'merchant_dashboard_screen.dart';
 import 'merchant_gateway_screen.dart';
@@ -244,11 +247,11 @@ class _MerchantDrawer extends ConsumerWidget {
                   _drawerItem(context, Icons.qr_code_rounded, 'Recevoir de l\'argent', AppColors.green,
                       () => onNavigate(const MerchantDashboardScreen())),
                   _drawerItem(context, Icons.currency_exchange_rounded, 'Change de devises', AppColors.gold,
-                      () => Navigator.pushNamed(context, '/exchange')),
+                      () => onNavigate(const ExchangeMoneyScreen())),
                   _drawerItem(context, Icons.link_rounded, 'Lien de paiement', AppColors.cyan,
                       () => onNavigate(const PaymentLinksScreen())),
                   _drawerItem(context, Icons.arrow_upward_rounded, 'Retirer', AppColors.orange,
-                      () => Navigator.pushNamed(context, '/withdraw')),
+                      () => onNavigate(const WithdrawScreen())),
                   _drawerItem(context, Icons.receipt_long_rounded, 'Transactions', AppColors.text,
                       () => onNavigate(const TransactionsScreen())),
                   const Divider(height: 24, indent: 16, endIndent: 16, color: AppColors.border),
@@ -264,7 +267,7 @@ class _MerchantDrawer extends ConsumerWidget {
                       () => onNavigate(const MerchantApiKeyScreen())),
                   const Divider(height: 24, indent: 16, endIndent: 16, color: AppColors.border),
                   _drawerItem(context, Icons.support_agent_rounded, 'Soutien', AppColors.textSoft,
-                      () => Navigator.pushNamed(context, '/support')),
+                      () => onNavigate(const SupportScreen())),
                 ],
               ),
             ),
@@ -291,7 +294,7 @@ class _MerchantDrawer extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         await ref.read(authProvider.notifier).logout();
-                        if (context.mounted) context.go('/login');
+                        if (context.mounted) context.go('/auth/login');
                       },
                       icon: const Icon(Icons.logout_rounded, size: 16),
                       label: const Text('Déconnexion'),

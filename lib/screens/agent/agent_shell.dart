@@ -5,8 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../features/auth/presentation/auth_notifier.dart';
+import '../../screens/airtime/buy_airtime_screen.dart';
+import '../../screens/appro/appro_mbongo_screen.dart';
+import '../../screens/exchange/exchange_money_screen.dart';
 import '../../screens/profile/security_screen.dart';
 import '../../screens/transactions_screen.dart';
+import '../../screens/transfer/send_money_screen.dart';
+import '../../screens/transfer/transfer_international_screen.dart';
+import '../../screens/tv/tv_subscription_screen.dart';
 import 'agent_cashin_screen.dart';
 import 'agent_dashboard_screen.dart';
 
@@ -53,10 +59,6 @@ class _AgentShellState extends ConsumerState<AgentShell> {
         onNavigate: (page) {
           _scaffoldKey.currentState?.closeDrawer();
           Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-        },
-        onRoute: (route) {
-          _scaffoldKey.currentState?.closeDrawer();
-          Navigator.pushNamed(context, route);
         },
         onTab: (i) {
           _scaffoldKey.currentState?.closeDrawer();
@@ -194,14 +196,12 @@ class _AgentDrawer extends ConsumerWidget {
   final VoidCallback onClose;
   final VoidCallback onExit;
   final void Function(Widget) onNavigate;
-  final void Function(String) onRoute;
   final void Function(int) onTab;
 
   const _AgentDrawer({
     required this.onClose,
     required this.onExit,
     required this.onNavigate,
-    required this.onRoute,
     required this.onTab,
   });
 
@@ -251,26 +251,26 @@ class _AgentDrawer extends ConsumerWidget {
                   _item(context, Icons.arrow_downward_rounded, 'Recevoir de l\'argent', AppColors.green,
                       () => onTab(1)),
                   _item(context, Icons.currency_exchange_rounded, 'Change de devises', AppColors.gold,
-                      () => onRoute('/exchange')),
+                      () => onNavigate(const ExchangeMoneyScreen())),
                   _item(context, Icons.add_card_rounded, 'Ajouter de l\'argent', AppColors.cyan,
-                      () => onRoute('/deposit')),
+                      () => onNavigate(const ApproMbongoScreen())),
                   _item(context, Icons.send_rounded, 'Envoyer de l\'argent', AppColors.green,
-                      () => onRoute('/transfer')),
+                      () => onNavigate(const SendMoneyScreen())),
                   _item(context, Icons.move_to_inbox_rounded, 'L\'argent entrant', AppColors.cyan,
                       () => onTab(1)),
                   _item(context, Icons.receipt_rounded, 'Paiement de factures', AppColors.gold,
-                      () => onRoute('/bills')),
+                      () => onNavigate(const TvSubscriptionScreen())),
                   _item(context, Icons.phone_android_rounded, 'Recharge mobile', AppColors.green,
-                      () => onRoute('/mobile-top-up')),
+                      () => onNavigate(const BuyAirtimeScreen())),
                   _item(context, Icons.arrow_upward_rounded, 'Retirer', AppColors.orange,
                       () => onTab(2)),
                   _item(context, Icons.swap_horiz_rounded, 'Remise', AppColors.gold,
-                      () => onRoute('/remittance')),
+                      () => onNavigate(const TransferInternationalScreen())),
                   const Divider(height: 24, indent: 16, endIndent: 16, color: AppColors.border),
                   _item(context, Icons.person_pin_rounded, 'Expéditeurs enregistrés', AppColors.cyan,
-                      () => onRoute('/saved-senders')),
+                      () => onNavigate(const SendMoneyScreen())),
                   _item(context, Icons.contacts_rounded, 'Récepteurs enregistrés', AppColors.cyan,
-                      () => onRoute('/saved-receivers')),
+                      () => onNavigate(const SendMoneyScreen())),
                   _item(context, Icons.receipt_long_rounded, 'Transactions', AppColors.text,
                       () => onTab(3)),
                   _item(context, Icons.bar_chart_rounded, 'Journal des profits', AppColors.green,
@@ -305,7 +305,7 @@ class _AgentDrawer extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         await ref.read(authProvider.notifier).logout();
-                        if (context.mounted) context.go('/login');
+                        if (context.mounted) context.go('/auth/login');
                       },
                       icon: const Icon(Icons.logout_rounded, size: 16),
                       label: const Text('Déconnexion'),

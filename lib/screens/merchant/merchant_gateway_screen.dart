@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../widgets/common/app_scaffold.dart';
+import 'merchant_api_key_screen.dart';
 
 class MerchantGatewayScreen extends StatelessWidget {
   const MerchantGatewayScreen({super.key});
@@ -24,7 +25,7 @@ class MerchantGatewayScreen extends StatelessWidget {
             title: 'API REST',
             subtitle: 'Intégrez directement via nos endpoints HTTP',
             color: AppColors.cyan,
-            onTap: () => Navigator.pushNamed(context, '/merchant/api-key'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MerchantApiKeyScreen())),
           ),
           const SizedBox(height: 10),
           _IntegrationCard(

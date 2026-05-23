@@ -241,7 +241,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             )
           : await _picker.pickImage(
               source: source,
-              imageQuality: 88,
+              imageQuality: 60,
+              maxWidth: 1280,
+              maxHeight: 1280,
               preferredCameraDevice: CameraDevice.front,
             );
 
@@ -272,7 +274,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             )
           : await _picker.pickImage(
               source: source,
-              imageQuality: 88,
+              imageQuality: 60,
+              maxWidth: 1280,
+              maxHeight: 1280,
               preferredCameraDevice: CameraDevice.rear,
             );
 
@@ -1458,7 +1462,7 @@ class _KycCameraCaptureScreenState extends State<_KycCameraCaptureScreen> {
 
       final controller = camera.CameraController(
         selected,
-        camera.ResolutionPreset.high,
+        camera.ResolutionPreset.medium,
         enableAudio: false,
       );
       _controller = controller;

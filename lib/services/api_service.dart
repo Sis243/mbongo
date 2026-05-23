@@ -105,14 +105,32 @@ class ApiService {
     final backFile = File(backPath);
     final selfieFile = File(selfiePath);
 
-    if (await frontFile.exists() ||
-        await backFile.exists() ||
-        await selfieFile.exists()) {
+    final frontExists = await frontFile.exists();
+    final backExists = await backFile.exists();
+    final selfieExists = await selfieFile.exists();
+
+    if (frontExists || backExists || selfieExists) {
+      final resolvedFront = frontExists ? frontFile : null;
+      final resolvedBack = backExists ? backFile : null;
+      final resolvedSelfie = selfieExists ? selfieFile : null;
+
+      // Vérifier la taille totale — Vercel limite à 4.5 MB
+      const maxTotalBytes = 4 * 1024 * 1024; // 4 MB marge de sécurité
+      int totalBytes = 0;
+      for (final f in [resolvedFront, resolvedBack, resolvedSelfie]) {
+        if (f != null) totalBytes += await f.length();
+      }
+      if (totalBytes > maxTotalBytes) {
+        throw const ApiException(
+          'Les fichiers KYC sont trop volumineux (max 4 MB au total). Utilisez des images plus petites.',
+        );
+      }
+
       return _postKycMultipart(
         documentType: documentType,
-        frontFile: await frontFile.exists() ? frontFile : null,
-        backFile: await backFile.exists() ? backFile : null,
-        selfieFile: await selfieFile.exists() ? selfieFile : null,
+        frontFile: resolvedFront,
+        backFile: resolvedBack,
+        selfieFile: resolvedSelfie,
       );
     }
 
@@ -133,7 +151,9 @@ class ApiService {
     File? backFile,
     File? selfieFile,
   }) async {
-    final client = HttpClient();
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 30)
+      ..idleTimeout = const Duration(seconds: 60);
     final boundary = 'mbongo-${DateTime.now().microsecondsSinceEpoch}';
     final body = BytesBuilder();
 

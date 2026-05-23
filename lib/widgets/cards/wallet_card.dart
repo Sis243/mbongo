@@ -178,7 +178,7 @@ class _WalletCardState extends State<WalletCard>
                         height: 1,
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),

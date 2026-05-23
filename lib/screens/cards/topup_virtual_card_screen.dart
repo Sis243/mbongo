@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
-import '../../services/api_service.dart';
-import '../../services/local_bank_service.dart';
+import '../../features/cards/presentation/card_notifier.dart';
 import '../../widgets/cards/virtual_bank_card.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 
-class TopupVirtualCardScreen extends StatefulWidget {
+class TopupVirtualCardScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> card;
 
   const TopupVirtualCardScreen({
@@ -17,10 +17,10 @@ class TopupVirtualCardScreen extends StatefulWidget {
   });
 
   @override
-  State<TopupVirtualCardScreen> createState() => _TopupVirtualCardScreenState();
+  ConsumerState<TopupVirtualCardScreen> createState() => _TopupVirtualCardScreenState();
 }
 
-class _TopupVirtualCardScreenState extends State<TopupVirtualCardScreen> {
+class _TopupVirtualCardScreenState extends ConsumerState<TopupVirtualCardScreen> {
   final amountController = TextEditingController();
   bool isLoading = false;
 
@@ -40,23 +40,15 @@ class _TopupVirtualCardScreenState extends State<TopupVirtualCardScreen> {
     }
 
     setState(() => isLoading = true);
-    bool ok;
     try {
-      ok = await LocalBankService.topupVirtualCard(
-        cardId: widget.card['id'].toString(),
-        amount: amount,
-      );
-    } on ApiException catch (error) {
+      await ref.read(cardProvider.notifier).topupCard(
+            cardId: widget.card['id'].toString(),
+            amount: amount,
+          );
+    } catch (error) {
       if (!mounted) return;
       setState(() => isLoading = false);
-      _toast(error.message);
-      return;
-    }
-
-    if (!ok) {
-      if (!mounted) return;
-      setState(() => isLoading = false);
-      _toast('Rechargement impossible.');
+      _toast(error.toString());
       return;
     }
 

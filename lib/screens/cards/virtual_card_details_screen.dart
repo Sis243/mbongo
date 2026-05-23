@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
-import '../../services/api_service.dart';
-import '../../services/local_bank_service.dart';
+import '../../features/cards/presentation/card_notifier.dart';
 import '../../widgets/cards/virtual_bank_card.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 
-class VirtualCardDetailsScreen extends StatefulWidget {
+class VirtualCardDetailsScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> card;
 
   const VirtualCardDetailsScreen({
@@ -17,22 +17,22 @@ class VirtualCardDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<VirtualCardDetailsScreen> createState() => _VirtualCardDetailsScreenState();
+  ConsumerState<VirtualCardDetailsScreen> createState() => _VirtualCardDetailsScreenState();
 }
 
-class _VirtualCardDetailsScreenState extends State<VirtualCardDetailsScreen> {
+class _VirtualCardDetailsScreenState extends ConsumerState<VirtualCardDetailsScreen> {
   bool showSensitive = false;
   bool isToggling = false;
 
   Future<void> _toggleStatus(bool active) async {
     setState(() => isToggling = true);
     try {
-      await LocalBankService.toggleVirtualCardStatus(widget.card['id'].toString());
-    } on ApiException catch (error) {
+      await ref.read(cardProvider.notifier).toggleCard(widget.card['id'].toString());
+    } catch (error) {
       if (!mounted) return;
       setState(() => isToggling = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
+        SnackBar(content: Text(error.toString())),
       );
       return;
     }

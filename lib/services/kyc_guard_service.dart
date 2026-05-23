@@ -1,5 +1,6 @@
+import '../core/api/dio_client.dart';
+import '../core/storage/app_storage.dart';
 import 'auth_service.dart';
-import 'api_service.dart';
 
 class KycAccess {
   final bool allowed;
@@ -16,7 +17,8 @@ class KycAccess {
 class KycGuardService {
   static Future<String> syncRemoteStatus() async {
     try {
-      final remote = await ApiService.getKycStatus();
+      final client = DioClient(AppStorage());
+      final remote = await client.get('/kyc/me');
       if (remote.isEmpty) return AuthService.getKycStatus();
 
       final remoteStatus = remote['status']?.toString().toUpperCase();
@@ -38,6 +40,8 @@ class KycGuardService {
 
       return localStatus;
     } on ApiException {
+      return AuthService.getKycStatus();
+    } catch (_) {
       return AuthService.getKycStatus();
     }
   }

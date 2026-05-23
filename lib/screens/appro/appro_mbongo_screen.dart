@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/dio_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../core/utils/money.dart';
+import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../models/cash_agent_option.dart';
-import '../../services/api_service.dart';
-import '../../services/local_bank_service.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 
-class ApproMbongoScreen extends StatefulWidget {
+class ApproMbongoScreen extends ConsumerStatefulWidget {
   const ApproMbongoScreen({super.key});
 
   @override
-  State<ApproMbongoScreen> createState() => _ApproMbongoScreenState();
+  ConsumerState<ApproMbongoScreen> createState() => _ApproMbongoScreenState();
 }
 
-class _ApproMbongoScreenState extends State<ApproMbongoScreen> {
+class _ApproMbongoScreenState extends ConsumerState<ApproMbongoScreen> {
   final amountController = TextEditingController();
   final noteController = TextEditingController();
   final phoneController = TextEditingController();
@@ -62,8 +63,12 @@ class _ApproMbongoScreenState extends State<ApproMbongoScreen> {
     });
 
     try {
-      final response = await ApiService.getCashAgents();
-      final agents = response
+      final resp = await ref.read(dioClientProvider).get('/transactions/cash-agents');
+      final list = resp['data'];
+      final raw = (list is List)
+          ? list.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          : <Map<String, dynamic>>[];
+      final agents = raw
           .map(CashAgentOption.fromJson)
           .where((agent) => agent.id.isNotEmpty && agent.name.isNotEmpty)
           .toList();
@@ -73,12 +78,9 @@ class _ApproMbongoScreenState extends State<ApproMbongoScreen> {
         _cashAgents = agents;
         _selectedCashAgent = agents.isEmpty ? null : agents.first;
       });
-    } on ApiException catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _cashAgentError = error.message);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _cashAgentError = 'Agents cash indisponibles.');
+      setState(() => _cashAgentError = error.toString());
     } finally {
       if (mounted) {
         setState(() => _loadingCashAgents = false);
@@ -113,22 +115,20 @@ class _ApproMbongoScreenState extends State<ApproMbongoScreen> {
       return;
     }
 
-    if (selectedWallet != 'Portefeuille CDF') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Le depot API est disponible en CDF.')),
-      );
-      return;
-    }
-
     setState(() => _submitting = true);
 
     try {
-      await LocalBankService.receiveMoney(
-        from: selectedSource,
-        amount: amount,
-        agentId: _selectedCashAgent?.id,
-        agentName: _selectedCashAgent?.name,
-      );
+      final client = ref.read(dioClientProvider);
+      await client.post('/transactions/deposit', {
+        'amount': amount,
+        'source': selectedSource,
+        if (noteController.text.trim().isNotEmpty)
+          'description': noteController.text.trim(),
+        if (_selectedCashAgent != null) 'agentId': _selectedCashAgent!.id,
+        if (_selectedCashAgent != null) 'agentName': _selectedCashAgent!.name,
+      });
+
+      ref.refresh(walletProvider.future).ignore();
 
       if (!mounted) return;
       amountController.clear();
@@ -137,15 +137,10 @@ class _ApproMbongoScreenState extends State<ApproMbongoScreen> {
         SnackBar(
             content: Text('Depot enregistre : ${Money.format(amount, 'CDF')}')),
       );
-    } on ApiException catch (error) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Depot impossible pour le moment.')),
+        SnackBar(content: Text(e.toString())),
       );
     } finally {
       if (mounted) {

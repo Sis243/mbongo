@@ -140,29 +140,35 @@ class _RequestMoneyScreenState extends ConsumerState<RequestMoneyScreen> {
                             padding: EdgeInsets.only(
                               right: i == channels.length - 1 ? 0 : 10,
                             ),
-                            child: GestureDetector(
-                              onTap: () => setState(() => channelIndex = i),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? palette.accent
-                                      : palette.panelAlt,
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(
+                            child: Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(18),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(18),
+                                onTap: () => setState(() => channelIndex = i),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  decoration: BoxDecoration(
                                     color: selected
                                         ? palette.accent
-                                        : AppColors.border.withValues(alpha: 0.65),
+                                        : palette.panelAlt,
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: selected
+                                          ? palette.accent
+                                          : AppColors.border.withValues(alpha: 0.65),
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  channels[i],
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: selected ? Colors.white : AppColors.darkText,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
+                                  child: Text(
+                                    channels[i],
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? Colors.white
+                                          : palette.accentStrong,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                 ),
                               ),

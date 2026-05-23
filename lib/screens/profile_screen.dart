@@ -18,6 +18,14 @@ import 'profile/kyc_status_screen.dart';
 import 'profile/security_screen.dart';
 import 'profile/settings_screen.dart';
 import 'profile/support_screen.dart';
+import 'agents/agents_screen.dart';
+import 'dispute/dispute_screen.dart';
+import 'profile/update_profile_screen.dart';
+import 'exchange_rates/exchange_rates_screen.dart';
+import 'fees/fees_screen.dart';
+import 'payment_methods/payment_methods_screen.dart';
+import 'referral/referral_screen.dart';
+import 'admin/admin_access_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -214,6 +222,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   _buildKycPanel(context),
                                   const SizedBox(height: 18),
                                   _buildActionTile(
+                                    icon: Icons.edit_rounded,
+                                    title: 'Modifier le profil',
+                                    subtitle: 'Nom et informations',
+                                    color: AppColors.cyan,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const UpdateProfileScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
                                     icon: Icons.verified_user_rounded,
                                     title: 'Statut KYC',
                                     subtitle: _kycStatus == 'en_attente'
@@ -321,6 +344,111 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (_) => const FaqScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
+                                    icon: Icons.currency_exchange_rounded,
+                                    title: 'Taux de change',
+                                    subtitle: 'Cours des devises',
+                                    color: AppColors.cyan,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const ExchangeRatesScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
+                                    icon: Icons.group_add_rounded,
+                                    title: 'Parrainage',
+                                    subtitle: 'Invitez vos proches',
+                                    color: AppColors.green,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const ReferralScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
+                                    icon: Icons.gavel_rounded,
+                                    title: 'Litiges & Reclamations',
+                                    subtitle: 'Signalez un probleme',
+                                    color: AppColors.orange,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const DisputeScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
+                                    icon: Icons.price_check_rounded,
+                                    title: 'Grille tarifaire',
+                                    subtitle: 'Frais et limites',
+                                    color: AppColors.gold,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const FeesScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
+                                    icon: Icons.store_rounded,
+                                    title: 'Agents de cash',
+                                    subtitle: 'Trouver un agent pres de vous',
+                                    color: AppColors.primary,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const AgentsScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
+                                    icon: Icons.account_balance_wallet_rounded,
+                                    title: 'Methodes de paiement',
+                                    subtitle: 'Depot et retrait',
+                                    color: AppColors.cyan,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const PaymentMethodsScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
+                                    icon: Icons.admin_panel_settings_rounded,
+                                    title: 'Administration',
+                                    subtitle: 'Backoffice et gestion',
+                                    color: AppColors.primary,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const AdminAccessScreen(),
                                         ),
                                       );
                                     },

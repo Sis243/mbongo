@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
-import '../../services/api_service.dart';
+import '../../features/auth/presentation/auth_notifier.dart';
+import '../../features/cards/presentation/card_notifier.dart';
 import '../../services/kyc_guard_service.dart';
-import '../../services/local_bank_service.dart';
-import '../../store/mbongo_store.dart';
 import '../../widgets/cards/virtual_bank_card.dart';
 import '../../widgets/common/kyc_action_banner.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
@@ -13,14 +13,14 @@ import '../profile/kyc_status_screen.dart';
 import '../register_screen.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 
-class CreateVirtualCardScreen extends StatefulWidget {
+class CreateVirtualCardScreen extends ConsumerStatefulWidget {
   const CreateVirtualCardScreen({super.key});
 
   @override
-  State<CreateVirtualCardScreen> createState() => _CreateVirtualCardScreenState();
+  ConsumerState<CreateVirtualCardScreen> createState() => _CreateVirtualCardScreenState();
 }
 
-class _CreateVirtualCardScreenState extends State<CreateVirtualCardScreen> {
+class _CreateVirtualCardScreenState extends ConsumerState<CreateVirtualCardScreen> {
   String selectedCurrency = 'USD';
   String selectedBrand = 'VISA';
   bool isLoading = false;
@@ -52,16 +52,18 @@ class _CreateVirtualCardScreenState extends State<CreateVirtualCardScreen> {
 
     setState(() => isLoading = true);
     try {
-      await LocalBankService.createVirtualCard(
-        holderName: MbongoStore.profileName.value,
-        currency: selectedCurrency,
-        brand: selectedBrand,
-      );
-    } on ApiException catch (error) {
+      final holderName =
+          ref.read(authProvider).valueOrNull?.name ?? 'Client MBONGO';
+      await ref.read(cardProvider.notifier).createCard(
+            holderName: holderName,
+            currency: selectedCurrency,
+            brand: selectedBrand,
+          );
+    } catch (error) {
       if (!mounted) return;
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
+        SnackBar(content: Text(error.toString())),
       );
       return;
     }
@@ -195,7 +197,7 @@ class _CreateVirtualCardScreenState extends State<CreateVirtualCardScreen> {
               const SizedBox(height: 18),
               VirtualBankCard(
                 brand: selectedBrand,
-                holderName: MbongoStore.profileName.value,
+                holderName: ref.read(authProvider).valueOrNull?.name ?? 'Client MBONGO',
                 maskedPan: selectedBrand == 'MASTERCARD'
                     ? '5210 **** **** 5678'
                     : '4111 **** **** 1234',
@@ -215,7 +217,7 @@ class _CreateVirtualCardScreenState extends State<CreateVirtualCardScreen> {
                 ),
                 child: Column(
                   children: [
-                    _infoRow('Porteur', MbongoStore.profileName.value),
+                    _infoRow('Porteur', ref.read(authProvider).valueOrNull?.name ?? 'Client MBONGO'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: selectedCurrency,

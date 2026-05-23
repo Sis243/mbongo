@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
@@ -177,6 +178,23 @@ class BuyAirtimeSuccessScreen extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Share.share(
+                            'MBONGO — Achat d\'unites valide\n'
+                            'Operateur : $operatorName\n'
+                            'Telephone : $phone\n'
+                            'Montant : $currency ${amount.toStringAsFixed(2)}\n'
+                            '---\nRecharge effectuee via MBONGO.',
+                          );
+                        },
+                        icon: const Icon(Icons.share_rounded),
+                        label: const Text('Partager le recu'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(

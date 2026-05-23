@@ -750,6 +750,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                         items: const [
                           DropdownMenuItem(
+                            value: 'Carte nationale',
+                            child: Text('Carte nationale'),
+                          ),
+                          DropdownMenuItem(
                             value: 'Carte d\'électeur',
                             child: Text('Carte d\'électeur'),
                           ),

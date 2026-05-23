@@ -17,7 +17,7 @@ class VirtualCardsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = MbongoThemeController.current;
-    final cards = ref.watch(cardProvider).valueOrNull ?? [];
+    final cardsAsync = ref.watch(cardProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -46,19 +46,43 @@ class VirtualCardsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          ListView(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-            children: [
-              _header(cards.length, palette),
-              const SizedBox(height: 18),
-              if (cards.isEmpty) _emptyState(),
-              ...cards.map(
-                (card) => Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _VirtualCardTile(card: card),
-                ),
+          cardsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.credit_card_off_rounded, color: AppColors.muted, size: 48),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Impossible de charger les cartes.',
+                    style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 14),
+                  ElevatedButton(
+                    onPressed: () => ref.refresh(cardProvider),
+                    child: const Text('Reessayer'),
+                  ),
+                ],
               ),
-            ],
+            ),
+            data: (cards) => RefreshIndicator(
+              onRefresh: () => ref.refresh(cardProvider.future),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+                children: [
+                  _header(cards.length, palette),
+                  const SizedBox(height: 18),
+                  if (cards.isEmpty) _emptyState(),
+                  ...cards.map(
+                    (card) => Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _VirtualCardTile(card: card),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
-import '../../services/profile_persistence_service.dart';
+import '../../features/auth/presentation/auth_notifier.dart';
 import '../../widgets/common/app_scaffold.dart';
 
-class ChangePinScreen extends StatefulWidget {
+class ChangePinScreen extends ConsumerStatefulWidget {
   const ChangePinScreen({super.key});
 
   @override
-  State<ChangePinScreen> createState() => _ChangePinScreenState();
+  ConsumerState<ChangePinScreen> createState() => _ChangePinScreenState();
 }
 
-class _ChangePinScreenState extends State<ChangePinScreen> {
+class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
   final currentPinController = TextEditingController();
   final newPinController = TextEditingController();
   final confirmPinController = TextEditingController();
@@ -51,13 +52,20 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
     }
 
     setState(() => isSaving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    await ProfilePersistenceService.savePinConfigured(true);
-
-    if (!mounted) return;
-    setState(() => isSaving = false);
-    _toast('Code PIN mis a jour.');
-    Navigator.pop(context);
+    try {
+      await ref.read(authProvider.notifier).changePin(
+            currentPin: currentPin,
+            newPin: newPin,
+          );
+      if (!mounted) return;
+      _toast('Code PIN mis a jour.');
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      _toast(e.toString());
+    } finally {
+      if (mounted) setState(() => isSaving = false);
+    }
   }
 
   void _toast(String message) {
@@ -155,19 +163,19 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
               fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 8),
+          const Text(
             'Rotation du secret',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.text,
               fontSize: 22,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'Mettez a jour le code d acces principal du profil.',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 13,
               height: 1.35,
@@ -233,10 +241,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.shield_moon_rounded,
-            color: palette.accent,
-          ),
+          Icon(Icons.shield_moon_rounded, color: palette.accent),
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
@@ -287,10 +292,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
         fillColor: palette.panel,
         labelText: label,
         labelStyle: const TextStyle(color: AppColors.muted),
-        prefixIcon: Icon(
-          Icons.lock_outline_rounded,
-          color: palette.accent,
-        ),
+        prefixIcon: Icon(Icons.lock_outline_rounded, color: palette.accent),
         suffixIcon: IconButton(
           onPressed: onToggle,
           icon: Icon(

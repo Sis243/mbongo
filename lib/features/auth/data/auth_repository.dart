@@ -98,6 +98,22 @@ class AuthRepository {
     await _storage.clearSession();
   }
 
+  Future<void> changePin({required String currentPin, required String newPin}) async {
+    await _client.post('/auth/change-pin', {
+      'currentPin': currentPin,
+      'newPin': newPin,
+    });
+  }
+
+  Future<AppUser> updateProfile({String? name}) async {
+    final body = <String, dynamic>{};
+    if (name != null && name.trim().isNotEmpty) body['name'] = name.trim();
+    final fresh = await _client.patch('/users/me', body);
+    final updated = AppUser.fromMap(fresh);
+    await _storage.saveCurrentUser(updated.toMap());
+    return updated;
+  }
+
   Future<AppUser?> restoreSession() async {
     final hasSession = await _storage.hasSession();
     if (!hasSession) return null;

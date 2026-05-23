@@ -41,6 +41,18 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     state = const AsyncData(null);
   }
 
+  Future<void> changePin({required String currentPin, required String newPin}) async {
+    await ref.read(authRepositoryProvider).changePin(
+          currentPin: currentPin,
+          newPin: newPin,
+        );
+  }
+
+  Future<void> updateProfile({String? name}) async {
+    final updated = await ref.read(authRepositoryProvider).updateProfile(name: name);
+    state = AsyncData(updated);
+  }
+
   bool get isAuthenticated => state.valueOrNull != null;
 
   AppUser? get currentUser => state.valueOrNull;

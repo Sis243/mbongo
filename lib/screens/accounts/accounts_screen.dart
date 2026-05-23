@@ -128,7 +128,12 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                 ),
               ];
 
-              return ListView(
+              return RefreshIndicator(
+                onRefresh: () async {
+                  await ref.read(walletProvider.notifier).refresh();
+                  ref.invalidate(cardProvider);
+                },
+                child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
                 children: [
                   _buildHeader(clientName, palette),
@@ -248,7 +253,8 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                   else
                     ...recent.map((tx) => _recentTile(tx, palette)),
                 ],
-              );
+              ),
+            );
             },
           ),
         ],

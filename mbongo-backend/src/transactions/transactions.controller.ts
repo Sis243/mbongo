@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateAirtimePurchaseDto } from './dto/create-airtime-purchase.dto';
 import { CreateDepositDto } from './dto/create-deposit.dto';
 import { CreateInternationalTransferDto } from './dto/create-international-transfer.dto';
@@ -15,7 +16,10 @@ import { TransactionsService } from './transactions.service';
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
 export class TransactionsController {
-  constructor(private readonly transactionsService: TransactionsService) {}
+  constructor(
+    private readonly transactionsService: TransactionsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get()
   findMine(@CurrentUser() user: JwtRequestUser) {
@@ -109,5 +113,42 @@ export class TransactionsController {
   @Post(':id/reject')
   rejectRequest(@Param('id') id: string, @CurrentUser() user: JwtRequestUser) {
     return this.transactionsService.processApproval(id, user.userId, 'reject');
+  }
+
+  @Post(':id/dispute')
+  async createDispute(
+    @Param('id') id: string,
+    @Body() body: { subject: string; description: string },
+    @CurrentUser() user: JwtRequestUser,
+  ) {
+    const dispute = await this.prisma.dispute.create({
+      data: {
+        userId: user.userId,
+        transactionId: id,
+        subject: body.subject,
+        description: body.description,
+      },
+    });
+    return { id: dispute.id, status: dispute.status, createdAt: dispute.createdAt };
+  }
+
+  @Get('disputes')
+  async listMyDisputes(@CurrentUser() user: JwtRequestUser) {
+    const disputes = await this.prisma.dispute.findMany({
+      where: { userId: user.userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        transactionId: true,
+        subject: true,
+        description: true,
+        status: true,
+        priority: true,
+        resolution: true,
+        createdAt: true,
+        resolvedAt: true,
+      },
+    });
+    return { data: disputes };
   }
 }

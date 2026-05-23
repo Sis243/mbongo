@@ -1,11 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/dio_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
+import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../services/backoffice_service.dart';
-import '../../services/local_bank_service.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../merchant/pos_ticket_details_screen.dart';
+
+final _bMerchantsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/accounts');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+final _bTerminalsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/terminals');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+final _bReceiptsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/pos-receipts');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+final _bRolesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/roles');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+final _bCardsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/cards/me');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
 
 enum _AdminSection {
   overview,
@@ -16,133 +63,104 @@ enum _AdminSection {
   kyc,
 }
 
-class BackofficeScreen extends StatefulWidget {
+class BackofficeScreen extends ConsumerStatefulWidget {
   const BackofficeScreen({super.key});
 
   @override
-  State<BackofficeScreen> createState() => _BackofficeScreenState();
+  ConsumerState<BackofficeScreen> createState() => _BackofficeScreenState();
 }
 
-class _BackofficeScreenState extends State<BackofficeScreen> {
+class _BackofficeScreenState extends ConsumerState<BackofficeScreen> {
   _AdminSection _section = _AdminSection.overview;
 
   @override
-  void initState() {
-    super.initState();
-    LocalBankService.refreshRemoteState().catchError((_) {});
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final merchants = ref.watch(_bMerchantsProvider).valueOrNull ?? [];
+    final terminals = ref.watch(_bTerminalsProvider).valueOrNull ?? [];
+    final receipts = ref.watch(_bReceiptsProvider).valueOrNull ?? [];
+    final roles = ref.watch(_bRolesProvider).valueOrNull ?? [];
+    final virtualCards = ref.watch(_bCardsProvider).valueOrNull ?? [];
+    final wallet = ref.watch(walletProvider).valueOrNull;
+    final transactions = wallet?.transactions.map((t) => t.toMap()).toList() ?? [];
+
     return ValueListenableBuilder<List<IntegrationChannel>>(
       valueListenable: BackofficeService.channels,
       builder: (context, channels, _) {
-        return ValueListenableBuilder<List<Map<String, dynamic>>>(
-          valueListenable: LocalBankService.merchantAccounts,
-          builder: (context, merchants, __) {
-            return ValueListenableBuilder<List<Map<String, dynamic>>>(
-              valueListenable: LocalBankService.merchantTerminals,
-              builder: (context, terminals, ___) {
-                return ValueListenableBuilder<List<Map<String, dynamic>>>(
-                  valueListenable: LocalBankService.posReceipts,
-                  builder: (context, receipts, ____) {
-                    return ValueListenableBuilder<List<Map<String, dynamic>>>(
-                      valueListenable: LocalBankService.merchantRoles,
-                      builder: (context, roles, _____) {
-                        return ValueListenableBuilder<List<Map<String, dynamic>>>(
-                          valueListenable: LocalBankService.virtualCards,
-                          builder: (context, virtualCards, ______) {
-                            return ValueListenableBuilder<List<Map<String, dynamic>>>(
-                              valueListenable: LocalBankService.transactions,
-                              builder: (context, transactions, _______) {
-                                final palette = MbongoThemeController.current;
-                                final data = _AdminData(
-                                  channels: channels,
-                                  merchants: merchants,
-                                  terminals: terminals,
-                                  receipts: receipts,
-                                  roles: roles,
-                                  virtualCards: virtualCards,
-                                  transactions: transactions,
-                                  kycQueue: BackofficeService.kycQueue,
-                                );
+        final palette = MbongoThemeController.current;
+        final data = _AdminData(
+          channels: channels,
+          merchants: merchants,
+          terminals: terminals,
+          receipts: receipts,
+          roles: roles,
+          virtualCards: virtualCards,
+          transactions: transactions,
+          kycQueue: BackofficeService.kycQueue,
+        );
 
-                                return Scaffold(
-                                  backgroundColor: palette.shellBottom,
-                                  body: Stack(
-                                    children: [
-                                      Positioned.fill(
-                                        child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [palette.shellTop, palette.shellBottom],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned.fill(
-                                        child: IgnorePointer(
-                                          child: MbongoMoneyParticles(
-                                            color: palette.accentStrong,
-                                            count: 26,
-                                            opacity: 0.08,
-                                            height: 0,
-                                          ),
-                                        ),
-                                      ),
-                                      SafeArea(
-                                        child: LayoutBuilder(
-                                          builder: (context, constraints) {
-                                            final desktop = constraints.maxWidth >= 1100;
-                                            final sidebar = _AdminSidebar(
-                                              current: _section,
-                                              onSelect: (section) {
-                                                setState(() => _section = section);
-                                              },
-                                            );
-                                            final content = _AdminContent(
-                                              section: _section,
-                                              data: data,
-                                              onCreateMerchant: () => _showMerchantDialog(),
-                                              onCreateTerminal: () =>
-                                                  _showTerminalDialog(data.merchants),
-                                              onAssignRole: () => _showRoleDialog(data.merchants),
-                                            );
-
-                                            if (desktop) {
-                                              return Row(
-                                                children: [
-                                                  SizedBox(width: 290, child: sidebar),
-                                                  Expanded(child: content),
-                                                ],
-                                              );
-                                            }
-
-                                            return Column(
-                                              children: [
-                                                SizedBox(height: 148, child: sidebar),
-                                                Expanded(child: content),
-                                              ],
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        );
+        return Scaffold(
+          backgroundColor: palette.shellBottom,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [palette.shellTop, palette.shellBottom],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: MbongoMoneyParticles(
+                    color: palette.accentStrong,
+                    count: 26,
+                    opacity: 0.08,
+                    height: 0,
+                  ),
+                ),
+              ),
+              SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final desktop = constraints.maxWidth >= 1100;
+                    final sidebar = _AdminSidebar(
+                      current: _section,
+                      onSelect: (section) {
+                        setState(() => _section = section);
                       },
                     );
+                    final content = _AdminContent(
+                      section: _section,
+                      data: data,
+                      onCreateMerchant: () => _showMerchantDialog(),
+                      onCreateTerminal: () => _showTerminalDialog(data.merchants),
+                      onAssignRole: () => _showRoleDialog(data.merchants),
+                    );
+
+                    if (desktop) {
+                      return Row(
+                        children: [
+                          SizedBox(width: 290, child: sidebar),
+                          Expanded(child: content),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      children: [
+                        SizedBox(height: 148, child: sidebar),
+                        Expanded(child: content),
+                      ],
+                    );
                   },
-                );
-              },
-            );
-          },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -155,7 +173,7 @@ class _BackofficeScreenState extends State<BackofficeScreen> {
     final categoryCtrl = TextEditingController(
       text: merchant == null ? '' : merchant['category']?.toString() ?? '',
     );
-    final locationCtrl = TextEditingController(
+    final locCtrl = TextEditingController(
       text: merchant == null ? '' : merchant['location']?.toString() ?? '',
     );
 
@@ -185,7 +203,7 @@ class _BackofficeScreenState extends State<BackofficeScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: locationCtrl,
+                  controller: locCtrl,
                   decoration: const InputDecoration(labelText: 'Zone'),
                 ),
               ],
@@ -197,24 +215,29 @@ class _BackofficeScreenState extends State<BackofficeScreen> {
               child: const Text('Annuler'),
             ),
             ElevatedButton(
-              onPressed: () {
-                LocalBankService.upsertMerchantAccount(
-                  merchantId: merchant == null ? null : merchant['id']?.toString(),
-                  name: nameCtrl.text.trim().isEmpty
-                      ? (merchant == null ? 'Marchand' : merchant['name']?.toString() ?? 'Marchand')
-                      : nameCtrl.text.trim(),
-                  category: categoryCtrl.text.trim().isEmpty
-                      ? (merchant == null
-                          ? 'Commerce'
-                          : merchant['category']?.toString() ?? 'Commerce')
-                      : categoryCtrl.text.trim(),
-                  location: locationCtrl.text.trim().isEmpty
-                      ? (merchant == null
-                          ? 'Kinshasa'
-                          : merchant['location']?.toString() ?? 'Kinshasa')
-                      : locationCtrl.text.trim(),
-                );
+              onPressed: () async {
                 Navigator.pop(dialogContext);
+                try {
+                  final body = {
+                    'name': nameCtrl.text.trim().isEmpty
+                        ? (merchant?['name']?.toString() ?? 'Marchand')
+                        : nameCtrl.text.trim(),
+                    'category': categoryCtrl.text.trim().isEmpty
+                        ? (merchant?['category']?.toString() ?? 'Commerce')
+                        : categoryCtrl.text.trim(),
+                    'location': locCtrl.text.trim().isEmpty
+                        ? (merchant?['location']?.toString() ?? 'Kinshasa')
+                        : locCtrl.text.trim(),
+                  };
+                  if (merchant != null) {
+                    await ref
+                        .read(dioClientProvider)
+                        .patch('/merchant/accounts/${merchant['id']}', body);
+                  } else {
+                    await ref.read(dioClientProvider).post('/merchant/accounts', body);
+                  }
+                  ref.refresh(_bMerchantsProvider.future).ignore();
+                } catch (_) {}
               },
               child: const Text('Enregistrer'),
             ),
@@ -229,7 +252,7 @@ class _BackofficeScreenState extends State<BackofficeScreen> {
     String merchantId = merchant == null ? '' : merchant['id']?.toString() ?? '';
     String merchantName = merchant == null ? '' : merchant['name']?.toString() ?? '';
     final terminalCtrl = TextEditingController();
-    final locationCtrl = TextEditingController();
+    final locCtrl = TextEditingController();
 
     await showDialog<void>(
       context: context,
@@ -277,7 +300,7 @@ class _BackofficeScreenState extends State<BackofficeScreen> {
                     ),
                     const SizedBox(height: 12),
                     TextField(
-                      controller: locationCtrl,
+                      controller: locCtrl,
                       decoration: const InputDecoration(labelText: 'Emplacement'),
                     ),
                   ],
@@ -291,18 +314,21 @@ class _BackofficeScreenState extends State<BackofficeScreen> {
                 ElevatedButton(
                   onPressed: merchantId.isEmpty
                       ? null
-                      : () {
-                          LocalBankService.onboardTerminal(
-                            merchantId: merchantId,
-                            merchantName: merchantName,
-                            terminalId: terminalCtrl.text.trim().isEmpty
-                                ? 'POS-${DateTime.now().millisecondsSinceEpoch}'
-                                : terminalCtrl.text.trim(),
-                            location: locationCtrl.text.trim().isEmpty
-                                ? 'Point de vente'
-                                : locationCtrl.text.trim(),
-                          );
+                      : () async {
                           Navigator.pop(dialogContext);
+                          try {
+                            await ref.read(dioClientProvider).post('/merchant/terminals', {
+                              'merchantId': merchantId,
+                              'merchantName': merchantName,
+                              'terminalId': terminalCtrl.text.trim().isEmpty
+                                  ? 'POS-${DateTime.now().millisecondsSinceEpoch}'
+                                  : terminalCtrl.text.trim(),
+                              'location': locCtrl.text.trim().isEmpty
+                                  ? 'Point de vente'
+                                  : locCtrl.text.trim(),
+                            });
+                            ref.refresh(_bTerminalsProvider.future).ignore();
+                          } catch (_) {}
                         },
                   child: const Text('Activer'),
                 ),
@@ -389,16 +415,19 @@ class _BackofficeScreenState extends State<BackofficeScreen> {
                 ElevatedButton(
                   onPressed: merchantId.isEmpty
                       ? null
-                      : () {
-                          LocalBankService.assignMerchantRole(
-                            merchantId: merchantId,
-                            merchantName: merchantName,
-                            name: nameCtrl.text.trim().isEmpty
-                                ? 'Nouveau profil'
-                                : nameCtrl.text.trim(),
-                            role: role,
-                          );
+                      : () async {
                           Navigator.pop(dialogContext);
+                          try {
+                            await ref.read(dioClientProvider).post('/merchant/roles', {
+                              'merchantId': merchantId,
+                              'merchantName': merchantName,
+                              'name': nameCtrl.text.trim().isEmpty
+                                  ? 'Nouveau profil'
+                                  : nameCtrl.text.trim(),
+                              'role': role,
+                            });
+                            ref.refresh(_bRolesProvider.future).ignore();
+                          } catch (_) {}
                         },
                   child: const Text('Attribuer'),
                 ),

@@ -80,8 +80,6 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
     setState(() => isLoading = true);
     try {
-      await Future.delayed(const Duration(milliseconds: 250));
-
       await ref.read(walletRepositoryProvider).transfer(
             receiverPhone: phoneController.text.trim(),
             amount: amount,

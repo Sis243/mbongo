@@ -1,22 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/api/dio_client.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
+import '../features/wallet/presentation/wallet_notifier.dart';
 import '../services/auth_service.dart';
-import '../services/api_service.dart';
-import '../services/local_bank_service.dart';
 import 'merchant/pos_ticket_details_screen.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import '../widgets/common/mbongo_sub_app_bar.dart';
 
-class QrPayScreen extends StatefulWidget {
+final _merchantsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/accounts');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+final _terminalsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/terminals');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+final _posReceiptsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/pos-receipts');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+final _merchantRolesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/merchant/roles');
+    final list = resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
+class QrPayScreen extends ConsumerStatefulWidget {
   const QrPayScreen({super.key});
 
   @override
-  State<QrPayScreen> createState() => _QrPayScreenState();
+  ConsumerState<QrPayScreen> createState() => _QrPayScreenState();
 }
 
-class _QrPayScreenState extends State<QrPayScreen> {
+class _QrPayScreenState extends ConsumerState<QrPayScreen> {
   final merchantCtrl = TextEditingController(text: 'Marchand demo');
   final terminalCtrl = TextEditingController(text: 'POS-KIN-07');
   final amountCtrl = TextEditingController(text: '25000');
@@ -29,31 +66,11 @@ class _QrPayScreenState extends State<QrPayScreen> {
   bool loading = true;
 
   final List<_MerchantMethod> methods = const [
-    _MerchantMethod(
-      'Appareil',
-      Icons.devices_rounded,
-      'Scan du telephone ou appareil client',
-    ),
-    _MerchantMethod(
-      'Carte',
-      Icons.credit_card_rounded,
-      'Lecture carte bancaire ou virtuelle',
-    ),
-    _MerchantMethod(
-      'NFC',
-      Icons.nfc_rounded,
-      'Sans contact terminal a terminal',
-    ),
-    _MerchantMethod(
-      'Visage',
-      Icons.face_retouching_natural_rounded,
-      'Verification faciale locale',
-    ),
-    _MerchantMethod(
-      'Main',
-      Icons.back_hand_rounded,
-      'Validation paume ou main',
-    ),
+    _MerchantMethod('Appareil', Icons.devices_rounded, 'Scan du telephone ou appareil client'),
+    _MerchantMethod('Carte', Icons.credit_card_rounded, 'Lecture carte bancaire ou virtuelle'),
+    _MerchantMethod('NFC', Icons.nfc_rounded, 'Sans contact terminal a terminal'),
+    _MerchantMethod('Visage', Icons.face_retouching_natural_rounded, 'Verification faciale locale'),
+    _MerchantMethod('Main', Icons.back_hand_rounded, 'Validation paume ou main'),
   ];
 
   @override
@@ -66,7 +83,6 @@ class _QrPayScreenState extends State<QrPayScreen> {
     faceReady = await AuthService.isFaceRecognitionEnabled();
     palmReady = await AuthService.isPalmRecognitionEnabled();
     nfcReady = await AuthService.isNfcPaymentsEnabled();
-
     if (!mounted) return;
     setState(() => loading = false);
   }
@@ -113,37 +129,29 @@ class _QrPayScreenState extends State<QrPayScreen> {
       return;
     }
 
-    final balance =
-        (LocalBankService.currentUser.value['wallet']['balance'] ?? 0).toDouble();
-
+    final balance = ref.read(walletProvider).valueOrNull?.balance ?? 0.0;
     if (amount > balance) {
       _toast('Solde insuffisant.');
       return;
     }
 
     try {
-      await LocalBankService.payMerchant(
-        merchant: merchant,
-        amount: amount,
-        method: selectedMethod,
-        terminalLabel: terminal,
-        location: location,
-      );
-
-      _toast(
-        'Paiement POS ${selectedMethod.toLowerCase()} de ${money(amount)} CDF confirme.',
-      );
-    } on ApiException catch (error) {
-      _toast(error.message);
-    } catch (_) {
-      _toast('Paiement marchand impossible pour le moment.');
+      await ref.read(dioClientProvider).post('/transactions/merchant-pay', {
+        'merchant': merchant,
+        'amount': amount,
+        'method': selectedMethod,
+        'location': location,
+      });
+      ref.refresh(walletProvider.future).ignore();
+      ref.refresh(_posReceiptsProvider.future).ignore();
+      _toast('Paiement POS ${selectedMethod.toLowerCase()} de ${money(amount)} CDF confirme.');
+    } catch (e) {
+      _toast(e.toString());
     }
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   List<String> _validationSteps() {
@@ -194,6 +202,10 @@ class _QrPayScreenState extends State<QrPayScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = MbongoThemeController.current;
+    final merchants = ref.watch(_merchantsProvider).valueOrNull ?? [];
+    final terminals = ref.watch(_terminalsProvider).valueOrNull ?? [];
+    final receipts = ref.watch(_posReceiptsProvider).valueOrNull ?? [];
+    final roles = ref.watch(_merchantRolesProvider).valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: palette.shellBottom,
@@ -222,59 +234,39 @@ class _QrPayScreenState extends State<QrPayScreen> {
                     ),
                   ),
                 ),
-                ValueListenableBuilder<List<Map<String, dynamic>>>(
-                  valueListenable: LocalBankService.merchantAccounts,
-                  builder: (context, merchants, _) {
-                    return ValueListenableBuilder<List<Map<String, dynamic>>>(
-                      valueListenable: LocalBankService.merchantTerminals,
-                      builder: (context, terminals, __) {
-                        return ValueListenableBuilder<List<Map<String, dynamic>>>(
-                          valueListenable: LocalBankService.posReceipts,
-                          builder: (context, receipts, ___) {
-                            return ValueListenableBuilder<List<Map<String, dynamic>>>(
-                              valueListenable: LocalBankService.merchantRoles,
-                              builder: (context, roles, ____) {
-                                return ListView(
-                                  padding: const EdgeInsets.all(16),
-                                  children: [
-                                    _hero(palette),
-                                    const SizedBox(height: 18),
-                                    _readinessStrip(),
-                                    const SizedBox(height: 18),
-                                    _quickActions(merchants),
-                                    const SizedBox(height: 18),
-                                    _methodsBand(),
-                                    const SizedBox(height: 18),
-                                    _scanPreview(),
-                                    const SizedBox(height: 18),
-                                    _validationBand(),
-                                    const SizedBox(height: 18),
-                                    _formCard(),
-                                    const SizedBox(height: 18),
-                                    const _SectionTitle('Comptes marchands'),
-                                    const SizedBox(height: 12),
-                                    ...merchants.take(3).map(_merchantCard),
-                                    const SizedBox(height: 18),
-                                    const _SectionTitle('Journal des terminaux'),
-                                    const SizedBox(height: 12),
-                                    ...terminals.take(4).map(_terminalCard),
-                                    const SizedBox(height: 18),
-                                    const _SectionTitle('Permissions'),
-                                    const SizedBox(height: 12),
-                                    ...roles.take(4).map(_roleCard),
-                                    const SizedBox(height: 18),
-                                    const _SectionTitle('Tickets et historique POS'),
-                                    const SizedBox(height: 12),
-                                    ...receipts.take(5).map(_receiptCard),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
+                ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _hero(palette),
+                    const SizedBox(height: 18),
+                    _readinessStrip(),
+                    const SizedBox(height: 18),
+                    _quickActions(merchants),
+                    const SizedBox(height: 18),
+                    _methodsBand(),
+                    const SizedBox(height: 18),
+                    _scanPreview(),
+                    const SizedBox(height: 18),
+                    _validationBand(),
+                    const SizedBox(height: 18),
+                    _formCard(),
+                    const SizedBox(height: 18),
+                    const _SectionTitle('Comptes marchands'),
+                    const SizedBox(height: 12),
+                    ...merchants.take(3).map(_merchantCard),
+                    const SizedBox(height: 18),
+                    const _SectionTitle('Journal des terminaux'),
+                    const SizedBox(height: 12),
+                    ...terminals.take(4).map(_terminalCard),
+                    const SizedBox(height: 18),
+                    const _SectionTitle('Permissions'),
+                    const SizedBox(height: 12),
+                    ...roles.take(4).map(_roleCard),
+                    const SizedBox(height: 18),
+                    const _SectionTitle('Tickets et historique POS'),
+                    const SizedBox(height: 12),
+                    ...receipts.take(5).map(_receiptCard),
+                  ],
                 ),
               ],
             ),
@@ -349,9 +341,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
       children: [
         Expanded(child: _statusCell('NFC', nfcReady ? 'Pret' : 'A activer', nfcReady)),
         const SizedBox(width: 10),
-        Expanded(
-          child: _statusCell('Visage', faceReady ? 'Pret' : 'A activer', faceReady),
-        ),
+        Expanded(child: _statusCell('Visage', faceReady ? 'Pret' : 'A activer', faceReady)),
         const SizedBox(width: 10),
         Expanded(child: _statusCell('Main', palmReady ? 'Pret' : 'A activer', palmReady)),
       ],
@@ -437,10 +427,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    method.icon,
-                    color: selected ? palette.accent : AppColors.textSoft,
-                  ),
+                  Icon(method.icon, color: selected ? palette.accent : AppColors.textSoft),
                   const Spacer(),
                   Text(
                     method.label,
@@ -655,11 +642,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
         color: MbongoThemeController.current.panelAlt,
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 12,
-            offset: Offset(0, 5),
-          ),
+          BoxShadow(color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -790,10 +773,10 @@ class _QrPayScreenState extends State<QrPayScreen> {
   Widget _terminalCard(Map<String, dynamic> terminal) {
     final healthy = (terminal['health'] ?? 'healthy') == 'healthy';
     return GestureDetector(
-      onTap: () => _showTerminalForm({
-        'id': terminal['merchantId'],
-        'name': terminal['merchant'],
-      }, terminal: terminal),
+      onTap: () => _showTerminalForm(
+        {'id': terminal['merchantId'], 'name': terminal['merchant']},
+        terminal: terminal,
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(16),
@@ -827,10 +810,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
             const SizedBox(height: 8),
             Text(
               '${terminal['merchant']} - ${terminal['location']}',
-              style: const TextStyle(
-                color: AppColors.darkMuted,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(color: AppColors.darkMuted, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
@@ -864,10 +844,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
               Expanded(
                 child: Text(
                   role['name'].toString(),
-                  style: const TextStyle(
-                    color: AppColors.darkText,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: const TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w900),
                 ),
               ),
               Text(
@@ -882,10 +859,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
           const SizedBox(height: 6),
           Text(
             role['merchant'].toString(),
-            style: const TextStyle(
-              color: AppColors.darkMuted,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(color: AppColors.darkMuted, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -920,9 +894,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => PosTicketDetailsScreen(receipt: receipt),
-          ),
+          MaterialPageRoute(builder: (_) => PosTicketDetailsScreen(receipt: receipt)),
         );
       },
       child: Container(
@@ -1005,10 +977,8 @@ class _QrPayScreenState extends State<QrPayScreen> {
 
   Future<void> _showMerchantForm({Map<String, dynamic>? merchant}) async {
     final nameCtrl = TextEditingController(text: merchant?['name']?.toString() ?? '');
-    final categoryCtrl =
-        TextEditingController(text: merchant?['category']?.toString() ?? '');
-    final locationCtrl =
-        TextEditingController(text: merchant?['location']?.toString() ?? '');
+    final categoryCtrl = TextEditingController(text: merchant?['category']?.toString() ?? '');
+    final locCtrl = TextEditingController(text: merchant?['location']?.toString() ?? '');
 
     await showDialog<void>(
       context: context,
@@ -1030,7 +1000,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: locationCtrl,
+                  controller: locCtrl,
                   decoration: const InputDecoration(labelText: 'Localisation'),
                 ),
               ],
@@ -1042,18 +1012,16 @@ class _QrPayScreenState extends State<QrPayScreen> {
               child: const Text('Annuler'),
             ),
             ElevatedButton(
-              onPressed: () {
-                LocalBankService.upsertMerchantAccount(
-                  merchantId: merchant?['id']?.toString(),
-                  name: nameCtrl.text.trim().isEmpty ? 'Marchand' : nameCtrl.text.trim(),
-                  category: categoryCtrl.text.trim().isEmpty
-                      ? 'General'
-                      : categoryCtrl.text.trim(),
-                  location: locationCtrl.text.trim().isEmpty
-                      ? 'Point de vente'
-                      : locationCtrl.text.trim(),
-                );
-                Navigator.pop(dialogContext);
+              onPressed: () async {
+                try {
+                  await ref.read(dioClientProvider).post('/merchant/accounts', {
+                    'name': nameCtrl.text.trim().isEmpty ? 'Marchand' : nameCtrl.text.trim(),
+                    'category': categoryCtrl.text.trim().isEmpty ? 'General' : categoryCtrl.text.trim(),
+                    'location': locCtrl.text.trim().isEmpty ? 'Point de vente' : locCtrl.text.trim(),
+                  });
+                  ref.refresh(_merchantsProvider.future).ignore();
+                } catch (_) {}
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: const Text('Enregistrer'),
             ),
@@ -1067,10 +1035,12 @@ class _QrPayScreenState extends State<QrPayScreen> {
     Map<String, dynamic> merchant, {
     Map<String, dynamic>? terminal,
   }) async {
-    final terminalIdCtrl =
-        TextEditingController(text: terminal?['id']?.toString() ?? 'POS-KIN-${DateTime.now().second}');
-    final locationCtrl =
-        TextEditingController(text: terminal?['location']?.toString() ?? 'Point de vente');
+    final terminalIdCtrl = TextEditingController(
+      text: terminal?['id']?.toString() ?? 'POS-KIN-${DateTime.now().second}',
+    );
+    final locCtrl = TextEditingController(
+      text: terminal?['location']?.toString() ?? 'Point de vente',
+    );
 
     await showDialog<void>(
       context: context,
@@ -1095,7 +1065,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: locationCtrl,
+                  controller: locCtrl,
                   decoration: const InputDecoration(labelText: 'Localisation'),
                 ),
               ],
@@ -1107,16 +1077,17 @@ class _QrPayScreenState extends State<QrPayScreen> {
               child: const Text('Annuler'),
             ),
             ElevatedButton(
-              onPressed: () {
-                LocalBankService.onboardTerminal(
-                  merchantId: merchant['id'].toString(),
-                  merchantName: merchant['name'].toString(),
-                  terminalId: terminalIdCtrl.text.trim(),
-                  location: locationCtrl.text.trim().isEmpty
-                      ? 'Point de vente'
-                      : locationCtrl.text.trim(),
-                );
-                Navigator.pop(dialogContext);
+              onPressed: () async {
+                try {
+                  await ref.read(dioClientProvider).post('/merchant/terminals', {
+                    'merchantId': merchant['id'].toString(),
+                    'merchantName': merchant['name'].toString(),
+                    'terminalId': terminalIdCtrl.text.trim(),
+                    'location': locCtrl.text.trim().isEmpty ? 'Point de vente' : locCtrl.text.trim(),
+                  });
+                  ref.refresh(_terminalsProvider.future).ignore();
+                } catch (_) {}
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
               child: const Text('Activer'),
             ),
@@ -1162,9 +1133,7 @@ class _QrPayScreenState extends State<QrPayScreen> {
                         DropdownMenuItem(value: 'caissier', child: Text('Caissier')),
                       ],
                       onChanged: (value) {
-                        if (value != null) {
-                          setDialogState(() => role = value);
-                        }
+                        if (value != null) setDialogState(() => role = value);
                       },
                     ),
                   ],
@@ -1176,14 +1145,17 @@ class _QrPayScreenState extends State<QrPayScreen> {
                   child: const Text('Annuler'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    LocalBankService.assignMerchantRole(
-                      merchantId: merchant['id'].toString(),
-                      merchantName: merchant['name'].toString(),
-                      name: nameCtrl.text.trim().isEmpty ? 'Utilisateur POS' : nameCtrl.text.trim(),
-                      role: role,
-                    );
-                    Navigator.pop(dialogContext);
+                  onPressed: () async {
+                    try {
+                      await ref.read(dioClientProvider).post('/merchant/roles', {
+                        'merchantId': merchant['id'].toString(),
+                        'merchantName': merchant['name'].toString(),
+                        'name': nameCtrl.text.trim().isEmpty ? 'Utilisateur POS' : nameCtrl.text.trim(),
+                        'role': role,
+                      });
+                      ref.refresh(_merchantRolesProvider.future).ignore();
+                    } catch (_) {}
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
                   },
                   child: const Text('Attribuer'),
                 ),

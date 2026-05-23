@@ -406,29 +406,36 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                         modes.length,
                         (i) {
                           final selected = i == modeIndex;
-                          return GestureDetector(
-                            onTap: () => setState(() => modeIndex = i),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: 180,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? palette.accentStrong
-                                    : palette.panelAlt,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
+                          return Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => setState(() => modeIndex = i),
+                              child: Container(
+                                width: 170,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                decoration: BoxDecoration(
                                   color: selected
                                       ? palette.accentStrong
-                                      : AppColors.border,
+                                      : palette.panelAlt,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: selected
+                                        ? palette.accentStrong
+                                        : AppColors.border,
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                modes[i],
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: selected ? Colors.white : AppColors.darkText,
-                                  fontWeight: FontWeight.w800,
+                                child: Text(
+                                  modes[i],
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: selected
+                                        ? Colors.white
+                                        : palette.accentStrong,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                             ),

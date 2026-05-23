@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
@@ -205,6 +206,24 @@ class SendMoneySuccessScreen extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Share.share(
+                          'MBONGO — Transfert reussi\n'
+                          'Montant : $currency ${_formatAmount(amount)}\n'
+                          'Beneficiaire : ${name.isEmpty ? phone : name}\n'
+                          'Telephone : $phone\n'
+                          'Motif : ${reason.isEmpty ? "-" : reason}\n'
+                          '---\nOperation securisee via MBONGO.',
+                        );
+                      },
+                      icon: const Icon(Icons.share_rounded),
+                      label: const Text('Partager le recu'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

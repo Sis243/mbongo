@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../features/auth/presentation/auth_notifier.dart';
+import '../features/notifications/presentation/notifications_provider.dart';
 import '../features/wallet/presentation/wallet_notifier.dart';
 import '../models/service_item.dart';
 import '../services/kyc_guard_service.dart';
@@ -17,17 +19,24 @@ import 'appro/approvals_screen.dart';
 import 'cards/virtual_cards_screen.dart';
 import 'exchange/exchange_money_screen.dart';
 import 'login_screen.dart';
+import 'exchange_rates/exchange_rates_screen.dart';
+import 'notifications/notifications_screen.dart';
+import 'payment_links/payment_links_screen.dart';
 import 'profile/kyc_status_screen.dart';
 import 'request_money/request_money_screen.dart';
 import 'transactions_screen.dart';
 import 'transfer/send_money_screen.dart';
+import 'merchant/merchant_payment_screen.dart';
+import 'qr_pay_screen.dart';
 import 'transfer/transfer_international_screen.dart';
+import 'wallet/wallet_screen.dart';
 import 'tv/tv_subscription_screen.dart';
 import 'withdraw/withdraw_screen.dart';
 
 const _kycSensitiveServices = {
   'Envoyer', 'Demander', 'Changer', 'International',
   'Retirer', 'Mes cartes', 'Unites', 'Abonnement TV', 'Deposer',
+  'Lien de paiement', 'Payer',
 };
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -75,6 +84,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ServiceItem(title: 'Abonnement TV', icon: Icons.tv_rounded),
       ServiceItem(title: 'Deposer', icon: Icons.account_balance_wallet_rounded),
       ServiceItem(title: 'Approuver', icon: Icons.verified_rounded),
+      ServiceItem(title: 'Lien de paiement', icon: Icons.link_rounded, isNew: true),
+      ServiceItem(title: 'Taux de change', icon: Icons.currency_exchange_rounded),
+      ServiceItem(title: 'Payer', icon: Icons.storefront_rounded, isNew: true),
+      ServiceItem(title: 'POS', icon: Icons.point_of_sale_rounded, isNew: true),
     ];
 
     final wallet = walletAsync.valueOrNull;
@@ -105,22 +118,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ),
-                  ListView(
+                  RefreshIndicator(
+                    onRefresh: () => ref.read(walletProvider.notifier).refresh(),
+                    child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
                     children: [
                       _buildTopBar(context, ref, profile, palette),
                       const SizedBox(height: 14),
                       BannerCarousel(banners: MbongoStore.banners),
                       const SizedBox(height: 18),
-                      _buildBalanceCard(
-                        balance: balance,
-                        currency: currency,
-                        transactionCount: txs.length,
-                        incoming: incoming,
-                        outgoing: outgoing,
-                        pendingValidations: pendingValidations,
-                        palette: palette,
-                      ),
+                      if (walletAsync.isLoading && wallet == null)
+                        _buildShimmerCard(palette)
+                      else
+                        _buildBalanceCard(
+                          balance: balance,
+                          currency: currency,
+                          transactionCount: txs.length,
+                          incoming: incoming,
+                          outgoing: outgoing,
+                          pendingValidations: pendingValidations,
+                          palette: palette,
+                        ),
                       const SizedBox(height: 16),
                       _buildQuickStrip(context, profile, currency, palette),
                       const SizedBox(height: 18),
@@ -148,7 +166,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 18),
                       _buildSectionTitle('Activite recente'),
                       const SizedBox(height: 12),
-                      if (latest.isEmpty)
+                      if (walletAsync.isLoading && wallet == null)
+                        ...[1, 2, 3].map((_) => _buildShimmerTile(palette))
+                      else if (latest.isEmpty)
                         _buildEmptyState()
                       else
                         ...latest.map(_ActivityTile.new),
@@ -156,7 +176,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _buildFooterCard(palette),
                     ],
                   ),
+                  ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildShimmerCard(MbongoThemePalette palette) {
+    return Shimmer.fromColors(
+      baseColor: palette.panelAlt,
+      highlightColor: palette.panel,
+      child: Container(
+        height: 130,
+        decoration: BoxDecoration(
+          color: palette.panelAlt,
+          borderRadius: BorderRadius.circular(22),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerTile(MbongoThemePalette palette) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Shimmer.fromColors(
+        baseColor: palette.panelAlt,
+        highlightColor: palette.panel,
+        child: Container(
+          height: 68,
+          decoration: BoxDecoration(
+            color: palette.panelAlt,
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
       ),
     );
   }
@@ -167,6 +219,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String profile,
     MbongoThemePalette palette,
   ) {
+    final unreadAsync = ref.watch(unreadCountProvider);
+    final unreadCount = unreadAsync.valueOrNull ?? 0;
+
     return Row(
         children: [
           Container(
@@ -209,6 +264,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
+        ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              ),
+              icon: const Icon(Icons.notifications_rounded, color: AppColors.text),
+            ),
+            if (unreadCount > 0)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: palette.shellTop, width: 1.5),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : unreadCount.toString(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         IconButton(
           onPressed: () => _showQuickMenu(context, ref),
@@ -549,6 +639,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               }),
               _menuAction(context, 'Portefeuille', Icons.wallet_rounded, () {
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WalletScreen()),
+                );
               }),
               _menuAction(context, 'Deconnexion', Icons.logout_rounded, () async {
                 Navigator.pop(context);
@@ -626,6 +720,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('TV')) return AppColors.gold;
     if (title.contains('Deposer')) return AppColors.cyan;
     if (title.contains('Approuver')) return AppColors.green;
+    if (title.contains('Lien')) return AppColors.cyan;
+    if (title.contains('Taux')) return AppColors.gold;
+    if (title.contains('Payer')) return AppColors.green;
+    if (title.contains('POS')) return AppColors.orange;
     return palette.accent;
   }
 
@@ -640,6 +738,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('TV')) return const TvSubscriptionScreen();
     if (title.contains('Deposer')) return const ApproMbongoScreen();
     if (title.contains('Approuver')) return const ApprovalsScreen();
+    if (title.contains('Lien')) return const PaymentLinksScreen();
+    if (title.contains('Taux')) return const ExchangeRatesScreen();
+    if (title.contains('Payer')) return const MerchantPaymentScreen();
+    if (title.contains('POS')) return const QrPayScreen();
     return null;
   }
 

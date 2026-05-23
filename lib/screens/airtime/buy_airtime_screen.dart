@@ -211,37 +211,42 @@ class _BuyAirtimeScreenState extends ConsumerState<BuyAirtimeScreen> {
                         final selected = i == operatorIndex;
                         final color = item["color"] as Color;
 
-                        return GestureDetector(
-                          onTap: () => setState(() => operatorIndex = i),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? const Color(0xFF102A55)
-                                  : palette.panel,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
+                        return Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(18),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => setState(() => operatorIndex = i),
+                            child: Container(
+                              decoration: BoxDecoration(
                                 color: selected
-                                    ? color
-                                    : AppColors.border.withValues(alpha: 0.40),
-                                width: selected ? 1.5 : 1,
+                                    ? const Color(0xFF102A55)
+                                    : palette.panel,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: selected
+                                      ? color
+                                      : AppColors.border.withValues(alpha: 0.40),
+                                  width: selected ? 1.5 : 1,
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  item["icon"] as IconData,
-                                  color: selected ? Colors.white : color,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  item["name"].toString(),
-                                  style: TextStyle(
-                                    color: selected ? Colors.white : AppColors.text,
-                                    fontWeight: FontWeight.w800,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    item["icon"] as IconData,
+                                    color: selected ? Colors.white : color,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    item["name"].toString(),
+                                    style: TextStyle(
+                                      color: selected ? Colors.white : AppColors.text,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );

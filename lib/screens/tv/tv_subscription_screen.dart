@@ -235,43 +235,48 @@ class _TvSubscriptionScreenState extends ConsumerState<TvSubscriptionScreen> {
                         final selected = i == providerIndex;
                         final color = item["color"] as Color;
 
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              providerIndex = i;
-                              bouquetIndex = 0;
-                            });
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? const Color(0xFF102A55)
-                                  : palette.panel,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
+                        return Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(18),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () {
+                              setState(() {
+                                providerIndex = i;
+                                bouquetIndex = 0;
+                              });
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
                                 color: selected
-                                    ? color
-                                    : AppColors.border.withValues(alpha: 0.24),
-                                width: selected ? 1.5 : 1,
+                                    ? const Color(0xFF102A55)
+                                    : palette.panel,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: selected
+                                      ? color
+                                      : AppColors.border.withValues(alpha: 0.24),
+                                  width: selected ? 1.5 : 1,
+                                ),
                               ),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  item["icon"] as IconData,
-                                  color: selected ? Colors.white : color,
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  item["name"].toString(),
-                                  style: TextStyle(
-                                    color: selected ? Colors.white : AppColors.text,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 12.5,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    item["icon"] as IconData,
+                                    color: selected ? Colors.white : color,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    item["name"].toString(),
+                                    style: TextStyle(
+                                      color: selected ? Colors.white : AppColors.text,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -291,44 +296,49 @@ class _TvSubscriptionScreenState extends ConsumerState<TvSubscriptionScreen> {
                             ? item["usd"]
                             : item["cdf"];
 
-                        return GestureDetector(
-                          onTap: () => setState(() => bouquetIndex = i),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? const Color(0xFF102A55)
-                                  : palette.panel,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
+                        return Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(16),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => setState(() => bouquetIndex = i),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
                                 color: selected
-                                    ? palette.accent
-                                    : AppColors.border.withValues(alpha: 0.24),
+                                    ? const Color(0xFF102A55)
+                                    : palette.panel,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: selected
+                                      ? palette.accent
+                                      : AppColors.border.withValues(alpha: 0.24),
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    item["name"].toString(),
-                                    style: TextStyle(
-                                      color: selected ? Colors.white : AppColors.text,
-                                      fontWeight: FontWeight.w800,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      item["name"].toString(),
+                                      style: TextStyle(
+                                        color: selected ? Colors.white : AppColors.text,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Text(
-                                  "${selectedWallet.currency} $amount",
-                                  style: TextStyle(
-                                    color: selected ? Colors.white : palette.accent,
-                                    fontWeight: FontWeight.w900,
+                                  Text(
+                                    "${selectedWallet.currency} $amount",
+                                    style: TextStyle(
+                                      color: selected ? Colors.white : palette.accent,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
+                                ],
+                              ),
+                            ),   // Container
+                          ),     // InkWell
+                        );       // Material
                       }),
                     ),
                   ),

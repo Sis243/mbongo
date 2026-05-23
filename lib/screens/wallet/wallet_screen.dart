@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
@@ -180,30 +182,191 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               ),
             ),
           ),
-          ListView(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-            children: [
-              _buildHeader(currentWallet, palette),
-              const SizedBox(height: 18),
-              if (_kycStatus != 'valide') _buildKycBanner(palette),
-              if (_kycStatus != 'valide') const SizedBox(height: 14),
-              WalletCard(
-                wallet: currentWallet,
-                gradient: palette.cardGradient,
-              ),
-              const SizedBox(height: 18),
-              _buildWalletBoard(currentWallet, inflow, outflow, palette),
-              const SizedBox(height: 18),
-              _buildActionMatrix(palette),
-              const SizedBox(height: 18),
-              _buildHealthStrip(currentWallet, palette),
-              const SizedBox(height: 18),
-              _buildTransactionFeed(
-                  transactions, currentWallet.currency, palette),
-            ],
+          RefreshIndicator(
+            onRefresh: () => ref.read(walletProvider.notifier).refresh(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+              children: [
+                _buildHeader(currentWallet, palette),
+                const SizedBox(height: 18),
+                if (_kycStatus != 'valide') _buildKycBanner(palette),
+                if (_kycStatus != 'valide') const SizedBox(height: 14),
+                WalletCard(
+                  wallet: currentWallet,
+                  gradient: palette.cardGradient,
+                ),
+                const SizedBox(height: 12),
+                _buildReceiveQrButton(currentWallet, palette),
+                const SizedBox(height: 18),
+                _buildWalletBoard(currentWallet, inflow, outflow, palette),
+                const SizedBox(height: 18),
+                _buildActionMatrix(palette),
+                const SizedBox(height: 18),
+                _buildHealthStrip(currentWallet, palette),
+                const SizedBox(height: 18),
+                _buildTransactionFeed(
+                    transactions, currentWallet.currency, palette),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReceiveQrButton(dynamic currentWallet, MbongoThemePalette palette) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => _showReceiveQr(currentWallet, palette),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: palette.panelAlt,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.green.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.qr_code_rounded, color: AppColors.green),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mon QR de reception',
+                    style: TextStyle(
+                      color: AppColors.darkText,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Affichez votre QR pour recevoir un paiement',
+                    style: TextStyle(
+                      color: AppColors.darkMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReceiveQr(dynamic currentWallet, MbongoThemePalette palette) {
+    final qrData = 'MBONGO:${currentWallet.number}:${currentWallet.currency}';
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return Container(
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 32),
+          decoration: BoxDecoration(
+            color: palette.panelAlt,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Mon QR de reception',
+                style: TextStyle(
+                  color: AppColors.darkText,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Faites scanner ce QR pour recevoir un virement MBONGO',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.darkMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: 200,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: palette.panel,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      currentWallet.number.toString(),
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(
+                          ClipboardData(text: currentWallet.number.toString()),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Reference copiee')),
+                        );
+                      },
+                      child: const Icon(Icons.copy_rounded, color: AppColors.muted, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: palette.accentStrong,
+                  ),
+                  child: const Text('Fermer'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

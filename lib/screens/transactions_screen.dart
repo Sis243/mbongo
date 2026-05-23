@@ -22,6 +22,7 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   int selectedPeriod = 0;
   String selectedCategory = 'Toutes';
+  String selectedStatus = 'Tous';
   String searchQuery = '';
 
   final TextEditingController searchCtrl = TextEditingController();
@@ -173,6 +174,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
       final label = (tx['label'] ?? '').toString().toLowerCase();
       final type = (tx['type'] ?? '').toString().toUpperCase();
+      final status = (tx['status'] ?? '').toString().toUpperCase();
 
       final matchSearch = searchQuery.trim().isEmpty
           ? true
@@ -183,7 +185,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       final matchCategory =
           selectedCategory == 'Toutes' ? true : category == selectedCategory;
 
-      return matchPeriod && matchSearch && matchCategory;
+      final matchStatus = selectedStatus == 'Tous'
+          ? true
+          : selectedStatus == 'Succes'
+              ? status == 'SUCCESS'
+              : selectedStatus == 'En attente'
+                  ? status == 'PENDING'
+                  : status == 'FAILED';
+
+      return matchPeriod && matchSearch && matchCategory && matchStatus;
     }).toList();
   }
 
@@ -435,7 +445,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 ),
               ),
             ),
-            ListView(
+            RefreshIndicator(
+              onRefresh: () => ref.read(walletProvider.notifier).refresh(),
+              child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
               children: [
                 _buildSearchBar(),
@@ -443,6 +455,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 _buildPeriodFilter(),
                 const SizedBox(height: 14),
                 _buildCategoryFilter(),
+                const SizedBox(height: 10),
+                _buildStatusFilter(),
                 const SizedBox(height: 16),
                 _buildStatsCards(stats),
                 const SizedBox(height: 18),
@@ -497,6 +511,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     ),
                   ),
               ],
+            ),
             ),
           ],
         ),
@@ -633,6 +648,56 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildStatusFilter() {
+    final palette = MbongoThemeController.current;
+    const statuses = ['Tous', 'Succes', 'En attente', 'Echec'];
+
+    return Row(
+      children: statuses.map((s) {
+        final selected = s == selectedStatus;
+        Color color;
+        if (s == 'Succes') {
+          color = AppColors.green;
+        } else if (s == 'En attente') {
+          color = AppColors.gold;
+        } else if (s == 'Echec') {
+          color = AppColors.red;
+        } else {
+          color = palette.accent;
+        }
+
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: GestureDetector(
+              onTap: () => setState(() => selectedStatus = s),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected ? color.withValues(alpha: 0.18) : palette.panelAlt,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: selected ? color : AppColors.border.withValues(alpha: 0.24),
+                    width: selected ? 1.4 : 1,
+                  ),
+                ),
+                child: Text(
+                  s,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: selected ? color : AppColors.darkMuted,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

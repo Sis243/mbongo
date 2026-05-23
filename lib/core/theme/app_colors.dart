@@ -24,8 +24,8 @@ class AppColors {
   static const Color surfaceCard = Color(0xFF11284D);
 
   static const Color whiteCard = Color(0xFFF8FAFD);
-  static const Color darkText = Color(0xFF13284F);
-  static const Color darkMuted = Color(0xFF667A9A);
+  static const Color darkText = Color(0xFFE8EEF8);
+  static const Color darkMuted = Color(0xFF8FADC8);
 
   static const Color border = Color(0xFF30476F);
   static const Color shadow = Color(0x22000000);

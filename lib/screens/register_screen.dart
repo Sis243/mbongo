@@ -128,7 +128,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await ApiService.submitKyc(
         documentType: documentType,
         frontPath: kycDocumentFront!.path,
-        backPath: kycDocumentBack!.path,
+        backPath: kycDocumentBack?.path ?? '',
         selfiePath: kycSelfie!.path,
       );
       await AuthService.setKycDocumentType(documentType);
@@ -136,7 +136,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await AuthService.setKycSheetName(sheetName);
       await AuthService.setKycSelfiePath(kycSelfie!.path);
       await AuthService.setKycDocumentFrontPath(kycDocumentFront!.path);
-      await AuthService.setKycDocumentBackPath(kycDocumentBack!.path);
+      await AuthService.setKycDocumentBackPath(kycDocumentBack?.path ?? '');
       await AuthService.setKycSubmitted(true);
       await AuthService.setKycStatus('en_attente');
       await AuthService.setKycRefusalReason('');

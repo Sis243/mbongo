@@ -2,10 +2,7 @@ import {
   Body,
   Controller,
   Get,
-  NotFoundException,
-  Param,
   Post,
-  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -17,9 +14,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { KycService } from './kyc.service';
 import type { KycUploadedFile } from './kyc-file.types';
-import { createReadStream, existsSync } from 'fs';
-import { extname, join, normalize } from 'path';
-import type { Response } from 'express';
 
 @Controller('kyc')
 export class KycController {
@@ -71,29 +65,4 @@ export class KycController {
     });
   }
 
-  @Get('files/:fileName')
-  getKycFile(@Param('fileName') fileName: string, @Res() response: Response) {
-    if (fileName.includes('/') || fileName.includes('\\')) {
-      throw new NotFoundException('Fichier KYC introuvable');
-    }
-
-    const uploadRoot = process.env.KYC_UPLOAD_DIR || join(process.cwd(), 'uploads', 'kyc');
-    const filePath = normalize(join(uploadRoot, fileName));
-
-    if (!filePath.startsWith(normalize(uploadRoot)) || !existsSync(filePath)) {
-      throw new NotFoundException('Fichier KYC introuvable');
-    }
-
-    response.setHeader('Cache-Control', 'private, max-age=300');
-    response.setHeader('Content-Type', this.contentTypeFor(fileName));
-    return createReadStream(filePath).pipe(response);
-  }
-
-  private contentTypeFor(fileName: string) {
-    const extension = extname(fileName).toLowerCase();
-    if (extension === '.png') return 'image/png';
-    if (extension === '.webp') return 'image/webp';
-    if (extension === '.pdf') return 'application/pdf';
-    return 'image/jpeg';
-  }
 }

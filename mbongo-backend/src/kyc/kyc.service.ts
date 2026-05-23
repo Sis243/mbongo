@@ -1,8 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { KycDocumentSide } from '@prisma/client';
-import { randomUUID } from 'crypto';
-import { extname, join } from 'path';
-import { mkdir, writeFile } from 'fs/promises';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import type { KycUploadedFile } from './kyc-file.types';
@@ -170,7 +167,7 @@ export class KycService {
   }
 
   private async persistUploadedDocument(
-    userId: string,
+    _userId: string,
     side: KycDocumentSide,
     file?: KycUploadedFile,
   ) {
@@ -186,40 +183,14 @@ export class KycService {
       throw new BadRequestException('Type de fichier KYC non autorise');
     }
 
-    const uploadRoot = process.env.KYC_UPLOAD_DIR || join(process.cwd(), 'uploads', 'kyc');
-    await mkdir(uploadRoot, { recursive: true });
-
-    const extension = this.extensionFor(file);
-    const fileName = `${userId}-${side.toLowerCase()}-${randomUUID()}${extension}`;
-    const filePath = join(uploadRoot, fileName);
-
-    await writeFile(filePath, file.buffer);
+    // Stockage en base64 — compatible Vercel serverless (pas de filesystem)
+    const base64 = file.buffer.toString('base64');
+    const dataUrl = `data:${file.mimetype};base64,${base64}`;
 
     return {
       side,
-      fileUrl: `${this.publicApiBaseUrl()}/kyc/files/${fileName}`,
+      fileUrl: dataUrl,
       fileMimeType: file.mimetype,
     };
-  }
-
-  private extensionFor(file: KycUploadedFile) {
-    const originalExtension = extname(file.originalname).toLowerCase();
-
-    if (['.jpg', '.jpeg', '.png', '.webp', '.pdf'].includes(originalExtension)) {
-      return originalExtension;
-    }
-
-    if (file.mimetype === 'image/jpeg') return '.jpg';
-    if (file.mimetype === 'image/png') return '.png';
-    if (file.mimetype === 'image/webp') return '.webp';
-    return '.pdf';
-  }
-
-  private publicApiBaseUrl() {
-    return (
-      process.env.PUBLIC_API_URL ||
-      process.env.API_URL ||
-      `http://localhost:${process.env.PORT ?? 3000}`
-    ).replace(/\/$/, '');
   }
 }

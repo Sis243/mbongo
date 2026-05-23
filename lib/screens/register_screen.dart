@@ -694,37 +694,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.07),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Exemple à écrire sur la feuille :',
-                                    style: TextStyle(
-                                      color: AppColors.textSoft,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'NOM : ___________\nPOST-NOM : ___________\nPRÉNOM : ___________\nDATE : ${DateTime.now().day.toString().padLeft(2,'0')}/${DateTime.now().month.toString().padLeft(2,'0')}/${DateTime.now().year}\nSIGNATURE : __________',
-                                    style: const TextStyle(
-                                      color: AppColors.text,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      fontFamily: 'monospace',
-                                      height: 1.6,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            const _SelfieSilhouetteHint(),
                             const SizedBox(height: 10),
                             const Text(
                               '• Feuille blanche · stylo bleu ou noir\n• Écriture lisible, sans ratures\n• Photo dans un endroit bien éclairé',
@@ -1417,6 +1387,138 @@ class _ChecklistChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SelfieSilhouetteHint extends StatelessWidget {
+  const _SelfieSilhouetteHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 170,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cyan.withValues(alpha: 0.18)),
+      ),
+      child: CustomPaint(
+        painter: _SilhouettePainter(),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+class _SilhouettePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bodyPaint = Paint()
+      ..color = const Color(0xFF2A4A7A).withValues(alpha: 0.65)
+      ..style = PaintingStyle.fill;
+
+    // Head
+    final headCenter = Offset(size.width / 2, size.height * 0.20);
+    canvas.drawCircle(headCenter, size.height * 0.12, bodyPaint);
+
+    // Shoulders / torso
+    final torsoRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(size.width / 2, size.height * 0.52),
+        width: size.width * 0.30,
+        height: size.height * 0.28,
+      ),
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(torsoRect, bodyPaint);
+
+    // Arms (lines)
+    final armPaint = Paint()
+      ..color = const Color(0xFF2A4A7A).withValues(alpha: 0.65)
+      ..strokeWidth = size.width * 0.045
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final paperLeft = size.width / 2 - size.width * 0.22;
+    final paperRight = size.width / 2 + size.width * 0.22;
+    final paperTop = size.height * 0.50;
+
+    // Left arm
+    canvas.drawLine(
+      Offset(size.width / 2 - size.width * 0.15, size.height * 0.44),
+      Offset(paperLeft, paperTop + size.height * 0.15),
+      armPaint,
+    );
+    // Right arm
+    canvas.drawLine(
+      Offset(size.width / 2 + size.width * 0.15, size.height * 0.44),
+      Offset(paperRight, paperTop + size.height * 0.15),
+      armPaint,
+    );
+
+    // Paper (white sheet)
+    final paperRect = Rect.fromLTRB(
+      paperLeft, paperTop, paperRight, size.height * 0.90,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(paperRect, const Radius.circular(5)),
+      Paint()..color = Colors.white.withValues(alpha: 0.92),
+    );
+    // Paper border
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(paperRect, const Radius.circular(5)),
+      Paint()
+        ..color = const Color(0xFFCCDDEE)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+
+    // Text on paper — line 1
+    _drawText(
+      canvas,
+      '(NOM & PRÉNOM)',
+      Offset(paperRect.left + 6, paperRect.top + 8),
+      paperRect.width - 12,
+      const TextStyle(
+        color: Color(0xFF333333),
+        fontSize: 8.5,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+    // Text on paper — line 2
+    _drawText(
+      canvas,
+      'MBONGO',
+      Offset(paperRect.left + 6, paperRect.top + 26),
+      paperRect.width - 12,
+      const TextStyle(
+        color: Color(0xFF0A3D8F),
+        fontSize: 13,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+    // Signature line
+    _drawText(
+      canvas,
+      'Signature : ____________',
+      Offset(paperRect.left + 6, paperRect.top + 50),
+      paperRect.width - 12,
+      const TextStyle(
+        color: Color(0xFF888888),
+        fontSize: 7,
+      ),
+    );
+  }
+
+  void _drawText(Canvas canvas, String text, Offset offset, double maxWidth, TextStyle style) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: maxWidth);
+    tp.paint(canvas, offset);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _KycCameraCaptureScreen extends StatefulWidget {

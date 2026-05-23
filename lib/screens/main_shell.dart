@@ -8,13 +8,10 @@ import '../services/api_service.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import 'accounts/accounts_screen.dart';
-import 'agent/agent_cashin_screen.dart';
-import 'agent/agent_dashboard_screen.dart';
+import 'agent/agent_shell.dart';
 import 'home_screen.dart';
-import 'merchant/merchant_payment_screen.dart';
-import 'payment_links/payment_links_screen.dart';
+import 'merchant/merchant_shell.dart';
 import 'profile_screen.dart';
-import 'transactions_screen.dart';
 import 'wallet/wallet_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -48,51 +45,9 @@ class _MainShellState extends State<MainShell> {
     Icons.person_rounded,
   ];
 
-  // Merchant mode
-  static const _merchantPages = [
-    MerchantPaymentScreen(),
-    TransactionsScreen(),
-    PaymentLinksScreen(),
-    ProfileScreen(),
-  ];
-  static const _merchantLabels = ['Encaisser', 'Ventes', 'Liens', 'Profil'];
-  static const _merchantIcons = [
-    Icons.point_of_sale_rounded,
-    Icons.receipt_long_rounded,
-    Icons.link_rounded,
-    Icons.person_rounded,
-  ];
-
-  // Agent mode
-  static const _agentPages = [
-    AgentDashboardScreen(),
-    AgentCashInScreen(),
-    AgentCashOutScreen(),
-    ProfileScreen(),
-  ];
-  static const _agentLabels = ['Dashboard', 'Cash-In', 'Cash-Out', 'Profil'];
-  static const _agentIcons = [
-    Icons.support_agent_rounded,
-    Icons.arrow_downward_rounded,
-    Icons.arrow_upward_rounded,
-    Icons.person_rounded,
-  ];
-
-  List<Widget> get pages {
-    if (_roleMode == 1) return _merchantPages;
-    if (_roleMode == 2) return _agentPages;
-    return _userPages;
-  }
-  List<String> get labels {
-    if (_roleMode == 1) return _merchantLabels;
-    if (_roleMode == 2) return _agentLabels;
-    return _userLabels;
-  }
-  List<IconData> get icons {
-    if (_roleMode == 1) return _merchantIcons;
-    if (_roleMode == 2) return _agentIcons;
-    return _userIcons;
-  }
+  List<Widget> get pages => _userPages;
+  List<String> get labels => _userLabels;
+  List<IconData> get icons => _userIcons;
 
   @override
   void initState() {
@@ -137,6 +92,12 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_roleMode == 1) {
+      return MerchantShell(onExitMerchantMode: _toggleMerchantMode);
+    }
+    if (_roleMode == 2) {
+      return AgentShell(onExitAgentMode: _toggleAgentMode);
+    }
     final palette = MbongoThemeController.current;
     final darkMode = MbongoThemeController.darkModeEnabled.value;
     final activeText = darkMode ? AppColors.text : AppColors.darkText;
@@ -181,43 +142,6 @@ class _MainShellState extends State<MainShell> {
           SafeArea(
             child: Column(
               children: [
-                if (_roleMode != 0)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    color: (_roleMode == 1 ? AppColors.green : AppColors.orange)
-                        .withValues(alpha: 0.15),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _roleMode == 1 ? Icons.store_rounded : Icons.support_agent_rounded,
-                          color: _roleMode == 1 ? AppColors.green : AppColors.orange,
-                          size: 15,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _roleMode == 1 ? 'Mode Marchand actif' : 'Mode Agent actif',
-                          style: TextStyle(
-                            color: _roleMode == 1 ? AppColors.green : AppColors.orange,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => setState(() { _roleMode = 0; currentIndex = 0; }),
-                          child: Text(
-                            'Quitter',
-                            style: TextStyle(
-                              color: _roleMode == 1 ? AppColors.green : AppColors.orange,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),

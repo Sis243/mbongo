@@ -8,6 +8,8 @@ import '../services/api_service.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import 'accounts/accounts_screen.dart';
+import 'agent/agent_cashin_screen.dart';
+import 'agent/agent_dashboard_screen.dart';
 import 'home_screen.dart';
 import 'merchant/merchant_payment_screen.dart';
 import 'payment_links/payment_links_screen.dart';
@@ -25,8 +27,10 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int currentIndex = 0;
   bool _isOffline = false;
-  bool _merchantMode = false;
+  // 0 = user, 1 = merchant, 2 = agent
+  int _roleMode = 0;
   bool _hasMerchantAccounts = false;
+  bool _isAgent = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   // User mode
@@ -59,9 +63,36 @@ class _MainShellState extends State<MainShell> {
     Icons.person_rounded,
   ];
 
-  List<Widget> get pages => _merchantMode ? _merchantPages : _userPages;
-  List<String> get labels => _merchantMode ? _merchantLabels : _userLabels;
-  List<IconData> get icons => _merchantMode ? _merchantIcons : _userIcons;
+  // Agent mode
+  static const _agentPages = [
+    AgentDashboardScreen(),
+    AgentCashInScreen(),
+    AgentCashOutScreen(),
+    ProfileScreen(),
+  ];
+  static const _agentLabels = ['Dashboard', 'Cash-In', 'Cash-Out', 'Profil'];
+  static const _agentIcons = [
+    Icons.support_agent_rounded,
+    Icons.arrow_downward_rounded,
+    Icons.arrow_upward_rounded,
+    Icons.person_rounded,
+  ];
+
+  List<Widget> get pages {
+    if (_roleMode == 1) return _merchantPages;
+    if (_roleMode == 2) return _agentPages;
+    return _userPages;
+  }
+  List<String> get labels {
+    if (_roleMode == 1) return _merchantLabels;
+    if (_roleMode == 2) return _agentLabels;
+    return _userLabels;
+  }
+  List<IconData> get icons {
+    if (_roleMode == 1) return _merchantIcons;
+    if (_roleMode == 2) return _agentIcons;
+    return _userIcons;
+  }
 
   @override
   void initState() {
@@ -70,21 +101,30 @@ class _MainShellState extends State<MainShell> {
       final offline = results.every((r) => r == ConnectivityResult.none);
       if (mounted && offline != _isOffline) setState(() => _isOffline = offline);
     });
-    _checkMerchantAccounts();
+    _checkRoles();
   }
 
-  Future<void> _checkMerchantAccounts() async {
+  Future<void> _checkRoles() async {
     try {
       final list = await ApiService.getMerchantAccounts();
-      if (list.isNotEmpty && mounted) {
-        setState(() => _hasMerchantAccounts = true);
-      }
+      if (list.isNotEmpty && mounted) setState(() => _hasMerchantAccounts = true);
+    } catch (_) {}
+    try {
+      final agents = await ApiService.getCashAgents();
+      if (agents.isNotEmpty && mounted) setState(() => _isAgent = true);
     } catch (_) {}
   }
 
   void _toggleMerchantMode() {
     setState(() {
-      _merchantMode = !_merchantMode;
+      _roleMode = _roleMode == 1 ? 0 : 1;
+      currentIndex = 0;
+    });
+  }
+
+  void _toggleAgentMode() {
+    setState(() {
+      _roleMode = _roleMode == 2 ? 0 : 2;
       currentIndex = 0;
     });
   }
@@ -103,17 +143,36 @@ class _MainShellState extends State<MainShell> {
     final inactiveText = darkMode ? AppColors.muted : AppColors.darkMuted;
     return Scaffold(
       backgroundColor: palette.shellBottom,
-      floatingActionButton: _hasMerchantAccounts
-          ? FloatingActionButton.small(
-              heroTag: 'merchant_toggle',
-              backgroundColor: _merchantMode ? AppColors.green : palette.accent,
-              onPressed: _toggleMerchantMode,
-              tooltip: _merchantMode ? 'Mode client' : 'Mode marchand',
-              child: Icon(
-                _merchantMode ? Icons.person_rounded : Icons.point_of_sale_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
+      floatingActionButton: (_hasMerchantAccounts || _isAgent)
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_hasMerchantAccounts)
+                  FloatingActionButton.small(
+                    heroTag: 'merchant_toggle',
+                    backgroundColor: _roleMode == 1 ? AppColors.green : palette.accent,
+                    onPressed: _toggleMerchantMode,
+                    tooltip: _roleMode == 1 ? 'Mode client' : 'Mode marchand',
+                    child: Icon(
+                      _roleMode == 1 ? Icons.person_rounded : Icons.point_of_sale_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                if (_hasMerchantAccounts && _isAgent) const SizedBox(height: 8),
+                if (_isAgent)
+                  FloatingActionButton.small(
+                    heroTag: 'agent_toggle',
+                    backgroundColor: _roleMode == 2 ? AppColors.orange : palette.accent,
+                    onPressed: _toggleAgentMode,
+                    tooltip: _roleMode == 2 ? 'Mode client' : 'Mode agent',
+                    child: Icon(
+                      _roleMode == 2 ? Icons.person_rounded : Icons.support_agent_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+              ],
             )
           : null,
       body: Stack(
@@ -122,30 +181,35 @@ class _MainShellState extends State<MainShell> {
           SafeArea(
             child: Column(
               children: [
-                if (_merchantMode)
+                if (_roleMode != 0)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    color: AppColors.green.withValues(alpha: 0.15),
+                    color: (_roleMode == 1 ? AppColors.green : AppColors.orange)
+                        .withValues(alpha: 0.15),
                     child: Row(
                       children: [
-                        const Icon(Icons.store_rounded, color: AppColors.green, size: 15),
+                        Icon(
+                          _roleMode == 1 ? Icons.store_rounded : Icons.support_agent_rounded,
+                          color: _roleMode == 1 ? AppColors.green : AppColors.orange,
+                          size: 15,
+                        ),
                         const SizedBox(width: 6),
-                        const Text(
-                          'Mode Marchand actif',
+                        Text(
+                          _roleMode == 1 ? 'Mode Marchand actif' : 'Mode Agent actif',
                           style: TextStyle(
-                            color: AppColors.green,
+                            color: _roleMode == 1 ? AppColors.green : AppColors.orange,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         const Spacer(),
                         GestureDetector(
-                          onTap: _toggleMerchantMode,
-                          child: const Text(
+                          onTap: () => setState(() { _roleMode = 0; currentIndex = 0; }),
+                          child: Text(
                             'Quitter',
                             style: TextStyle(
-                              color: AppColors.green,
+                              color: _roleMode == 1 ? AppColors.green : AppColors.orange,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -158,7 +222,7 @@ class _MainShellState extends State<MainShell> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),
                     child: KeyedSubtree(
-                      key: ValueKey('$_merchantMode-$currentIndex'),
+                      key: ValueKey('$_roleMode-$currentIndex'),
                       child: pages[currentIndex],
                     ),
                   ),

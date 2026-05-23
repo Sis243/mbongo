@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,6 +24,14 @@ export class UsersController {
   @Get()
   findAll(@CurrentUser() user: JwtRequestUser) {
     return this.usersService.getOne(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('by-phone/:phone')
+  async findByPhone(@Param('phone') phone: string) {
+    const user = await this.usersService.getByPhone(phone);
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    return user;
   }
 
   @UseGuards(JwtAuthGuard)

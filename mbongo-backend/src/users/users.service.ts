@@ -87,6 +87,14 @@ export class UsersService {
     return user;
   }
 
+  async getByPhone(phone: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { phone: phone.trim() },
+      include: { wallet: true },
+    });
+    return user ? this.toPublicUser(user) : null;
+  }
+
   async getOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },

@@ -219,14 +219,7 @@ class _MerchantDrawer extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.green.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.storefront_rounded, color: AppColors.green, size: 24),
-                  ),
+                  Image.asset('assets/images/mbongo_logo.png', width: 44, height: 44),
                   const SizedBox(width: 12),
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

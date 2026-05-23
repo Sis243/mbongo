@@ -226,14 +226,7 @@ class _AgentDrawer extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.orange.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.support_agent_rounded, color: AppColors.orange, size: 26),
-                  ),
+                  Image.asset('assets/images/mbongo_logo.png', width: 44, height: 44),
                   const SizedBox(width: 12),
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

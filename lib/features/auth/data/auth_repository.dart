@@ -51,6 +51,7 @@ class AuthRepository {
       refreshToken: refreshToken,
       user: user.toMap(),
     );
+    await _storage.saveBioCredentials(phone, pin);
 
     return user;
   }

@@ -15,6 +15,8 @@ class AppStorage {
   static const _kAccess = 'mb_access_token';
   static const _kRefresh = 'mb_refresh_token';
   static const _kUser = 'mb_current_user';
+  static const _kBioPhone = 'mb_bio_phone';
+  static const _kBioPin = 'mb_bio_pin';
 
   Future<void> saveSession({
     required String accessToken,
@@ -55,4 +57,21 @@ class AppStorage {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
   }
+
+  Future<void> saveBioCredentials(String phone, String pin) =>
+      Future.wait([
+        _storage.write(key: _kBioPhone, value: phone),
+        _storage.write(key: _kBioPin, value: pin),
+      ]).then((_) {});
+
+  Future<({String? phone, String? pin})> getBioCredentials() async {
+    final phone = await _storage.read(key: _kBioPhone);
+    final pin = await _storage.read(key: _kBioPin);
+    return (phone: phone, pin: pin);
+  }
+
+  Future<void> clearBioCredentials() => Future.wait([
+        _storage.delete(key: _kBioPhone),
+        _storage.delete(key: _kBioPin),
+      ]).then((_) {});
 }

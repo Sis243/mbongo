@@ -4,11 +4,15 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
+import '../services/api_service.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import 'accounts/accounts_screen.dart';
 import 'home_screen.dart';
+import 'merchant/merchant_payment_screen.dart';
+import 'payment_links/payment_links_screen.dart';
 import 'profile_screen.dart';
+import 'transactions_screen.dart';
 import 'wallet/wallet_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -21,7 +25,43 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int currentIndex = 0;
   bool _isOffline = false;
+  bool _merchantMode = false;
+  bool _hasMerchantAccounts = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+
+  // User mode
+  static const _userPages = [
+    HomeScreen(),
+    AccountsScreen(),
+    WalletScreen(),
+    ProfileScreen(),
+  ];
+  static const _userLabels = ['Accueil', 'Comptes', 'Wallet', 'Profil'];
+  static const _userIcons = [
+    Icons.space_dashboard_rounded,
+    Icons.account_balance_rounded,
+    Icons.account_balance_wallet_rounded,
+    Icons.person_rounded,
+  ];
+
+  // Merchant mode
+  static const _merchantPages = [
+    MerchantPaymentScreen(),
+    TransactionsScreen(),
+    PaymentLinksScreen(),
+    ProfileScreen(),
+  ];
+  static const _merchantLabels = ['Encaisser', 'Ventes', 'Liens', 'Profil'];
+  static const _merchantIcons = [
+    Icons.point_of_sale_rounded,
+    Icons.receipt_long_rounded,
+    Icons.link_rounded,
+    Icons.person_rounded,
+  ];
+
+  List<Widget> get pages => _merchantMode ? _merchantPages : _userPages;
+  List<String> get labels => _merchantMode ? _merchantLabels : _userLabels;
+  List<IconData> get icons => _merchantMode ? _merchantIcons : _userIcons;
 
   @override
   void initState() {
@@ -29,6 +69,23 @@ class _MainShellState extends State<MainShell> {
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final offline = results.every((r) => r == ConnectivityResult.none);
       if (mounted && offline != _isOffline) setState(() => _isOffline = offline);
+    });
+    _checkMerchantAccounts();
+  }
+
+  Future<void> _checkMerchantAccounts() async {
+    try {
+      final list = await ApiService.getMerchantAccounts();
+      if (list.isNotEmpty && mounted) {
+        setState(() => _hasMerchantAccounts = true);
+      }
+    } catch (_) {}
+  }
+
+  void _toggleMerchantMode() {
+    setState(() {
+      _merchantMode = !_merchantMode;
+      currentIndex = 0;
     });
   }
 
@@ -38,21 +95,6 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
-  final pages = const [
-    HomeScreen(),
-    AccountsScreen(),
-    WalletScreen(),
-    ProfileScreen(),
-  ];
-
-  final labels = const ['Accueil', 'Comptes', 'Wallet', 'Profil'];
-  final icons = const [
-    Icons.space_dashboard_rounded,
-    Icons.account_balance_rounded,
-    Icons.account_balance_wallet_rounded,
-    Icons.person_rounded,
-  ];
-
   @override
   Widget build(BuildContext context) {
     final palette = MbongoThemeController.current;
@@ -61,16 +103,67 @@ class _MainShellState extends State<MainShell> {
     final inactiveText = darkMode ? AppColors.muted : AppColors.darkMuted;
     return Scaffold(
       backgroundColor: palette.shellBottom,
+      floatingActionButton: _hasMerchantAccounts
+          ? FloatingActionButton.small(
+              heroTag: 'merchant_toggle',
+              backgroundColor: _merchantMode ? AppColors.green : palette.accent,
+              onPressed: _toggleMerchantMode,
+              tooltip: _merchantMode ? 'Mode client' : 'Mode marchand',
+              child: Icon(
+                _merchantMode ? Icons.person_rounded : Icons.point_of_sale_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            )
+          : null,
       body: Stack(
         children: [
           const _ShellBackdrop(),
           SafeArea(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              child: KeyedSubtree(
-                key: ValueKey(currentIndex),
-                child: pages[currentIndex],
-              ),
+            child: Column(
+              children: [
+                if (_merchantMode)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    color: AppColors.green.withValues(alpha: 0.15),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.store_rounded, color: AppColors.green, size: 15),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Mode Marchand actif',
+                          style: TextStyle(
+                            color: AppColors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: _toggleMerchantMode,
+                          child: const Text(
+                            'Quitter',
+                            style: TextStyle(
+                              color: AppColors.green,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: KeyedSubtree(
+                      key: ValueKey('$_merchantMode-$currentIndex'),
+                      child: pages[currentIndex],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           if (_isOffline)

@@ -95,6 +95,14 @@ class ApiService {
     return _get('/kyc/me');
   }
 
+  static Future<Map<String, dynamic>> requestOtp(String phone, {String purpose = 'login'}) {
+    return _post('/otp/request', body: {'phone': phone, 'purpose': purpose});
+  }
+
+  static Future<Map<String, dynamic>> verifyOtp(String phone, String code, {String purpose = 'login'}) {
+    return _post('/otp/verify', body: {'phone': phone, 'code': code, 'purpose': purpose});
+  }
+
   static Future<Map<String, dynamic>> submitKyc({
     required String documentType,
     required String frontPath,

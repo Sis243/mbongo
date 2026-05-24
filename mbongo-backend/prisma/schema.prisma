@@ -110,9 +110,11 @@ model User {
   phone     String     @unique
   email     String?    @unique
   pinHash   String
-  fcmToken  String?
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now())
+  fcmToken             String?
+  status               UserStatus @default(ACTIVE)
+  merchantApiKey       String?    @unique
+  merchantApiKeyPreview String?
+  createdAt            DateTime   @default(now())
 
   wallet         Wallet?
   virtualCards   VirtualCard[]

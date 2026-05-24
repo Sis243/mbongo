@@ -1,4 +1,7 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { randomBytes } from 'crypto';
+import { CurrentUser } from './auth/current-user.decorator';
+import type { JwtRequestUser } from './auth/auth.types';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -6,6 +9,33 @@ import { PrismaService } from './prisma/prisma.service';
 @UseGuards(JwtAuthGuard)
 export class MerchantController {
   constructor(private readonly prisma: PrismaService) {}
+
+  @Get('api-key')
+  async getApiKey(@CurrentUser() user: JwtRequestUser) {
+    const u = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    if (!u) return { key: null, preview: null };
+    if (!u.merchantApiKey) {
+      const key = 'mbongo_live_' + randomBytes(24).toString('hex');
+      const preview = key.slice(0, 20) + '••••••••••••••••••••';
+      await this.prisma.user.update({
+        where: { id: user.userId },
+        data: { merchantApiKey: key, merchantApiKeyPreview: preview },
+      });
+      return { key, preview };
+    }
+    return { key: u.merchantApiKey, preview: u.merchantApiKeyPreview ?? u.merchantApiKey.slice(0, 20) + '••••••••••••••••••••' };
+  }
+
+  @Post('api-key/regenerate')
+  async regenerateApiKey(@CurrentUser() user: JwtRequestUser) {
+    const key = 'mbongo_live_' + randomBytes(24).toString('hex');
+    const preview = key.slice(0, 20) + '••••••••••••••••••••';
+    await this.prisma.user.update({
+      where: { id: user.userId },
+      data: { merchantApiKey: key, merchantApiKeyPreview: preview },
+    });
+    return { key, preview };
+  }
 
   @Get('currencies')
   async listCurrencies() {

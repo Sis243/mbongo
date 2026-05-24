@@ -31,6 +31,55 @@ export class TransactionsController {
     return this.transactionsService.listActiveCashAgents();
   }
 
+  @Get('agent/profit-log')
+  async getAgentProfitLog(@CurrentUser() user: JwtRequestUser) {
+    const u = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    if (!u) return { commissionBalance: 0, transactions: [], payouts: [] };
+
+    const agent = await this.prisma.cashAgent.findFirst({ where: { phone: u.phone } });
+    if (!agent) return { commissionBalance: 0, transactions: [], payouts: [] };
+
+    const [txns, payouts] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { agentId: agent.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: { id: true, type: true, amount: true, fee: true, currency: true, status: true, createdAt: true, reference: true },
+      }),
+      this.prisma.cashAgentCommissionPayout.findMany({
+        where: { agentId: agent.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+    ]);
+
+    return {
+      commissionBalance: agent.commissionBalance,
+      agentCode: agent.code,
+      agentName: agent.name,
+      transactions: txns.map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: t.amount,
+        fee: t.fee,
+        commission: Number((t.fee * 0.5).toFixed(2)),
+        currency: t.currency,
+        status: t.status,
+        createdAt: t.createdAt.toISOString(),
+        reference: t.reference,
+      })),
+      payouts: payouts.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        previousBalance: p.previousBalance,
+        nextBalance: p.nextBalance,
+        reference: p.reference,
+        note: p.note,
+        createdAt: p.createdAt.toISOString(),
+      })),
+    };
+  }
+
   @Get('user/:userId')
   findForUser(@Param('userId') _userId: string, @CurrentUser() user: JwtRequestUser) {
     return this.transactionsService.listForUser(user.userId);

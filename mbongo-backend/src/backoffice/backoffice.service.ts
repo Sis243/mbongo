@@ -222,6 +222,22 @@ export class BackofficeService {
     const enabledChannels = channels.filter((channel) => channel.enabled).length;
     const liveChannels = channels.filter((channel) => channel.mode === 'live').length;
 
+    // Weekly transaction counts for the last 8 weeks
+    const now = new Date();
+    const weeklyActivity: number[] = [];
+    for (let w = 7; w >= 0; w--) {
+      const start = new Date(now);
+      start.setDate(start.getDate() - (w + 1) * 7);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(now);
+      end.setDate(end.getDate() - w * 7);
+      end.setHours(23, 59, 59, 999);
+      const count = await this.prisma.transaction.count({
+        where: { createdAt: { gte: start, lte: end } },
+      });
+      weeklyActivity.push(count);
+    }
+
     return {
       metrics: [
         { id: 'users', label: 'Clients', value: users.length, accent: 'cyan' },
@@ -264,6 +280,8 @@ export class BackofficeService {
         endpoint: channel.webhookUrl,
         apiKeyPreview: channel.apiKeyPreview,
       })),
+
+      weeklyActivity,
 
       summary: {
         totalUsers: users.length,

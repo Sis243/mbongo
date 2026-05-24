@@ -52,8 +52,14 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    Connectivity().checkConnectivity().then((results) {
+      if (mounted) {
+        final offline = results.isNotEmpty && results.every((r) => r == ConnectivityResult.none);
+        setState(() => _isOffline = offline);
+      }
+    });
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
-      final offline = results.every((r) => r == ConnectivityResult.none);
+      final offline = results.isNotEmpty && results.every((r) => r == ConnectivityResult.none);
       if (mounted && offline != _isOffline) setState(() => _isOffline = offline);
     });
     _checkRoles();

@@ -39,8 +39,9 @@ class AuthRepository {
       auth: false,
     );
 
-    final accessToken = data['accessToken'] as String? ?? '';
-    final refreshToken = data['refreshToken'] as String? ?? '';
+    final tokens = (data['tokens'] as Map?)?.cast<String, dynamic>() ?? {};
+    final accessToken = (tokens['accessToken'] ?? data['accessToken']) as String? ?? '';
+    final refreshToken = (tokens['refreshToken'] ?? data['refreshToken']) as String? ?? '';
     final userMap = Map<String, dynamic>.from(
       (data['user'] as Map?)?.cast<String, dynamic>() ?? data,
     );
@@ -68,8 +69,9 @@ class AuthRepository {
       auth: false,
     );
 
-    final accessToken = data['accessToken'] as String? ?? '';
-    final refreshToken = data['refreshToken'] as String? ?? '';
+    final tokens = (data['tokens'] as Map?)?.cast<String, dynamic>() ?? {};
+    final accessToken = (tokens['accessToken'] ?? data['accessToken']) as String? ?? '';
+    final refreshToken = (tokens['refreshToken'] ?? data['refreshToken']) as String? ?? '';
     final userMap = Map<String, dynamic>.from(
       (data['user'] as Map?)?.cast<String, dynamic>() ?? data,
     );

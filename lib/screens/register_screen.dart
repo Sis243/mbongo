@@ -117,55 +117,64 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     setState(() => loading = true);
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 250));
+      // Étape 1 — création du compte (bloquante)
       if (!widget.resumeKyc) {
         await ref.read(authProvider.notifier).register(
               name: name,
               phone: phone,
               pin: pin,
             );
-      }
-      await ApiService.submitKyc(
-        documentType: documentType,
-        frontPath: kycDocumentFront!.path,
-        backPath: kycDocumentBack?.path ?? '',
-        selfiePath: kycSelfie!.path,
-      );
-      await AuthService.setKycDocumentType(documentType);
-      await AuthService.setKycDocumentNumber(documentNumber);
-      await AuthService.setKycSheetName(sheetName);
-      await AuthService.setKycSelfiePath(kycSelfie!.path);
-      await AuthService.setKycDocumentFrontPath(kycDocumentFront!.path);
-      await AuthService.setKycDocumentBackPath(kycDocumentBack?.path ?? '');
-      await AuthService.setKycSubmitted(true);
-      await AuthService.setKycStatus('en_attente');
-      await AuthService.setKycRefusalReason('');
-      await AuthService.setKycSubmittedAt(DateTime.now().toIso8601String());
-      await AuthService.clearRegisterDraft();
-      if (!widget.resumeKyc) {
         await ProfilePersistenceService.savePhoneVerified(false);
         await ProfilePersistenceService.savePinConfigured(true);
         await ProfilePersistenceService.savePhotoVerified(false);
         await ProfilePersistenceService.savePremiumEligible(false);
         await AuthService.setLoggedIn(true);
       }
-
-      if (!mounted) return;
-      setState(() => loading = false);
-      context.go('/home');
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() => loading = false);
       _toast(error.message);
+      return;
     } catch (_) {
       if (!mounted) return;
       setState(() => loading = false);
-      _toast(
-        widget.resumeKyc
-            ? 'Envoi du dossier KYC impossible pour le moment.'
-            : 'Creation du compte impossible pour le moment.',
-      );
+      _toast('Création du compte impossible. Vérifiez votre connexion et réessayez.');
+      return;
     }
+
+    // Étape 2 — soumission KYC (non bloquante pour la navigation)
+    String? kycError;
+    try {
+      await ApiService.submitKyc(
+        documentType: documentType,
+        frontPath: kycDocumentFront!.path,
+        backPath: kycDocumentBack?.path ?? '',
+        selfiePath: kycSelfie!.path,
+      );
+      await AuthService.setKycSubmitted(true);
+      await AuthService.setKycStatus('en_attente');
+      await AuthService.setKycSubmittedAt(DateTime.now().toIso8601String());
+    } catch (_) {
+      kycError = 'Dossier KYC non envoyé. Vous pourrez le soumettre depuis l\'accueil.';
+    }
+
+    await AuthService.setKycDocumentType(documentType);
+    await AuthService.setKycDocumentNumber(documentNumber);
+    await AuthService.setKycSheetName(sheetName);
+    await AuthService.setKycSelfiePath(kycSelfie!.path);
+    await AuthService.setKycDocumentFrontPath(kycDocumentFront!.path);
+    await AuthService.setKycDocumentBackPath(kycDocumentBack?.path ?? '');
+    await AuthService.setKycRefusalReason('');
+    await AuthService.clearRegisterDraft();
+
+    if (!mounted) return;
+    setState(() => loading = false);
+    if (kycError != null) {
+      _toast(kycError);
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    if (!mounted) return;
+    context.go('/home');
   }
 
   void _toast(String message) {
@@ -241,9 +250,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             )
           : await _picker.pickImage(
               source: source,
-              imageQuality: 60,
-              maxWidth: 1280,
-              maxHeight: 1280,
+              imageQuality: 45,
+              maxWidth: 900,
+              maxHeight: 900,
               preferredCameraDevice: CameraDevice.front,
             );
 
@@ -274,9 +283,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             )
           : await _picker.pickImage(
               source: source,
-              imageQuality: 60,
-              maxWidth: 1280,
-              maxHeight: 1280,
+              imageQuality: 45,
+              maxWidth: 900,
+              maxHeight: 900,
               preferredCameraDevice: CameraDevice.rear,
             );
 

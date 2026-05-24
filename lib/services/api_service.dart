@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
-
 import 'auth_service.dart';
 
 class ApiException implements Exception {
@@ -18,17 +16,8 @@ class ApiException implements Exception {
 class ApiService {
   static String get _baseUrl {
     const configured = String.fromEnvironment('MBONGO_API_BASE_URL');
-    if (configured.isNotEmpty) {
-      return configured;
-    }
-
-    if (kIsWeb) {
-      return 'http://localhost:3000';
-    }
-
-    return defaultTargetPlatform == TargetPlatform.android
-        ? 'http://10.0.2.2:3000'
-        : 'http://localhost:3000';
+    if (configured.isNotEmpty) return configured;
+    return 'https://mbongo-backend.vercel.app';
   }
 
   static Future<Map<String, dynamic>> login({

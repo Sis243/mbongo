@@ -9,9 +9,12 @@ export const reviewKycSchema = z.discriminatedUnion('status', [
   z
     .object({
       status: z.literal('REJECTED'),
-      rejectionReason: z.string().trim().min(1).max(500),
+      rejectionReason: z.string().trim().min(1)
+      .max(500),
     })
     .strict(),
 ]);
 
 export type ReviewKycDto = z.infer<typeof reviewKycSchema>;
+
+

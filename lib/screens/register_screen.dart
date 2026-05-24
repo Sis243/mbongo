@@ -116,30 +116,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     setState(() => loading = true);
-    try {
-      // Étape 1 — création du compte (bloquante)
-      if (!widget.resumeKyc) {
-        await ref.read(authProvider.notifier).register(
-              name: name,
-              phone: phone,
-              pin: pin,
-            );
-        await ProfilePersistenceService.savePhoneVerified(false);
-        await ProfilePersistenceService.savePinConfigured(true);
-        await ProfilePersistenceService.savePhotoVerified(false);
-        await ProfilePersistenceService.savePremiumEligible(false);
-        await AuthService.setLoggedIn(true);
+
+    // Étape 1 — création du compte (bloquante)
+    if (!widget.resumeKyc) {
+      await ref.read(authProvider.notifier).register(
+            name: name,
+            phone: phone,
+            pin: pin,
+          );
+
+      // AsyncValue.guard inside AuthNotifier swallows exceptions into state —
+      // check the state directly instead of relying on a try/catch.
+      final authState = ref.read(authProvider);
+      if (authState.hasError || authState.valueOrNull == null) {
+        if (!mounted) return;
+        setState(() => loading = false);
+        final err = authState.error;
+        if (err is ApiException) {
+          _toast(err.message);
+        } else if (err != null) {
+          _toast(err.toString());
+        } else {
+          _toast('Création du compte impossible. Vérifiez votre connexion et réessayez.');
+        }
+        return;
       }
-    } on ApiException catch (error) {
-      if (!mounted) return;
-      setState(() => loading = false);
-      _toast(error.message);
-      return;
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => loading = false);
-      _toast('Création du compte impossible. Vérifiez votre connexion et réessayez.');
-      return;
+
+      await ProfilePersistenceService.savePhoneVerified(false);
+      await ProfilePersistenceService.savePinConfigured(true);
+      await ProfilePersistenceService.savePhotoVerified(false);
+      await ProfilePersistenceService.savePremiumEligible(false);
+      await AuthService.setLoggedIn(true);
     }
 
     // Étape 2 — soumission KYC (non bloquante pour la navigation)

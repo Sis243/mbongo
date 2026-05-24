@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
+import '../../core/api/dio_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../features/auth/presentation/auth_notifier.dart';
@@ -343,24 +345,238 @@ class _AgentDrawer extends ConsumerWidget {
   }
 }
 
-class _ProfitLogScreen extends StatelessWidget {
+final _profitLogProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final client = ref.read(dioClientProvider);
+  try {
+    final resp = await client.get('/transactions/agent/profit-log');
+    return Map<String, dynamic>.from(resp as Map);
+  } catch (_) {
+    return {};
+  }
+});
+
+class _ProfitLogScreen extends ConsumerWidget {
   const _ProfitLogScreen();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = MbongoThemeController.current;
+    final dataAsync = ref.watch(_profitLogProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Journal des profits')),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.bar_chart_rounded, size: 64, color: AppColors.orange),
-            SizedBox(height: 16),
-            Text('Journal des profits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.text)),
-            SizedBox(height: 8),
-            Text('Bientôt disponible', style: TextStyle(color: AppColors.textSoft)),
-          ],
+      backgroundColor: palette.shellBottom,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Journal des profits',
+            style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w800)),
+        iconTheme: const IconThemeData(color: AppColors.text),
+      ),
+      body: dataAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.orange)),
+        error: (_, __) => const Center(child: Text('Erreur de chargement', style: TextStyle(color: AppColors.textSoft))),
+        data: (data) {
+          final balance = (data['commissionBalance'] as num?)?.toDouble() ?? 0;
+          final agentName = data['agentName']?.toString() ?? '';
+          final agentCode = data['agentCode']?.toString() ?? '';
+          final txns = (data['transactions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          final payouts = (data['payouts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+          return RefreshIndicator(
+            color: AppColors.orange,
+            onRefresh: () => ref.refresh(_profitLogProvider.future),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _balanceCard(balance, agentName, agentCode),
+                const SizedBox(height: 20),
+                if (txns.isNotEmpty) ...[
+                  _sectionTitle('Commissions récentes', AppColors.green),
+                  const SizedBox(height: 10),
+                  ...txns.map((t) => _txnTile(t, palette)),
+                ],
+                if (payouts.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  _sectionTitle('Versements reçus', AppColors.cyan),
+                  const SizedBox(height: 10),
+                  ...payouts.map((p) => _payoutTile(p, palette)),
+                ],
+                if (txns.isEmpty && payouts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 60),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.bar_chart_rounded, size: 64, color: AppColors.orange),
+                        const SizedBox(height: 16),
+                        const Text('Aucune commission pour l\'instant',
+                            style: TextStyle(color: AppColors.textSoft, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _balanceCard(double balance, String name, String code) {
+    final fmt = NumberFormat('#,##0.##', 'fr_FR');
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A0A00), Color(0xFF3D1A00)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_balance_wallet_rounded, color: AppColors.orange, size: 22),
+              const SizedBox(width: 8),
+              const Text('Solde de commissions',
+                  style: TextStyle(color: AppColors.textSoft, fontSize: 13, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              if (code.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(code,
+                      style: const TextStyle(color: AppColors.orange, fontSize: 11, fontWeight: FontWeight.w800)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('${fmt.format(balance)} CDF',
+              style: const TextStyle(
+                  color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+          if (name.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(name, style: const TextStyle(color: AppColors.textSoft, fontSize: 13)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title, Color color) {
+    return Row(
+      children: [
+        Container(width: 4, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(title, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w800)),
+      ],
+    );
+  }
+
+  Widget _txnTile(Map<String, dynamic> t, dynamic palette) {
+    final fmt = NumberFormat('#,##0.##', 'fr_FR');
+    final commission = (t['commission'] as num?)?.toDouble() ?? 0;
+    final amount = (t['amount'] as num?)?.toDouble() ?? 0;
+    final type = t['type']?.toString() ?? '';
+    final currency = t['currency']?.toString() ?? 'CDF';
+    final date = t['createdAt'] != null
+        ? DateFormat('dd MMM yyyy', 'fr_FR').format(DateTime.parse(t['createdAt'].toString()).toLocal())
+        : '';
+    final icon = type.contains('cashout') || type.contains('withdrawal')
+        ? Icons.arrow_upward_rounded
+        : Icons.arrow_downward_rounded;
+    final iconColor = type.contains('cashout') || type.contains('withdrawal') ? AppColors.orange : AppColors.green;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.panelAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(type.replaceAll('-', ' ').toUpperCase(),
+                    style: const TextStyle(color: AppColors.text, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text('${fmt.format(amount)} $currency — $date',
+                    style: const TextStyle(color: AppColors.textSoft, fontSize: 11)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('+${fmt.format(commission)} $currency',
+                  style: const TextStyle(color: AppColors.green, fontSize: 13, fontWeight: FontWeight.w900)),
+              const Text('commission', style: TextStyle(color: AppColors.textSoft, fontSize: 10)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _payoutTile(Map<String, dynamic> p, dynamic palette) {
+    final fmt = NumberFormat('#,##0.##', 'fr_FR');
+    final amount = (p['amount'] as num?)?.toDouble() ?? 0;
+    final date = p['createdAt'] != null
+        ? DateFormat('dd MMM yyyy', 'fr_FR').format(DateTime.parse(p['createdAt'].toString()).toLocal())
+        : '';
+    final note = p['note']?.toString() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.panelAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cyan.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.cyan.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.payments_rounded, color: AppColors.cyan, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Versement reçu',
+                    style: TextStyle(color: AppColors.text, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text(note.isNotEmpty ? '$note — $date' : date,
+                    style: const TextStyle(color: AppColors.textSoft, fontSize: 11)),
+              ],
+            ),
+          ),
+          Text('+${fmt.format(amount)} CDF',
+              style: const TextStyle(color: AppColors.cyan, fontSize: 13, fontWeight: FontWeight.w900)),
+        ],
       ),
     );
   }

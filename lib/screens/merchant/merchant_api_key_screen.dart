@@ -267,8 +267,12 @@ class _KeyCard extends ConsumerWidget {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              try {
+                final client = widgetRef.read(dioClientProvider);
+                await client.post('/merchant/api-key/regenerate', {});
+              } catch (_) {}
               widgetRef.invalidate(_apiKeyProvider);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.orange),

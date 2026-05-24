@@ -1,0 +1,68 @@
+.payment_method_mbongo_gateway label img {
+    vertical-align: middle;
+    margin-right: 8px;
+    height: 24px;
+    width: auto;
+}
+
+.mbongo-methods {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 12px 0 0;
+}
+
+.mbongo-method-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #EEF4FF;
+    border: 1px solid #C3D5F5;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1B4EAA;
+}
+
+.mbongo-method-badge svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+.mbongo-pending-notice,
+.mbongo-success-notice {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-family: inherit;
+}
+
+.mbongo-pending-notice {
+    background: #fff8e1;
+    border: 1px solid #ffc107;
+}
+
+.mbongo-success-notice {
+    background: #e8f5e9;
+    border: 1px solid #4caf50;
+}
+
+.mbongo-pay-button {
+    display: inline-block;
+    background: #1B4EAA;
+    color: #ffffff !important;
+    padding: 11px 24px;
+    border-radius: 8px;
+    font-weight: 800;
+    text-decoration: none;
+    font-size: 14px;
+    margin-top: 10px;
+    transition: background 0.2s;
+}
+
+.mbongo-pay-button:hover {
+    background: #0D2D65;
+    color: #ffffff !important;
+}

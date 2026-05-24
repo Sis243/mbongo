@@ -543,7 +543,7 @@ export class BackofficeService {
       throw new BadRequestException('Motif de rejet obligatoire');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const reviewed = await this.prisma.$transaction(async (tx) => {
       const reviewedSubmission = await tx.kycSubmission.update({
         where: { id },
         data: {
@@ -559,6 +559,7 @@ export class BackofficeService {
               id: true,
               name: true,
               phone: true,
+              fcmToken: true,
             },
           },
         },
@@ -583,6 +584,26 @@ export class BackofficeService {
 
       return reviewedSubmission;
     });
+
+    // Push notification FCM au mobile (hors transaction, non bloquant)
+    const fcmToken = (reviewed.user as { fcmToken?: string | null } & typeof reviewed.user)?.fcmToken;
+    if (fcmToken) {
+      const isApproved = body.status === 'APPROVED';
+      this.fcm.send({
+        token: fcmToken,
+        title: isApproved ? 'Compte vérifié ✓' : 'Vérification KYC',
+        body: isApproved
+          ? 'Votre identité a été vérifiée. Votre compte MBONGO est maintenant actif.'
+          : `Votre dossier KYC a été rejeté. Motif : ${body.rejectionReason ?? 'voir l\'application'}.`,
+        data: {
+          type: 'KYC_REVIEW',
+          status: body.status,
+          submissionId: reviewed.id,
+        },
+      }).catch(() => {});
+    }
+
+    return reviewed;
   }
 
   async listAuditLogs(page?: number, limit?: number) {

@@ -19,8 +19,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final phoneCtrl = TextEditingController(text: '0990000000');
-  final pinCtrl = TextEditingController(text: '1234');
+  final phoneCtrl = TextEditingController();
+  final pinCtrl = TextEditingController();
 
   bool hidePin = true;
   bool loading = false;

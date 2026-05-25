@@ -28,8 +28,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final loggedIn = authState.valueOrNull != null;
       final onAuthRoute = path.startsWith('/auth');
+      final onOnboarding = path == '/onboarding';
 
-      if (!loggedIn && !onAuthRoute) return '/auth/login';
+      if (!loggedIn && !onAuthRoute && !onOnboarding) return '/auth/login';
       if (loggedIn && onAuthRoute) return '/home';
       return null;
     },

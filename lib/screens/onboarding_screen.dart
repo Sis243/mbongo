@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
+import '../services/auth_service.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import '../widgets/primary_button.dart';
-import 'login_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -93,20 +94,16 @@ class OnboardingScreen extends StatelessWidget {
                     const Spacer(),
                     PrimaryButton(
                       label: 'Ouvrir mon compte',
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        );
+                      onPressed: () async {
+                        await AuthService.setSeenOnboarding();
+                        if (context.mounted) context.go('/auth/login');
                       },
                     ),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        );
+                      onPressed: () async {
+                        await AuthService.setSeenOnboarding();
+                        if (context.mounted) context.go('/auth/login');
                       },
                       child: const Text(
                         "J'ai deja un compte",

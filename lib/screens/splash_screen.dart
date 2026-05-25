@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme/app_colors.dart';
 import '../features/auth/domain/app_user.dart';
 import '../features/auth/presentation/auth_notifier.dart';
+import '../services/auth_service.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -112,7 +113,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (authState != null) {
       context.go('/home');
     } else {
-      context.go('/auth/login');
+      final seen = await AuthService.hasSeenOnboarding();
+      if (!mounted) return;
+      context.go(seen ? '/auth/login' : '/onboarding');
     }
   }
 

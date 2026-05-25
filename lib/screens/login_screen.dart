@@ -8,6 +8,7 @@ import '../features/auth/presentation/auth_notifier.dart';
 import '../services/auth_service.dart';
 import '../services/biometric_service.dart';
 import '../widgets/common/mbongo_money_particles.dart';
+import 'forgot_pin_screen.dart';
 import 'login_phone_screen.dart';
 import 'register_screen.dart';
 
@@ -450,7 +451,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       children: [
         TextButton(
-          onPressed: () {},
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ForgotPinScreen(initialPhone: phoneCtrl.text.trim()))),
           child: const Text('Code PIN oublie ?'),
         ),
         const SizedBox(height: 8),

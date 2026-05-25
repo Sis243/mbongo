@@ -39,4 +39,9 @@ export class AuthController {
   logout(@Body() body: RefreshTokenDto) {
     return this.authService.logout(body);
   }
+
+  @Post('reset-pin')
+  resetPin(@Body() body: { phone: string; code: string; newPin: string }) {
+    return this.authService.resetPin(body);
+  }
 }

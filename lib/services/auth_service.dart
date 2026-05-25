@@ -18,6 +18,7 @@ class AuthService {
   static const String _transactionSoundsKey = 'mbongo_transaction_sounds';
   static const String _selectedLanguageKey = 'mbongo_selected_language';
   static const String _selectedThemeKey = 'mbongo_selected_theme';
+  static const String _seenOnboardingKey = 'mbongo_seen_onboarding';
   static const String _faceRecognitionEnabledKey = 'mbongo_face_recognition_enabled';
   static const String _livenessCheckEnabledKey = 'mbongo_liveness_check_enabled';
   static const String _palmRecognitionEnabledKey = 'mbongo_palm_recognition_enabled';
@@ -38,6 +39,16 @@ class AuthService {
   static const String _kycSubmittedAtKey = 'mbongo_kyc_submitted_at';
   static const String _registerDraftNameKey = 'mbongo_register_draft_name';
   static const String _registerDraftPhoneKey = 'mbongo_register_draft_phone';
+
+  static Future<bool> hasSeenOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_seenOnboardingKey) ?? false;
+  }
+
+  static Future<void> setSeenOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_seenOnboardingKey, true);
+  }
 
   static Future<void> setLoggedIn(bool value) async {
     final prefs = await SharedPreferences.getInstance();

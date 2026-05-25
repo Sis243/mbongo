@@ -111,6 +111,26 @@ export class AuthService {
     };
   }
 
+  async resetPin({ phone, code, newPin }: { phone: string; code: string; newPin: string }) {
+    const otps = await this.prisma.$queryRaw<{ id: string; expiresAt: Date }[]>`
+      SELECT "id", "expiresAt" FROM "OtpCode"
+      WHERE "phone" = ${phone} AND "code" = ${code} AND "purpose" = 'reset' AND "used" = false
+      ORDER BY "createdAt" DESC LIMIT 1
+    `;
+    if (!otps.length) throw new UnauthorizedException('Code invalide ou expiré');
+    if (new Date() > new Date(otps[0].expiresAt)) throw new UnauthorizedException('Code expiré');
+
+    await this.prisma.$executeRaw`UPDATE "OtpCode" SET "used" = true WHERE "id" = ${otps[0].id}`;
+
+    const user = await this.prisma.user.findUnique({ where: { phone } });
+    if (!user) throw new UnauthorizedException('Utilisateur introuvable');
+
+    const pinHash = await bcrypt.hash(String(newPin), 10);
+    await this.prisma.user.update({ where: { phone }, data: { pinHash } });
+
+    return { success: true };
+  }
+
   private async issueTokens(
     user: AuthenticatedUser,
     metadata: AuthRequestMetadata,

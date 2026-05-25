@@ -271,6 +271,10 @@ class ApiService {
     return response;
   }
 
+  static Future<Map<String, dynamic>> resetPin(String phone, String code, String newPin) async {
+    return _post('/auth/reset-pin', body: {'phone': phone, 'code': code, 'newPin': newPin});
+  }
+
   static Future<Map<String, dynamic>> transfer({
     required String senderId,
     required String receiverPhone,

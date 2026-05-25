@@ -535,6 +535,7 @@ model IntegrationChannel {
 model Merchant {
   id          String         @id @default(uuid())
   name        String
+  phone       String?
   category    String?
   location    String?
   status      MerchantStatus @default(PENDING)
@@ -546,6 +547,7 @@ model Merchant {
   receipts  MerchantReceipt[]
   roles     MerchantRole[]
 
+  @@index([phone])
   @@index([status])
   @@index([createdAt])
 }

@@ -13,6 +13,10 @@ export class UpsertMerchantDto {
 
   @IsOptional()
   @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
   category?: string;
 
   @IsOptional()

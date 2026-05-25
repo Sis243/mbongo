@@ -66,15 +66,17 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _checkRoles() async {
     try {
-      final agents = await ApiService.getCashAgents();
-      if (agents.isNotEmpty && mounted) {
+      final log = await ApiService.getAgentProfitLog();
+      final agentCode = log['agentCode']?.toString() ?? log['data']?['agentCode']?.toString();
+      if (agentCode != null && agentCode.isNotEmpty && mounted) {
         setState(() { _roleMode = 2; _roleChecked = true; });
         return;
       }
     } catch (_) {}
     try {
-      final list = await ApiService.getMerchantAccounts();
-      if (list.isNotEmpty && mounted) {
+      final me = await ApiService.getMyMerchantProfile();
+      final isMerchant = me['isMerchant'] == true || me['data']?['isMerchant'] == true;
+      if (isMerchant && mounted) {
         setState(() { _roleMode = 1; _roleChecked = true; });
         return;
       }

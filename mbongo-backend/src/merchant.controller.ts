@@ -10,6 +10,22 @@ import { PrismaService } from './prisma/prisma.service';
 export class MerchantController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Get('me')
+  async getMyMerchant(@CurrentUser() user: JwtRequestUser) {
+    const u = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    if (!u) return { isMerchant: false };
+    const merchant = await this.prisma.merchant.findFirst({ where: { phone: u.phone } });
+    if (!merchant) return { isMerchant: false };
+    return {
+      isMerchant: true,
+      id: merchant.id,
+      name: merchant.name,
+      status: merchant.status,
+      category: merchant.category,
+      location: merchant.location,
+    };
+  }
+
   @Get('api-key')
   async getApiKey(@CurrentUser() user: JwtRequestUser) {
     const u = await this.prisma.user.findUnique({ where: { id: user.userId } });

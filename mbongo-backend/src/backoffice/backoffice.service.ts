@@ -23,6 +23,7 @@ interface UpdateChannelPayload {
 interface UpsertMerchantPayload {
   id?: string;
   name?: string;
+  phone?: string;
   category?: string;
   location?: string;
   status?: MerchantStatus;
@@ -2233,6 +2234,7 @@ export class BackofficeService {
       return this.prisma.merchant.create({
         data: {
           name: body.name ?? 'Marchand',
+          phone: body.phone,
           category: body.category ?? 'Commerce',
           location: body.location ?? 'Kinshasa',
           status: body.status ?? 'ACTIVE',
@@ -2245,6 +2247,7 @@ export class BackofficeService {
       where: { id: body.id },
       update: {
         name: body.name,
+        phone: body.phone,
         category: body.category,
         location: body.location,
         status: body.status,
@@ -2253,6 +2256,7 @@ export class BackofficeService {
       create: {
         id: body.id,
         name: body.name ?? 'Marchand',
+        phone: body.phone,
         category: body.category ?? 'Commerce',
         location: body.location ?? 'Kinshasa',
         status: body.status ?? 'ACTIVE',

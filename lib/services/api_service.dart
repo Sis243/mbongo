@@ -264,6 +264,13 @@ class ApiService {
     return [];
   }
 
+  static Future<Map<String, dynamic>> getAgentProfitLog() async {
+    final response = await _get('/transactions/agent/profit-log');
+    final data = response['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return response;
+  }
+
   static Future<Map<String, dynamic>> transfer({
     required String senderId,
     required String receiverPhone,
@@ -468,6 +475,13 @@ class ApiService {
       return list.map((item) => Map<String, dynamic>.from(item as Map)).toList();
     }
     return [];
+  }
+
+  static Future<Map<String, dynamic>> getMyMerchantProfile() async {
+    final response = await _get('/merchant/me');
+    final data = response['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return response;
   }
 
   static Future<List<Map<String, dynamic>>> getMerchantTerminals() async {

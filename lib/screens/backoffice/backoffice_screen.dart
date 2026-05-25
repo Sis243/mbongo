@@ -36,6 +36,15 @@ final _bReceiptsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asyn
   return [];
 });
 
+final _bAgentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final resp = await ref.read(dioClientProvider).get('/backoffice/agents');
+    final list = resp['agents'] ?? resp['data'];
+    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } catch (_) {}
+  return [];
+});
+
 final _bRolesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
     final resp = await ref.read(dioClientProvider).get('/merchant/roles');
@@ -57,6 +66,7 @@ final _bCardsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 enum _AdminSection {
   overview,
   merchants,
+  agents,
   terminals,
   tickets,
   integrations,
@@ -76,6 +86,7 @@ class _BackofficeScreenState extends ConsumerState<BackofficeScreen> {
   @override
   Widget build(BuildContext context) {
     final merchants = ref.watch(_bMerchantsProvider).valueOrNull ?? [];
+    final agents = ref.watch(_bAgentsProvider).valueOrNull ?? [];
     final terminals = ref.watch(_bTerminalsProvider).valueOrNull ?? [];
     final receipts = ref.watch(_bReceiptsProvider).valueOrNull ?? [];
     final roles = ref.watch(_bRolesProvider).valueOrNull ?? [];
@@ -90,6 +101,7 @@ class _BackofficeScreenState extends ConsumerState<BackofficeScreen> {
         final data = _AdminData(
           channels: channels,
           merchants: merchants,
+          agents: agents,
           terminals: terminals,
           receipts: receipts,
           roles: roles,
@@ -137,6 +149,7 @@ class _BackofficeScreenState extends ConsumerState<BackofficeScreen> {
                       section: _section,
                       data: data,
                       onCreateMerchant: () => _showMerchantDialog(),
+                      onCreateAgent: () => _showCreateAgentDialog(),
                       onCreateTerminal: () => _showTerminalDialog(data.merchants),
                       onAssignRole: () => _showRoleDialog(data.merchants),
                     );
@@ -438,11 +451,102 @@ class _BackofficeScreenState extends ConsumerState<BackofficeScreen> {
       },
     );
   }
+
+  Future<void> _showCreateAgentDialog() async {
+    final phoneCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final locationCtrl = TextEditingController();
+    final cashInCtrl = TextEditingController(text: '5000000');
+    final cashOutCtrl = TextEditingController(text: '5000000');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final palette = MbongoThemeController.current;
+        return AlertDialog(
+          backgroundColor: palette.panel,
+          title: const Text('Enregistrer un agent', style: TextStyle(color: AppColors.text)),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Numero de telephone',
+                    hintText: 'Ex: 0990000000',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Nom complet'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: locationCtrl,
+                  decoration: const InputDecoration(labelText: 'Zone / Emplacement'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: cashInCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Limite Cash-In (CDF)'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: cashOutCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Limite Cash-Out (CDF)'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final phone = phoneCtrl.text.trim();
+                if (phone.isEmpty) return;
+                Navigator.pop(dialogContext);
+                try {
+                  await ref.read(dioClientProvider).post('/backoffice/agents', {
+                    'phone': phone,
+                    if (nameCtrl.text.trim().isNotEmpty) 'name': nameCtrl.text.trim(),
+                    if (locationCtrl.text.trim().isNotEmpty) 'location': locationCtrl.text.trim(),
+                    'dailyCashInLimit': int.tryParse(cashInCtrl.text.trim()) ?? 5000000,
+                    'dailyCashOutLimit': int.tryParse(cashOutCtrl.text.trim()) ?? 5000000,
+                  });
+                  ref.refresh(_bAgentsProvider.future).ignore();
+                } catch (_) {}
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _AdminData {
   final List<IntegrationChannel> channels;
   final List<Map<String, dynamic>> merchants;
+  final List<Map<String, dynamic>> agents;
   final List<Map<String, dynamic>> terminals;
   final List<Map<String, dynamic>> receipts;
   final List<Map<String, dynamic>> roles;
@@ -453,6 +557,7 @@ class _AdminData {
   const _AdminData({
     required this.channels,
     required this.merchants,
+    required this.agents,
     required this.terminals,
     required this.receipts,
     required this.roles,
@@ -477,6 +582,7 @@ class _AdminSidebar extends StatelessWidget {
     final items = <({String label, IconData icon, _AdminSection section})>[
       (label: 'Vue globale', icon: Icons.dashboard_rounded, section: _AdminSection.overview),
       (label: 'Marchands', icon: Icons.storefront_rounded, section: _AdminSection.merchants),
+      (label: 'Agents', icon: Icons.support_agent_rounded, section: _AdminSection.agents),
       (label: 'Terminaux POS', icon: Icons.point_of_sale_rounded, section: _AdminSection.terminals),
       (label: 'Tickets', icon: Icons.receipt_long_rounded, section: _AdminSection.tickets),
       (label: 'Integrations', icon: Icons.hub_rounded, section: _AdminSection.integrations),
@@ -643,6 +749,7 @@ class _AdminContent extends StatelessWidget {
   final _AdminSection section;
   final _AdminData data;
   final VoidCallback onCreateMerchant;
+  final VoidCallback onCreateAgent;
   final VoidCallback onCreateTerminal;
   final VoidCallback onAssignRole;
 
@@ -650,6 +757,7 @@ class _AdminContent extends StatelessWidget {
     required this.section,
     required this.data,
     required this.onCreateMerchant,
+    required this.onCreateAgent,
     required this.onCreateTerminal,
     required this.onAssignRole,
   });
@@ -676,6 +784,10 @@ class _AdminContent extends StatelessWidget {
           onCreateMerchant: onCreateMerchant,
           onCreateTerminal: onCreateTerminal,
           onAssignRole: onAssignRole,
+        ),
+      _AdminSection.agents => _AgentsSection(
+          data: data,
+          onCreateAgent: onCreateAgent,
         ),
       _AdminSection.terminals => _TerminalsSection(
           data: data,
@@ -1705,6 +1817,224 @@ class _GlassCard extends StatelessWidget {
         border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
       ),
       child: child,
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Section Agents
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _AgentsSection extends StatelessWidget {
+  final _AdminData data;
+  final VoidCallback onCreateAgent;
+
+  const _AgentsSection({required this.data, required this.onCreateAgent});
+
+  @override
+  Widget build(BuildContext context) {
+    final agents = data.agents;
+    final active = agents.where((a) => a['status'] == 'ACTIVE').length;
+    final palette = MbongoThemeController.current;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header stats
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _agentStat('Total agents', '${agents.length}', AppColors.cyan),
+            _agentStat('Actifs', '$active', AppColors.green),
+            _agentStat('Suspendus', '${agents.length - active}', AppColors.orange),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Action bar
+        Row(
+          children: [
+            const Text(
+              'Agents enregistrés',
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const Spacer(),
+            ElevatedButton.icon(
+              onPressed: onCreateAgent,
+              icon: const Icon(Icons.person_add_rounded, size: 16),
+              label: const Text('Enregistrer un agent'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.orange,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // Table
+        Container(
+          decoration: BoxDecoration(
+            color: palette.panel.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
+          ),
+          child: agents.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.support_agent_rounded, size: 48, color: AppColors.orange),
+                        SizedBox(height: 12),
+                        Text(
+                          'Aucun agent enregistré',
+                          style: TextStyle(color: AppColors.textSoft, fontSize: 14),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Utilisez le bouton ci-dessus pour enregistrer un agent.',
+                          style: TextStyle(color: AppColors.muted, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
+                  children: agents.map((agent) => _AgentRow(agent: agent)).toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _agentStat(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value,
+              style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Text(label,
+              style: const TextStyle(color: AppColors.textSoft, fontSize: 12, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class _AgentRow extends StatelessWidget {
+  final Map<String, dynamic> agent;
+  const _AgentRow({required this.agent});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = agent['name']?.toString() ?? '—';
+    final phone = agent['phone']?.toString() ?? '—';
+    final location = agent['location']?.toString() ?? '—';
+    final code = agent['code']?.toString() ?? '';
+    final status = agent['status']?.toString() ?? 'ACTIVE';
+    final isActive = status == 'ACTIVE';
+    final statusColor = isActive ? AppColors.green : AppColors.orange;
+    final statusLabel = isActive ? 'Actif' : 'Suspendu';
+
+    final cashIn = (agent['cashIn'] as num?)?.toDouble() ?? 0;
+    final cashOut = (agent['cashOut'] as num?)?.toDouble() ?? 0;
+    final commission = (agent['commissionBalance'] as num?)?.toDouble() ?? 0;
+
+    String fmt(double v) => v >= 1000000
+        ? '${(v / 1000000).toStringAsFixed(1)}M'
+        : v >= 1000
+            ? '${(v / 1000).toStringAsFixed(0)}K'
+            : v.toStringAsFixed(0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.15))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.orange.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.support_agent_rounded, color: AppColors.orange, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w800)),
+                    if (code.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.orange.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(code,
+                            style: const TextStyle(
+                                color: AppColors.orange, fontSize: 10, fontWeight: FontWeight.w800)),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text('$phone — $location',
+                    style: const TextStyle(color: AppColors.textSoft, fontSize: 11)),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('↓ ${fmt(cashIn)} CDF',
+                    style: const TextStyle(color: AppColors.green, fontSize: 11, fontWeight: FontWeight.w700)),
+                Text('↑ ${fmt(cashOut)} CDF',
+                    style: const TextStyle(color: AppColors.orange, fontSize: 11, fontWeight: FontWeight.w700)),
+                Text('Com. ${fmt(commission)} CDF',
+                    style: const TextStyle(color: AppColors.cyan, fontSize: 11, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+            ),
+            child: Text(statusLabel,
+                style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
     );
   }
 }

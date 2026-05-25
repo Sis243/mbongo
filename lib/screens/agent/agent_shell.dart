@@ -19,8 +19,7 @@ import 'agent_cashin_screen.dart';
 import 'agent_dashboard_screen.dart';
 
 class AgentShell extends ConsumerStatefulWidget {
-  final VoidCallback onExitAgentMode;
-  const AgentShell({super.key, required this.onExitAgentMode});
+  const AgentShell({super.key});
 
   @override
   ConsumerState<AgentShell> createState() => _AgentShellState();
@@ -57,7 +56,6 @@ class _AgentShellState extends ConsumerState<AgentShell> {
       backgroundColor: palette.shellBottom,
       drawer: _AgentDrawer(
         onClose: () => _scaffoldKey.currentState?.closeDrawer(),
-        onExit: widget.onExitAgentMode,
         onNavigate: (page) {
           _scaffoldKey.currentState?.closeDrawer();
           Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -115,11 +113,6 @@ class _AgentShellState extends ConsumerState<AgentShell> {
                         ),
                       ),
                       const Spacer(),
-                      GestureDetector(
-                        onTap: widget.onExitAgentMode,
-                        child: const Text('Quitter',
-                            style: TextStyle(color: AppColors.orange, fontSize: 12, fontWeight: FontWeight.w700)),
-                      ),
                     ],
                   ),
                 ),
@@ -196,13 +189,11 @@ class _AgentShellState extends ConsumerState<AgentShell> {
 
 class _AgentDrawer extends ConsumerWidget {
   final VoidCallback onClose;
-  final VoidCallback onExit;
   final void Function(Widget) onNavigate;
   final void Function(int) onTab;
 
   const _AgentDrawer({
     required this.onClose,
-    required this.onExit,
     required this.onNavigate,
     required this.onTab,
   });
@@ -289,19 +280,6 @@ class _AgentDrawer extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: onExit,
-                      icon: const Icon(Icons.person_rounded, size: 16),
-                      label: const Text('Mode client'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.orange,
-                        side: const BorderSide(color: AppColors.orange),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(

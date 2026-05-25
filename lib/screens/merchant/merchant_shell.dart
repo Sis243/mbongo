@@ -17,8 +17,7 @@ import 'merchant_gateway_screen.dart';
 import 'merchant_payment_screen.dart';
 
 class MerchantShell extends ConsumerStatefulWidget {
-  final VoidCallback onExitMerchantMode;
-  const MerchantShell({super.key, required this.onExitMerchantMode});
+  const MerchantShell({super.key});
 
   @override
   ConsumerState<MerchantShell> createState() => _MerchantShellState();
@@ -55,7 +54,6 @@ class _MerchantShellState extends ConsumerState<MerchantShell> {
       backgroundColor: palette.shellBottom,
       drawer: _MerchantDrawer(
         onClose: () => _scaffoldKey.currentState?.closeDrawer(),
-        onExit: widget.onExitMerchantMode,
         onNavigate: (page) {
           _scaffoldKey.currentState?.closeDrawer();
           Navigator.push(context, MaterialPageRoute(builder: (_) => page));
@@ -110,11 +108,6 @@ class _MerchantShellState extends ConsumerState<MerchantShell> {
                         ),
                       ),
                       const Spacer(),
-                      GestureDetector(
-                        onTap: widget.onExitMerchantMode,
-                        child: const Text('Quitter',
-                            style: TextStyle(color: AppColors.green, fontSize: 12, fontWeight: FontWeight.w700)),
-                      ),
                     ],
                   ),
                 ),
@@ -191,12 +184,10 @@ class _MerchantShellState extends ConsumerState<MerchantShell> {
 
 class _MerchantDrawer extends ConsumerWidget {
   final VoidCallback onClose;
-  final VoidCallback onExit;
   final void Function(Widget) onNavigate;
 
   const _MerchantDrawer({
     required this.onClose,
-    required this.onExit,
     required this.onNavigate,
   });
 
@@ -276,19 +267,6 @@ class _MerchantDrawer extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: onExit,
-                      icon: const Icon(Icons.storefront_rounded, size: 16),
-                      label: const Text('Mode client'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.green,
-                        side: const BorderSide(color: AppColors.green),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(

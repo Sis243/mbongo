@@ -26,8 +26,6 @@ class _MainShellState extends State<MainShell> {
   bool _isOffline = false;
   // 0 = user, 1 = merchant, 2 = agent
   int _roleMode = 0;
-  bool _hasMerchantAccounts = false;
-  bool _isAgent = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   // User mode
@@ -67,27 +65,18 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _checkRoles() async {
     try {
-      final list = await ApiService.getMerchantAccounts();
-      if (list.isNotEmpty && mounted) setState(() => _hasMerchantAccounts = true);
+      final agents = await ApiService.getCashAgents();
+      if (agents.isNotEmpty && mounted) {
+        setState(() => _roleMode = 2);
+        return;
+      }
     } catch (_) {}
     try {
-      final agents = await ApiService.getCashAgents();
-      if (agents.isNotEmpty && mounted) setState(() => _isAgent = true);
+      final list = await ApiService.getMerchantAccounts();
+      if (list.isNotEmpty && mounted) {
+        setState(() => _roleMode = 1);
+      }
     } catch (_) {}
-  }
-
-  void _toggleMerchantMode() {
-    setState(() {
-      _roleMode = _roleMode == 1 ? 0 : 1;
-      currentIndex = 0;
-    });
-  }
-
-  void _toggleAgentMode() {
-    setState(() {
-      _roleMode = _roleMode == 2 ? 0 : 2;
-      currentIndex = 0;
-    });
   }
 
   @override
@@ -99,10 +88,10 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     if (_roleMode == 1) {
-      return MerchantShell(onExitMerchantMode: _toggleMerchantMode);
+      return const MerchantShell();
     }
     if (_roleMode == 2) {
-      return AgentShell(onExitAgentMode: _toggleAgentMode);
+      return const AgentShell();
     }
     final palette = MbongoThemeController.current;
     final darkMode = MbongoThemeController.darkModeEnabled.value;
@@ -110,38 +99,7 @@ class _MainShellState extends State<MainShell> {
     final inactiveText = darkMode ? AppColors.muted : AppColors.darkMuted;
     return Scaffold(
       backgroundColor: palette.shellBottom,
-      floatingActionButton: (_hasMerchantAccounts || _isAgent)
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_hasMerchantAccounts)
-                  FloatingActionButton.small(
-                    heroTag: 'merchant_toggle',
-                    backgroundColor: _roleMode == 1 ? AppColors.green : palette.accent,
-                    onPressed: _toggleMerchantMode,
-                    tooltip: _roleMode == 1 ? 'Mode client' : 'Mode marchand',
-                    child: Icon(
-                      _roleMode == 1 ? Icons.person_rounded : Icons.point_of_sale_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                if (_hasMerchantAccounts && _isAgent) const SizedBox(height: 8),
-                if (_isAgent)
-                  FloatingActionButton.small(
-                    heroTag: 'agent_toggle',
-                    backgroundColor: _roleMode == 2 ? AppColors.orange : palette.accent,
-                    onPressed: _toggleAgentMode,
-                    tooltip: _roleMode == 2 ? 'Mode client' : 'Mode agent',
-                    child: Icon(
-                      _roleMode == 2 ? Icons.person_rounded : Icons.support_agent_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-              ],
-            )
-          : null,
+      floatingActionButton: null,
       body: Stack(
         children: [
           const _ShellBackdrop(),

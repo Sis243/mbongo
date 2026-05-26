@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart' as camera;
@@ -149,22 +150,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await AuthService.setLoggedIn(true);
     }
 
-    // Étape 2 — soumission KYC (non bloquante pour la navigation)
-    String? kycError;
-    try {
-      await ApiService.submitKyc(
-        documentType: documentType,
-        frontPath: kycDocumentFront!.path,
-        backPath: kycDocumentBack?.path ?? '',
-        selfiePath: kycSelfie!.path,
-      );
-      await AuthService.setKycSubmitted(true);
-      await AuthService.setKycStatus('en_attente');
-      await AuthService.setKycSubmittedAt(DateTime.now().toIso8601String());
-    } catch (_) {
-      kycError = 'Dossier KYC non envoyé. Vous pourrez le soumettre depuis l\'accueil.';
-    }
-
+    // Étape 2 — sauvegarder métadonnées localement (instantané)
     await AuthService.setKycDocumentType(documentType);
     await AuthService.setKycDocumentNumber(documentNumber);
     await AuthService.setKycSheetName(sheetName);
@@ -176,12 +162,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     if (!mounted) return;
     setState(() => loading = false);
-    if (kycError != null) {
-      _toast(kycError);
-      await Future<void>.delayed(const Duration(seconds: 2));
-    }
-    if (!mounted) return;
     context.go('/home');
+
+    // Étape 3 — upload KYC en arrière-plan (ne bloque pas la navigation)
+    unawaited(_uploadKycInBackground(
+      documentType: documentType,
+      frontPath: kycDocumentFront!.path,
+      backPath: kycDocumentBack?.path ?? '',
+      selfiePath: kycSelfie!.path,
+    ));
+  }
+
+  Future<void> _uploadKycInBackground({
+    required String documentType,
+    required String frontPath,
+    required String backPath,
+    required String selfiePath,
+  }) async {
+    try {
+      await ApiService.submitKyc(
+        documentType: documentType,
+        frontPath: frontPath,
+        backPath: backPath,
+        selfiePath: selfiePath,
+      );
+      await AuthService.setKycSubmitted(true);
+      await AuthService.setKycStatus('en_attente');
+      await AuthService.setKycSubmittedAt(DateTime.now().toIso8601String());
+    } catch (_) {
+      // Silently ignored — user can retry from the KYC status screen
+    }
   }
 
   void _toast(String message) {

@@ -21,13 +21,11 @@ import 'exchange/exchange_money_screen.dart';
 import 'login_screen.dart';
 import 'exchange_rates/exchange_rates_screen.dart';
 import 'notifications/notifications_screen.dart';
-import 'payment_links/payment_links_screen.dart';
 import 'profile/kyc_status_screen.dart';
 import 'request_money/request_money_screen.dart';
 import 'transactions_screen.dart';
 import 'transfer/send_money_screen.dart';
 import 'merchant/merchant_payment_screen.dart';
-import 'qr_pay_screen.dart';
 import 'transfer/transfer_international_screen.dart';
 import 'wallet/wallet_screen.dart';
 import 'tv/tv_subscription_screen.dart';
@@ -36,7 +34,7 @@ import 'withdraw/withdraw_screen.dart';
 const _kycSensitiveServices = {
   'Envoyer', 'Demander', 'Changer', 'International',
   'Retirer', 'Mes cartes', 'Unites', 'Abonnement TV', 'Deposer',
-  'Lien de paiement', 'Payer',
+  'Payer',
 };
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -84,10 +82,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ServiceItem(title: 'Abonnement TV', icon: Icons.tv_rounded),
       ServiceItem(title: 'Deposer', icon: Icons.account_balance_wallet_rounded),
       ServiceItem(title: 'Approuver', icon: Icons.verified_rounded),
-      ServiceItem(title: 'Lien de paiement', icon: Icons.link_rounded, isNew: true),
       ServiceItem(title: 'Taux de change', icon: Icons.currency_exchange_rounded),
       ServiceItem(title: 'Payer', icon: Icons.storefront_rounded, isNew: true),
-      ServiceItem(title: 'POS', icon: Icons.point_of_sale_rounded, isNew: true),
     ];
 
     final wallet = walletAsync.valueOrNull;
@@ -720,10 +716,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('TV')) return AppColors.gold;
     if (title.contains('Deposer')) return AppColors.cyan;
     if (title.contains('Approuver')) return AppColors.green;
-    if (title.contains('Lien')) return AppColors.cyan;
     if (title.contains('Taux')) return AppColors.gold;
     if (title.contains('Payer')) return AppColors.green;
-    if (title.contains('POS')) return AppColors.orange;
     return palette.accent;
   }
 
@@ -738,10 +732,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('TV')) return const TvSubscriptionScreen();
     if (title.contains('Deposer')) return const ApproMbongoScreen();
     if (title.contains('Approuver')) return const ApprovalsScreen();
-    if (title.contains('Lien')) return const PaymentLinksScreen();
     if (title.contains('Taux')) return const ExchangeRatesScreen();
     if (title.contains('Payer')) return const MerchantPaymentScreen();
-    if (title.contains('POS')) return const QrPayScreen();
     return null;
   }
 

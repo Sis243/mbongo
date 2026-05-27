@@ -57,6 +57,13 @@ export class TransactionsController {
       commissionBalance: agent.commissionBalance,
       agentCode: agent.code,
       agentName: agent.name,
+      phone: agent.phone,
+      zone: agent.zone,
+      dailyCashInLimit: agent.dailyCashInLimit,
+      dailyCashOutLimit: agent.dailyCashOutLimit,
+      commissionFixe: agent.commissionFixe ?? 0,
+      commissionPercent: agent.commissionPercent ?? 0,
+      isActive: agent.isActive,
       transactions: txns.map((t) => ({
         id: t.id,
         type: t.type,

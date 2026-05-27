@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../services/api_service.dart';
 import '../core/theme/mbongo_theme.dart';
+import '../widgets/common/inactivity_lock_wrapper.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import 'accounts/accounts_screen.dart';
 import 'agent/agent_shell.dart';
@@ -95,12 +96,18 @@ class _MainShellState extends State<MainShell> {
     if (!_roleChecked) {
       return const _RoleLoadingScreen();
     }
+    final Widget shell;
     if (_roleMode == 1) {
-      return const MerchantShell();
+      shell = const MerchantShell();
+    } else if (_roleMode == 2) {
+      shell = const AgentShell();
+    } else {
+      shell = _buildClientShell(context);
     }
-    if (_roleMode == 2) {
-      return const AgentShell();
-    }
+    return InactivityLockWrapper(child: shell);
+  }
+
+  Widget _buildClientShell(BuildContext context) {
     final palette = MbongoThemeController.current;
     final darkMode = MbongoThemeController.darkModeEnabled.value;
     final activeText = darkMode ? AppColors.text : AppColors.darkText;
@@ -227,6 +234,7 @@ class _MainShellState extends State<MainShell> {
     );
   }
 }
+
 
 class _ShellBackdrop extends StatelessWidget {
   const _ShellBackdrop();

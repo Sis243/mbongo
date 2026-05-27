@@ -42,6 +42,7 @@ class DioClient {
     ));
 
     _dio.interceptors.add(_AuthInterceptor(_storage, _dio, _refreshDio));
+    _dio.interceptors.add(_RetryInterceptor(_dio));
     if (kDebugMode) {
       _dio.interceptors.add(LogInterceptor(
         requestBody: true,
@@ -201,5 +202,39 @@ class _AuthInterceptor extends Interceptor {
   Future<Response<dynamic>> _retry(RequestOptions opts, String token) {
     opts.headers['Authorization'] = 'Bearer $token';
     return _dio.fetch<dynamic>(opts);
+  }
+}
+
+// ── Retry Interceptor ──────────────────────────────────────────────────────
+
+class _RetryInterceptor extends Interceptor {
+  final Dio _dio;
+  static const _maxRetries = 3;
+
+  _RetryInterceptor(this._dio);
+
+  @override
+  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+    final opts = err.requestOptions;
+    final retries = (opts.extra['_retryCount'] as int?) ?? 0;
+
+    final shouldRetry = retries < _maxRetries &&
+        (err.type == DioExceptionType.connectionError ||
+            err.type == DioExceptionType.connectionTimeout ||
+            err.type == DioExceptionType.receiveTimeout ||
+            (err.response?.statusCode != null && err.response!.statusCode! >= 500));
+
+    if (!shouldRetry) {
+      handler.next(err);
+      return;
+    }
+
+    await Future.delayed(Duration(milliseconds: 500 * (retries + 1)));
+    opts.extra['_retryCount'] = retries + 1;
+    try {
+      handler.resolve(await _dio.fetch<dynamic>(opts));
+    } catch (_) {
+      handler.next(err);
+    }
   }
 }

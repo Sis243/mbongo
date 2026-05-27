@@ -14,8 +14,27 @@ export class MerchantController {
   async getMyMerchant(@CurrentUser() user: JwtRequestUser) {
     const u = await this.prisma.user.findUnique({ where: { id: user.userId } });
     if (!u) return { isMerchant: false };
-    const merchant = await this.prisma.merchant.findFirst({ where: { phone: u.phone } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const merchant = await (this.prisma.merchant as any).findFirst({ where: { phone: u.phone } });
     if (!merchant) return { isMerchant: false };
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const [dailyAgg, recentReceipts] = await Promise.all([
+      this.prisma.merchantReceipt.aggregate({
+        where: { merchantId: merchant.id, createdAt: { gte: startOfDay } },
+        _sum: { amount: true },
+        _count: true,
+      }),
+      this.prisma.merchantReceipt.findMany({
+        where: { merchantId: merchant.id },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, amount: true, currency: true, status: true, method: true, createdAt: true },
+      }),
+    ]);
+
     return {
       isMerchant: true,
       id: merchant.id,
@@ -23,6 +42,16 @@ export class MerchantController {
       status: merchant.status,
       category: merchant.category,
       location: merchant.location,
+      dailyVolume: dailyAgg._sum?.amount ?? 0,
+      dailyCount: dailyAgg._count ?? 0,
+      recentTransactions: recentReceipts.map((r) => ({
+        id: r.id,
+        amount: r.amount,
+        currency: r.currency,
+        status: r.status,
+        type: r.method,
+        createdAt: r.createdAt.toISOString(),
+      })),
     };
   }
 

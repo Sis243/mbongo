@@ -10,25 +10,16 @@ import '../../widgets/common/mbongo_money_particles.dart';
 import '../payment_links/payment_links_screen.dart';
 import '../withdraw/withdraw_screen.dart';
 
-final _merchantAccountsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final client = ref.read(dioClientProvider);
-  final resp = await client.get('/merchant/accounts');
-  final list = resp['data'] ?? resp;
-  if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-  return [];
-});
-
-final _merchantTxProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final merchantProfileProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final client = ref.read(dioClientProvider);
   try {
-    final resp = await client.get('/transactions?type=merchant-pay&limit=10');
-    final list = resp['data'] ?? resp;
-    if (list is List) return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-    return [];
+    final resp = await client.get('/merchant/me');
+    return Map<String, dynamic>.from(resp);
   } catch (_) {
-    return [];
+    return {};
   }
 });
+
 
 class MerchantDashboardScreen extends ConsumerWidget {
   const MerchantDashboardScreen({super.key});
@@ -36,166 +27,168 @@ class MerchantDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = MbongoThemeController.current;
-    final accountsAsync = ref.watch(_merchantAccountsProvider);
-    final txAsync = ref.watch(_merchantTxProvider);
+    final merchantAsync = ref.watch(merchantProfileProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Stack(
-              children: [
-                MbongoMoneyParticles(color: palette.accent, count: 10, opacity: 0.07, height: 200),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 52, 20, 28),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: palette.bannerGradient,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+      body: RefreshIndicator(
+        onRefresh: () => ref.refresh(merchantProfileProvider.future),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Stack(
+                children: [
+                  MbongoMoneyParticles(color: palette.accent, count: 10, opacity: 0.07, height: 200),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 52, 20, 28),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: palette.bannerGradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
                     ),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.store_rounded, color: AppColors.cyan, size: 20),
+                            SizedBox(width: 8),
+                            Text('Interface Marchand',
+                                style: TextStyle(color: AppColors.textSoft, fontSize: 13, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        merchantAsync.when(
+                          data: (m) => Text(m['name']?.toString() ?? 'Tableau de bord',
+                              style: const TextStyle(color: AppColors.text, fontSize: 26, fontWeight: FontWeight.w900)),
+                          loading: () => const Text('Tableau de bord',
+                              style: TextStyle(color: AppColors.text, fontSize: 26, fontWeight: FontWeight.w900)),
+                          error: (_, __) => const SizedBox(),
+                        ),
+                        const SizedBox(height: 16),
+                        merchantAsync.when(
+                          data: (m) => _StatsRow(merchant: m),
+                          loading: () => const _LoadingRow(),
+                          error: (_, __) => const _LoadingRow(),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                ],
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _sectionTitle('Actions rapides'),
+                  const SizedBox(height: 10),
+                  Row(
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.store_rounded, color: AppColors.cyan, size: 20),
-                          SizedBox(width: 8),
-                          Text('Interface Marchand',
-                              style: TextStyle(color: AppColors.textSoft, fontSize: 13, fontWeight: FontWeight.w700)),
-                        ],
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.qr_code_rounded,
+                          label: 'Recevoir',
+                          color: AppColors.green,
+                          onTap: () {
+                            final m = merchantAsync.value ?? {};
+                            if (m.isEmpty) return;
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => _ReceiveSheet(merchant: m),
+                            );
+                          },
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      const Text('Tableau de bord',
-                          style: TextStyle(color: AppColors.text, fontSize: 26, fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 16),
-                      accountsAsync.when(
-                        data: (accounts) => _StatsRow(accounts: accounts),
-                        loading: () => const _LoadingRow(),
-                        error: (_, __) => const _LoadingRow(),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.link_rounded,
+                          label: 'Lien paiement',
+                          color: AppColors.cyan,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentLinksScreen())),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.arrow_upward_rounded,
+                          label: 'Retirer',
+                          color: AppColors.orange,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawScreen())),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  merchantAsync.when(
+                    data: (m) => m.isEmpty
+                        ? const SizedBox()
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _sectionTitle('Mon compte marchand'),
+                              const SizedBox(height: 10),
+                              _AccountCard(account: m),
+                            ],
+                          ),
+                    loading: () => const SizedBox(),
+                    error: (_, __) => const SizedBox(),
+                  ),
+                  const SizedBox(height: 20),
+                  _sectionTitle('Transactions récentes'),
+                  const SizedBox(height: 10),
+                  merchantAsync.when(
+                    data: (m) {
+                      final txs = (m['recentTransactions'] as List?)
+                              ?.cast<Map<String, dynamic>>() ??
+                          [];
+                      return txs.isEmpty
+                          ? _EmptyTx(palette: palette)
+                          : Column(children: txs.take(5).map((t) => _TxRow(tx: t)).toList());
+                    },
+                    loading: () => const Center(
+                        child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(strokeWidth: 2))),
+                    error: (_, __) => _EmptyTx(palette: palette),
+                  ),
+                ]),
+              ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Quick actions
-                _sectionTitle('Actions rapides'),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _QuickAction(
-                        icon: Icons.qr_code_rounded,
-                        label: 'Recevoir',
-                        color: AppColors.green,
-                        onTap: () => _showReceiveSheet(context, accountsAsync.value ?? []),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _QuickAction(
-                        icon: Icons.link_rounded,
-                        label: 'Lien paiement',
-                        color: AppColors.cyan,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentLinksScreen())),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _QuickAction(
-                        icon: Icons.arrow_upward_rounded,
-                        label: 'Retirer',
-                        color: AppColors.orange,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawScreen())),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // Accounts
-                accountsAsync.when(
-                  data: (accounts) => accounts.isEmpty
-                      ? const SizedBox()
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionTitle('Mes comptes marchands'),
-                            const SizedBox(height: 10),
-                            ...accounts.map((a) => _AccountCard(account: a)),
-                          ],
-                        ),
-                  loading: () => const SizedBox(),
-                  error: (_, __) => const SizedBox(),
-                ),
-                const SizedBox(height: 20),
-                // Recent transactions
-                _sectionTitle('Transactions récentes'),
-                const SizedBox(height: 10),
-                txAsync.when(
-                  data: (txs) => txs.isEmpty
-                      ? _EmptyTx(palette: palette)
-                      : Column(children: txs.take(5).map((t) => _TxRow(tx: t)).toList()),
-                  loading: () => const Center(child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )),
-                  error: (_, __) => _EmptyTx(palette: palette),
-                ),
-              ]),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-
-  void _showReceiveSheet(BuildContext context, List<Map<String, dynamic>> accounts) {
-    if (accounts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun compte marchand disponible.')),
-      );
-      return;
-    }
-    final merchant = accounts.first;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ReceiveSheet(merchant: merchant),
     );
   }
 }
 
 class _StatsRow extends StatelessWidget {
-  final List<Map<String, dynamic>> accounts;
-  const _StatsRow({required this.accounts});
+  final Map<String, dynamic> merchant;
+  const _StatsRow({required this.merchant});
 
   @override
   Widget build(BuildContext context) {
-    final totalVolume = accounts.fold<double>(
-        0, (sum, a) => sum + ((a['dailyVolume'] as num?)?.toDouble() ?? 0));
+    final dailyVolume = (merchant['dailyVolume'] as num?)?.toDouble() ?? 0;
+    final dailyCount = (merchant['dailyCount'] as num?)?.toInt() ?? 0;
     return Row(
       children: [
         _StatChip(
           label: 'Volume journalier',
-          value: Money.format(totalVolume, 'CDF'),
+          value: Money.format(dailyVolume, 'CDF'),
           color: AppColors.cyan,
         ),
         const SizedBox(width: 10),
         _StatChip(
-          label: 'Comptes actifs',
-          value: '${accounts.length}',
+          label: 'Paiements du jour',
+          value: '$dailyCount',
           color: AppColors.green,
         ),
       ],

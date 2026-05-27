@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/storage/app_storage.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../features/auth/presentation/auth_notifier.dart';
@@ -49,6 +50,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       faceRecognitionEnabled = faceEnabled;
       selectedLanguage = language;
     });
+
+    // Auto-trigger biometric if enabled and credentials are stored
+    if (available && enabled) {
+      final creds = await AppStorage().getBioCredentials();
+      if (creds.phone != null && creds.phone!.isNotEmpty) {
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) loginWithBiometric();
+      }
+    }
   }
 
   Future<void> login() async {
@@ -79,14 +89,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> loginWithBiometric() async {
     final ok = await BiometricService.authenticate();
     if (!ok) {
-      _toast('Echec de l\'identification. Veuillez reessayer.');
+      if (mounted) _toast('Identification echouee. Utilisez votre PIN.');
       return;
     }
-    final authState = ref.read(authProvider);
-    if (authState.valueOrNull != null) {
+
+    final creds = await AppStorage().getBioCredentials();
+    if (creds.phone == null || creds.phone!.isEmpty ||
+        creds.pin == null || creds.pin!.isEmpty) {
+      if (mounted) _toast('Aucun identifiant enregistre. Connectez-vous avec votre PIN.');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => loading = true);
+    try {
+      await ref.read(authProvider.notifier).login(
+        phone: creds.phone!,
+        pin: creds.pin!,
+      );
       if (!mounted) return;
+      setState(() => loading = false);
       context.go('/home');
-    } else {
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => loading = false);
       _toast('Session expiree. Reconnectez-vous avec votre PIN.');
     }
   }

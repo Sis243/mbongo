@@ -9,12 +9,12 @@ import '../../screens/exchange/exchange_money_screen.dart';
 import '../../screens/payment_links/payment_links_screen.dart';
 import '../../screens/profile/security_screen.dart';
 import '../../screens/profile/support_screen.dart';
-import '../../screens/transactions_screen.dart';
 import '../../screens/withdraw/withdraw_screen.dart';
 import 'merchant_api_key_screen.dart';
 import 'merchant_dashboard_screen.dart';
 import 'merchant_gateway_screen.dart';
 import 'merchant_payment_screen.dart';
+import 'merchant_transactions_screen.dart';
 
 class MerchantShell extends ConsumerStatefulWidget {
   const MerchantShell({super.key});
@@ -30,7 +30,7 @@ class _MerchantShellState extends ConsumerState<MerchantShell> {
   static const _pages = [
     MerchantDashboardScreen(),
     MerchantPaymentScreen(),
-    TransactionsScreen(),
+    MerchantTransactionsScreen(),
     PaymentLinksScreen(),
   ];
 
@@ -244,7 +244,7 @@ class _MerchantDrawer extends ConsumerWidget {
                   _drawerItem(context, Icons.arrow_upward_rounded, 'Retirer', AppColors.orange,
                       () => onNavigate(const WithdrawScreen())),
                   _drawerItem(context, Icons.receipt_long_rounded, 'Transactions', AppColors.text,
-                      () => onNavigate(const TransactionsScreen())),
+                      () => onNavigate(const MerchantTransactionsScreen())),
                   const Divider(height: 24, indent: 16, endIndent: 16, color: AppColors.border),
                   _drawerItem(context, Icons.security_rounded, 'Sécurité 2FA', AppColors.gold,
                       () => onNavigate(const SecurityScreen())),

@@ -20,11 +20,20 @@ class WalletRepository {
             .map((e) => TxEntry.fromMap(Map<String, dynamic>.from(e as Map)))
             .toList()
         : <TxEntry>[];
+    final balancesList = walletResp['balances'];
+    final extraBalances = (balancesList is List)
+        ? balancesList
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .where((e) => e['currency']?.toString() != (walletResp['currency']?.toString() ?? 'CDF'))
+            .toList()
+        : <Map<String, dynamic>>[];
+
     return WalletData(
       id: walletResp['id']?.toString() ?? '',
       balance: ((walletResp['balance'] ?? 0) as num).toDouble(),
       currency: walletResp['currency']?.toString() ?? 'CDF',
       transactions: transactions,
+      extraBalances: extraBalances,
     );
   }
 

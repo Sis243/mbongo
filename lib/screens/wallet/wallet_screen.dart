@@ -12,6 +12,7 @@ import '../../models/account_model.dart';
 import '../../services/kyc_guard_service.dart';
 import '../../widgets/cards/wallet_card.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
+import '../deposit/deposit_method_screen.dart';
 import '../exchange/exchange_money_screen.dart';
 import '../profile/kyc_status_screen.dart';
 import '../request_money/request_money_screen.dart';
@@ -195,6 +196,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   wallet: currentWallet,
                   gradient: palette.cardGradient,
                 ),
+                if (walletData != null && walletData.extraBalances.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...walletData.extraBalances.map((b) => _buildExtraBalanceChip(b, palette)),
+                ],
                 const SizedBox(height: 12),
                 _buildReceiveQrButton(currentWallet, palette),
                 const SizedBox(height: 18),
@@ -208,6 +213,47 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     transactions, currentWallet.currency, palette),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExtraBalanceChip(Map<String, dynamic> b, MbongoThemePalette palette) {
+    final currency = b['currency']?.toString() ?? '';
+    final balance = ((b['balance'] ?? b['amount'] ?? 0) as num).toDouble();
+    final fmt = balance.toStringAsFixed(2).replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]} ',
+    );
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: palette.panelAlt,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.gold.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.gold, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Portefeuille $currency',
+            style: const TextStyle(color: AppColors.textSoft, fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+          const Spacer(),
+          Text(
+            '$fmt $currency',
+            style: const TextStyle(color: AppColors.gold, fontSize: 16, fontWeight: FontWeight.w900),
           ),
         ],
       ),
@@ -573,6 +619,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         const RequestMoneyScreen(),
       ),
       (
+        'Déposer',
+        Icons.add_circle_outline_rounded,
+        AppColors.cyan,
+        const DepositMethodScreen(),
+      ),
+      (
         'Changer',
         Icons.currency_exchange_rounded,
         palette.accentStrong,
@@ -603,10 +655,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            mainAxisExtent: 92,
+            crossAxisCount: 3,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            mainAxisExtent: 88,
           ),
           itemBuilder: (_, index) {
             final item = items[index];

@@ -7,10 +7,12 @@ import 'package:printing/printing.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
+import '../features/wallet/domain/wallet_state.dart';
 import '../features/wallet/presentation/wallet_notifier.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import '../widgets/common/mbongo_sub_app_bar.dart';
 import '../widgets/txn_tile.dart';
+import 'transaction_detail_screen.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -109,6 +111,24 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TransactionDetailScreen(
+                              tx: TxEntry.fromMap(tx),
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('Voir en détail'),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       child: const Text('Fermer'),
                     ),

@@ -66,23 +66,28 @@ class WalletData {
   final double balance;
   final String currency;
   final List<TxEntry> transactions;
+  // Extra balances for multi-currency display: [{currency: 'USD', balance: 0.0}, ...]
+  final List<Map<String, dynamic>> extraBalances;
 
   const WalletData({
     required this.id,
     required this.balance,
     required this.currency,
     required this.transactions,
+    this.extraBalances = const [],
   });
 
   WalletData copyWith({
     double? balance,
     List<TxEntry>? transactions,
+    List<Map<String, dynamic>>? extraBalances,
   }) =>
       WalletData(
         id: id,
         balance: balance ?? this.balance,
         currency: currency,
         transactions: transactions ?? this.transactions,
+        extraBalances: extraBalances ?? this.extraBalances,
       );
 
   double get totalOutgoing => transactions

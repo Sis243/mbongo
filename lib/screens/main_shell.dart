@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
+import '../features/notifications/presentation/notifications_provider.dart';
 import '../services/api_service.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../widgets/common/inactivity_lock_wrapper.dart';
@@ -15,14 +17,14 @@ import 'merchant/merchant_shell.dart';
 import 'profile_screen.dart';
 import 'wallet/wallet_screen.dart';
 
-class MainShell extends StatefulWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> {
   int currentIndex = 0;
   bool _isOffline = false;
   // 0 = user, 1 = merchant, 2 = agent
@@ -112,6 +114,8 @@ class _MainShellState extends State<MainShell> {
     final darkMode = MbongoThemeController.darkModeEnabled.value;
     final activeText = darkMode ? AppColors.text : AppColors.darkText;
     final inactiveText = darkMode ? AppColors.muted : AppColors.darkMuted;
+    final unreadAsync = ref.watch(unreadCountProvider);
+    final unreadCount = unreadAsync.valueOrNull ?? 0;
     return Scaffold(
       backgroundColor: palette.shellBottom,
       floatingActionButton: null,
@@ -204,10 +208,34 @@ class _MainShellState extends State<MainShell> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            icons[index],
-                            size: 22,
-                            color: selected ? palette.accent : inactiveText,
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(
+                                icons[index],
+                                size: 22,
+                                color: selected ? palette.accent : inactiveText,
+                              ),
+                              if (index == labels.length - 1 && unreadCount > 0)
+                                Positioned(
+                                  top: -4,
+                                  right: -6,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: palette.panel, width: 1.5),
+                                    ),
+                                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                    child: Text(
+                                      unreadCount > 9 ? '9+' : '$unreadCount',
+                                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(

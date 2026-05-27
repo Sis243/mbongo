@@ -463,12 +463,14 @@ model PaymentLink {
 }
 
 model AdminUser {
-  id        String   @id @default(uuid())
-  phone     String   @unique
-  pinHash   String?
-  email     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  pinHash     String?
+  email       String?
+  isActive    Boolean  @default(true)
+  totpSecret  String?
+  totpEnabled Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   roles AdminUserRole[]
 }

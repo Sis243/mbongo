@@ -110,12 +110,16 @@ export class TransactionsService {
       throw new NotFoundException('Wallet emetteur ou recepteur introuvable');
     }
 
+    // Early UX check — the atomic guard is inside the $transaction via debitWallet
     if (senderWallet.balance < body.amount) {
       throw new BadRequestException('Solde insuffisant');
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const updatedSenderWallet = await this.debitWallet(tx, senderWallet, body.amount);
+      // Re-read sender wallet inside transaction for a consistent snapshot
+      const freshSenderWallet = await tx.wallet.findUnique({ where: { id: senderWallet.id } });
+      if (!freshSenderWallet) throw new NotFoundException('Wallet emetteur introuvable');
+      const updatedSenderWallet = await this.debitWallet(tx, freshSenderWallet, body.amount);
 
       const updatedReceiverWallet = await tx.wallet.update({
         where: { id: receiverWallet.id },
@@ -325,6 +329,7 @@ export class TransactionsService {
       throw new NotFoundException('Wallet introuvable');
     }
 
+    // Early UX check — atomic guard is inside $transaction via debitWallet
     if (wallet.balance < body.amount) {
       throw new BadRequestException('Solde insuffisant');
     }
@@ -379,7 +384,10 @@ export class TransactionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const updatedWallet = await this.debitWallet(tx, wallet, body.amount);
+      // Re-read inside transaction for consistent snapshot before debit
+      const freshWallet = await tx.wallet.findUnique({ where: { id: wallet.id } });
+      if (!freshWallet) throw new NotFoundException('Wallet introuvable');
+      const updatedWallet = await this.debitWallet(tx, freshWallet, body.amount);
 
       const transaction = await tx.transaction.update({
         where: { id: pendingTransaction.id },
@@ -682,7 +690,9 @@ export class TransactionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const updatedWallet = await this.debitWallet(tx, wallet, args.amount);
+      const freshWallet = await tx.wallet.findUnique({ where: { id: wallet.id } });
+      if (!freshWallet) throw new NotFoundException('Wallet introuvable');
+      const updatedWallet = await this.debitWallet(tx, freshWallet, args.amount);
 
       const transaction = await tx.transaction.update({
         where: { id: pendingTransaction.id },

@@ -23,27 +23,23 @@ export function requireRuntimeEnv(name: string, fallback?: string) {
 export function jwtAccessSecret(configService?: ConfigService) {
   const configured =
     configService?.get<string>('JWT_ACCESS_SECRET') ??
-    configService?.get<string>('JWT_SECRET') ??
-    process.env.JWT_ACCESS_SECRET ??
-    process.env.JWT_SECRET;
+    process.env.JWT_ACCESS_SECRET;
 
   if (configured?.trim()) {
     return configured.trim();
   }
 
-  return requireRuntimeEnv('JWT_ACCESS_SECRET', 'mbongo_access_secret');
+  return requireRuntimeEnv('JWT_ACCESS_SECRET');
 }
 
 export function jwtRefreshSecret(configService?: ConfigService) {
   const configured =
     configService?.get<string>('JWT_REFRESH_SECRET') ??
-    configService?.get<string>('JWT_SECRET') ??
-    process.env.JWT_REFRESH_SECRET ??
-    process.env.JWT_SECRET;
+    process.env.JWT_REFRESH_SECRET;
 
   if (configured?.trim()) {
     return configured.trim();
   }
 
-  return requireRuntimeEnv('JWT_REFRESH_SECRET', 'mbongo_refresh_secret');
+  return requireRuntimeEnv('JWT_REFRESH_SECRET');
 }

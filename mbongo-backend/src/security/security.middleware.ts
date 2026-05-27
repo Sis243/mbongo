@@ -6,15 +6,56 @@ type RateLimitBucket = {
 };
 
 const buckets = new Map<string, RateLimitBucket>();
-const authPaths = new Set([
-  '/auth/login',
-  '/auth/register',
-  '/auth/refresh',
-  '/admin-auth/login',
-]);
 
-const windowMs = 60 * 1000;
-const maxAttempts = 20;
+// Sensitive fields to redact from logs
+const REDACTED_FIELDS = new Set(['pin', 'password', 'accessToken', 'refreshToken', 'newPin', 'code', 'totpCode', 'pinHash']);
+
+// Rate limit rules: [windowMs, maxRequests]
+const RATE_RULES: Array<{ match: (method: string, path: string) => boolean; window: number; max: number; label: string }> = [
+  {
+    label: 'auth-strict',
+    match: (m, p) => m === 'POST' && ['/auth/login', '/auth/register', '/auth/refresh', '/auth/reset-pin', '/admin-auth/login'].includes(p),
+    window: 60_000,
+    max: 20,
+  },
+  {
+    label: 'transactions',
+    match: (_, p) => p.startsWith('/transactions'),
+    window: 60_000,
+    max: 60,
+  },
+  {
+    label: 'wallet',
+    match: (_, p) => p.startsWith('/wallet'),
+    window: 60_000,
+    max: 60,
+  },
+  {
+    label: 'kyc',
+    match: (_, p) => p.startsWith('/kyc'),
+    window: 60_000,
+    max: 20,
+  },
+  {
+    label: 'otp',
+    match: (m, p) => m === 'POST' && p.startsWith('/otp'),
+    window: 60_000,
+    max: 10,
+  },
+];
+
+function checkRateLimit(key: string, windowMs: number, max: number): boolean {
+  const now = Date.now();
+  const current = buckets.get(key);
+
+  if (!current || current.resetAt <= now) {
+    buckets.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+
+  current.count += 1;
+  return current.count <= max;
+}
 
 export function securityHeaders(_request: Request, response: Response, next: NextFunction) {
   response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -25,28 +66,16 @@ export function securityHeaders(_request: Request, response: Response, next: Nex
 }
 
 export function authRateLimit(request: Request, response: Response, next: NextFunction) {
-  if (request.method !== 'POST' || !authPaths.has(request.path)) {
-    next();
-    return;
-  }
+  const ip = request.ip ?? 'unknown';
 
-  const now = Date.now();
-  const key = `${request.ip}:${request.path}`;
-  const current = buckets.get(key);
-
-  if (!current || current.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    next();
-    return;
-  }
-
-  current.count += 1;
-
-  if (current.count > maxAttempts) {
-    response.status(429).json({
-      message: 'Trop de tentatives. Reessayez dans quelques instants.',
-    });
-    return;
+  for (const rule of RATE_RULES) {
+    if (!rule.match(request.method, request.path)) continue;
+    const key = `${rule.label}:${ip}:${request.path}`;
+    if (!checkRateLimit(key, rule.window, rule.max)) {
+      response.status(429).json({ message: 'Trop de requetes. Reessayez dans quelques instants.' });
+      return;
+    }
+    break;
   }
 
   next();
@@ -72,4 +101,18 @@ export function requestLogger(request: Request, response: Response, next: NextFu
   });
 
   next();
+}
+
+export function redactSensitive(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (REDACTED_FIELDS.has(k)) {
+      result[k] = '[REDACTED]';
+    } else if (v && typeof v === 'object' && !Array.isArray(v)) {
+      result[k] = redactSensitive(v as Record<string, unknown>);
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
 }

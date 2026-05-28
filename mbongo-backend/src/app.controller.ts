@@ -20,6 +20,11 @@ export class AppController {
     return this.appService.getVersion();
   }
 
+  @Get('app/version')
+  appVersion() {
+    return this.appService.getVersion();
+  }
+
   @Post('contact')
   submitContact(
     @Body() body: { name: string; email: string; phone?: string; subject: string; message?: string },

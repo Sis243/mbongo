@@ -271,6 +271,16 @@ class ApiService {
     return response;
   }
 
+  static Future<Map<String, dynamic>> getAppVersion() async {
+    try {
+      final response = await _get('/app/version');
+      if (response is Map) return Map<String, dynamic>.from(response);
+      return {};
+    } catch (_) {
+      return {};
+    }
+  }
+
   static Future<Map<String, dynamic>> resetPin(String phone, String code, String newPin) async {
     return _post('/auth/reset-pin', body: {'phone': phone, 'code': code, 'newPin': newPin});
   }

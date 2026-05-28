@@ -15,12 +15,18 @@ export class AppService {
     };
   }
 
-  getVersion() {
+  async getVersion() {
+    const [latestSetting, forceSetting, urlSetting] = await Promise.all([
+      this.prisma.appSetting.findUnique({ where: { key: 'app_latest_version' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'app_force_update' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'app_download_url' } }),
+    ]);
+
     return {
-      service: 'mbongo-api',
-      version: process.env.npm_package_version ?? '0.0.1',
-      environment: process.env.NODE_ENV ?? 'development',
-      node: process.version,
+      latestVersion: latestSetting?.value ?? process.env.APP_LATEST_VERSION ?? '3.0.2',
+      forceUpdate: forceSetting?.value === 'true',
+      downloadUrl: urlSetting?.value ?? process.env.APP_DOWNLOAD_URL ?? null,
+      message: 'Une nouvelle version est disponible. Mettez à jour pour profiter des dernières améliorations.',
     };
   }
 

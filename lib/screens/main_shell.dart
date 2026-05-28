@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/theme/app_colors.dart';
 import '../features/notifications/presentation/notifications_provider.dart';
 import '../services/api_service.dart';
+import '../services/update_service.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../widgets/common/inactivity_lock_wrapper.dart';
 import '../widgets/common/mbongo_money_particles.dart';
@@ -54,6 +56,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdate());
     Connectivity().checkConnectivity().then((results) {
       if (mounted) {
         final offline = results.isNotEmpty && results.every((r) => r == ConnectivityResult.none);
@@ -65,6 +68,15 @@ class _MainShellState extends ConsumerState<MainShell> {
       if (mounted && offline != _isOffline) setState(() => _isOffline = offline);
     });
     _checkRoles();
+  }
+
+  Future<void> _checkUpdate() async {
+    try {
+      final info = await UpdateService.checkForUpdate();
+      if (!mounted || !info.hasUpdate) return;
+      if (!context.mounted) return;
+      UpdateService.showUpdateDialog(context, info);
+    } catch (_) {}
   }
 
   Future<void> _checkRoles() async {

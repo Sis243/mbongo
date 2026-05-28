@@ -22,10 +22,7 @@ import 'agents/agents_screen.dart';
 import 'dispute/dispute_screen.dart';
 import 'profile/update_profile_screen.dart';
 import 'exchange_rates/exchange_rates_screen.dart';
-import 'fees/fees_screen.dart';
-import 'payment_methods/payment_methods_screen.dart';
 import 'referral/referral_screen.dart';
-import 'admin/admin_access_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -395,21 +392,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                   _buildActionTile(
-                                    icon: Icons.price_check_rounded,
-                                    title: 'Grille tarifaire',
-                                    subtitle: 'Frais et limites',
-                                    color: AppColors.gold,
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const FeesScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _buildActionTile(
                                     icon: Icons.store_rounded,
                                     title: 'Agents de cash',
                                     subtitle: 'Trouver un agent pres de vous',
@@ -419,36 +401,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (_) => const AgentsScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _buildActionTile(
-                                    icon: Icons.account_balance_wallet_rounded,
-                                    title: 'Methodes de paiement',
-                                    subtitle: 'Depot et retrait',
-                                    color: AppColors.cyan,
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const PaymentMethodsScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _buildActionTile(
-                                    icon: Icons.admin_panel_settings_rounded,
-                                    title: 'Administration',
-                                    subtitle: 'Backoffice et gestion',
-                                    color: AppColors.primary,
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const AdminAccessScreen(),
                                         ),
                                       );
                                     },

@@ -76,7 +76,9 @@ class AgentPayoutsScreen extends ConsumerWidget {
     MbongoThemePalette palette,
   ) {
     final fmt = NumberFormat('#,##0', 'fr_FR');
+    final fmtUsd = NumberFormat('#,##0.00', 'fr_FR');
     final balance = (data['commissionBalance'] as num?)?.toDouble() ?? 0;
+    final balanceUsd = (data['commissionBalanceUSD'] as num?)?.toDouble() ?? (balance / 2350);
     final agentName = data['agentName']?.toString() ?? '';
     final agentCode = data['agentCode']?.toString() ?? '';
     final txns = (data['transactions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -133,6 +135,26 @@ class AgentPayoutsScreen extends ConsumerWidget {
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.5,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.green.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '\$ ${fmtUsd.format(balanceUsd)} USD',
+                        style: const TextStyle(
+                          color: AppColors.green,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 if (agentName.isNotEmpty) ...[
                   const SizedBox(height: 4),

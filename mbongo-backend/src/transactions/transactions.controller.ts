@@ -81,8 +81,13 @@ export class TransactionsController {
       }),
     ]);
 
+    const cdfCurrency = await this.prisma.currency.findUnique({ where: { id: 'CDF' } });
+    const cdfRate = cdfCurrency?.rate ?? 2350;
+    const commissionBalanceUSD = Number((agent.commissionBalance / cdfRate).toFixed(2));
+
     return {
       commissionBalance: agent.commissionBalance,
+      commissionBalanceUSD,
       agentCode: agent.code,
       agentName: agent.name,
       phone: agent.phone,

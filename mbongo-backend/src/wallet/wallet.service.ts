@@ -42,9 +42,16 @@ export class WalletService {
       }),
     ]);
 
+    const usdCurrency = await this.prisma.currency.findUnique({ where: { id: 'CDF' } });
+    const cdfRate = usdCurrency?.rate ?? 2350;
+    const usdBalance = Number((wallet.balance / cdfRate).toFixed(2));
+
     return {
       wallet: this.serializeWallet(wallet),
-      balances: [{ currency: 'CDF', balance: wallet.balance }],
+      balances: [
+        { currency: 'CDF', balance: wallet.balance },
+        { currency: 'USD', balance: usdBalance },
+      ],
       recentTransactions: transactions.map((transaction) => this.serializeTransaction(transaction)),
       recentLedgerEntries: ledgerEntries.map((entry) => this.serializeLedgerEntry(entry)),
     };

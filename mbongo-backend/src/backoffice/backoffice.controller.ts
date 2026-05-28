@@ -208,6 +208,13 @@ export class BackofficeController {
     return this.backofficeService.getAgentCashOperations();
   }
 
+  @Get('agents/float-status')
+  @RequireAdminPermissions('VIEW_TRANSACTIONS')
+  getAgentsFloatStatus(@Query('threshold') threshold?: string) {
+    const t = threshold ? parseInt(threshold, 10) : undefined;
+    return this.backofficeService.getAgentsFloatStatus(t);
+  }
+
   @Post('agents')
   @RequireAdminPermissions('MANAGE_TRANSACTIONS')
   upsertCashAgent(@Body() body: UpsertCashAgentDto, @CurrentAdmin() admin: AdminJwtPayload) {
@@ -272,10 +279,32 @@ export class BackofficeController {
     return this.backofficeService.updateTransactionStatus(id, body, admin);
   }
 
+  @Post('transactions/:id/reverse')
+  @RequireAdminPermissions('MANAGE_TRANSACTIONS')
+  reverseTransaction(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    return this.backofficeService.updateTransactionStatus(id, { status: 'REVERSED', reason }, admin);
+  }
+
   @Get('merchant')
   @RequireAdminPermissions('MANAGE_MERCHANTS')
   getMerchantBackoffice() {
     return this.backofficeService.getMerchantBackofficeSnapshot();
+  }
+
+  @Get('merchant/api-keys')
+  @RequireAdminPermissions('MANAGE_MERCHANTS')
+  listMerchantApiKeys() {
+    return this.backofficeService.listMerchantApiKeys();
+  }
+
+  @Post('merchant/:userId/regenerate-api-key')
+  @RequireAdminPermissions('MANAGE_MERCHANTS')
+  regenerateMerchantApiKey(@Param('userId') userId: string) {
+    return this.backofficeService.regenerateMerchantApiKey(userId);
   }
 
   @Get('merchant/accounts')

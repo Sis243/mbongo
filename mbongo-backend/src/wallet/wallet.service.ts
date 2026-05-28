@@ -44,6 +44,7 @@ export class WalletService {
 
     return {
       wallet: this.serializeWallet(wallet),
+      balances: [{ currency: 'CDF', balance: wallet.balance }],
       recentTransactions: transactions.map((transaction) => this.serializeTransaction(transaction)),
       recentLedgerEntries: ledgerEntries.map((entry) => this.serializeLedgerEntry(entry)),
     };

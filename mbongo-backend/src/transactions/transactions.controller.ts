@@ -31,6 +31,34 @@ export class TransactionsController {
     return this.transactionsService.listActiveCashAgents();
   }
 
+  @Get('agent/payouts')
+  async getAgentPayouts(@CurrentUser() user: JwtRequestUser) {
+    const u = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    if (!u) return { payouts: [], total: 0 };
+
+    const agent = await this.prisma.cashAgent.findFirst({ where: { phone: u.phone } });
+    if (!agent) return { payouts: [], total: 0 };
+
+    const payouts = await this.prisma.cashAgentCommissionPayout.findMany({
+      where: { agentId: agent.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const total = payouts.reduce((sum, p) => sum + p.amount, 0);
+    return {
+      payouts: payouts.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        previousBalance: p.previousBalance,
+        nextBalance: p.nextBalance,
+        reference: p.reference,
+        note: p.note,
+        createdAt: p.createdAt.toISOString(),
+      })),
+      total,
+    };
+  }
+
   @Get('agent/profit-log')
   async getAgentProfitLog(@CurrentUser() user: JwtRequestUser) {
     const u = await this.prisma.user.findUnique({ where: { id: user.userId } });

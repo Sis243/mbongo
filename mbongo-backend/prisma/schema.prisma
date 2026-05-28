@@ -78,6 +78,7 @@ enum NotificationStatus {
   DRAFT
   QUEUED
   SENT
+  READ
   FAILED
   CANCELED
 }

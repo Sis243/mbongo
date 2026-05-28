@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { CardsService } from '../cards/cards.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1325,6 +1326,45 @@ export class BackofficeService {
     };
   }
 
+  async getAgentsFloatStatus(threshold = 50_000) {
+    const agents = await this.prisma.cashAgent.findMany({
+      orderBy: { commissionBalance: 'asc' },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        phone: true,
+        location: true,
+        status: true,
+        commissionBalance: true,
+        dailyCashInLimit: true,
+        dailyCashOutLimit: true,
+        createdAt: true,
+        _count: { select: { transactions: true } },
+      },
+    });
+
+    const low = agents.filter((a) => a.commissionBalance < threshold);
+    return {
+      threshold,
+      totalAgents: agents.length,
+      lowBalanceCount: low.length,
+      agents: agents.map((a) => ({
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        phone: a.phone,
+        location: a.location,
+        status: a.status,
+        commissionBalance: a.commissionBalance,
+        dailyCashInLimit: a.dailyCashInLimit,
+        dailyCashOutLimit: a.dailyCashOutLimit,
+        totalTransactions: a._count.transactions,
+        alert: a.commissionBalance < threshold,
+      })),
+    };
+  }
+
   async upsertCashAgent(body: UpsertCashAgentPayload, admin: AdminJwtPayload) {
     const code = body.code.trim().toUpperCase();
     const name = body.name.trim();
@@ -1862,6 +1902,36 @@ export class BackofficeService {
       return updated.id;
     });
 
+    // FCM notifications (non-bloquant, hors transaction Prisma)
+    if (transaction.senderId) {
+      const sender = await this.prisma.user.findUnique({
+        where: { id: transaction.senderId },
+        select: { fcmToken: true },
+      });
+      if (sender?.fcmToken) {
+        this.fcm.send({
+          token: sender.fcmToken,
+          title: 'Transaction remboursée',
+          body: `Votre transaction de ${transaction.amount} ${transaction.currency} a été remboursée.`,
+          data: { type: 'TRANSACTION_REVERSED', transactionId: transaction.id },
+        }).catch(() => {});
+      }
+    }
+    if (transaction.receiverId) {
+      const receiver = await this.prisma.user.findUnique({
+        where: { id: transaction.receiverId },
+        select: { fcmToken: true },
+      });
+      if (receiver?.fcmToken) {
+        this.fcm.send({
+          token: receiver.fcmToken,
+          title: 'Transaction remboursée',
+          body: `Une transaction de ${transaction.amount} ${transaction.currency} vous concernant a été remboursée.`,
+          data: { type: 'TRANSACTION_REVERSED', transactionId: transaction.id },
+        }).catch(() => {});
+      }
+    }
+
     return this.getTransaction(updatedId);
   }
 
@@ -2186,6 +2256,35 @@ export class BackofficeService {
     });
 
     return { updated: true, channel };
+  }
+
+  async listMerchantApiKeys() {
+    const merchants = await this.prisma.user.findMany({
+      where: { merchantApiKey: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        merchantApiKeyPreview: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { merchants };
+  }
+
+  async regenerateMerchantApiKey(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.merchantApiKey) {
+      throw new NotFoundException('Marchand introuvable');
+    }
+    const key = `mbg_${randomBytes(24).toString('hex')}`;
+    const preview = `${key.slice(0, 12)}••••••••••••••••••••`;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { merchantApiKey: key, merchantApiKeyPreview: preview },
+    });
+    return { key, preview };
   }
 
   async getMerchantBackofficeSnapshot() {

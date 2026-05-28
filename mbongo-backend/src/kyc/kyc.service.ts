@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { KycDocumentSide } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
@@ -6,6 +6,8 @@ import type { KycUploadedFile } from './kyc-file.types';
 
 @Injectable()
 export class KycService {
+  private readonly logger = new Logger(KycService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly maxFileSize = 5 * 1024 * 1024;
@@ -102,6 +104,8 @@ export class KycService {
       throw new BadRequestException('Au moins un fichier KYC est obligatoire');
     }
 
+    const storageBackend = process.env.FIREBASE_SERVICE_ACCOUNT ? 'firebase' : 'base64';
+
     return this.prisma.$transaction(async (tx) => {
       const submission = await tx.kycSubmission.create({
         data: {
@@ -127,7 +131,7 @@ export class KycService {
           metadata: JSON.stringify({
             documentType: submission.documentType,
             documentCount: submission.documents.length,
-            storage: 'local',
+            storage: storageBackend,
           }),
         },
       });
@@ -183,14 +187,54 @@ export class KycService {
       throw new BadRequestException('Type de fichier KYC non autorise');
     }
 
-    // Stockage en base64 — compatible Vercel serverless (pas de filesystem)
+    const storageUrl = await this.tryUploadToFirebaseStorage(file, side);
+    if (storageUrl) {
+      return { side, fileUrl: storageUrl, fileMimeType: file.mimetype };
+    }
+
+    // Fallback: base64 en DB (dev sans Firebase configuré)
     const base64 = file.buffer.toString('base64');
     const dataUrl = `data:${file.mimetype};base64,${base64}`;
+    return { side, fileUrl: dataUrl, fileMimeType: file.mimetype };
+  }
 
-    return {
-      side,
-      fileUrl: dataUrl,
-      fileMimeType: file.mimetype,
-    };
+  private async tryUploadToFirebaseStorage(
+    file: KycUploadedFile,
+    side: string,
+  ): Promise<string | null> {
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!raw) return null;
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const admin = require('firebase-admin');
+      if (!admin.apps.length) {
+        const serviceAccount = JSON.parse(raw) as { project_id: string };
+        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+      }
+
+      const serviceAccount = JSON.parse(raw) as { project_id: string };
+      const projectId = serviceAccount.project_id;
+      const bucketName =
+        process.env.FIREBASE_STORAGE_BUCKET ?? `${projectId}.appspot.com`;
+
+      const bucket = admin.storage().bucket(bucketName);
+      const filePath = `kyc/${Date.now()}-${side}`;
+      const fileRef = bucket.file(filePath);
+
+      await fileRef.save(file.buffer, {
+        metadata: { contentType: file.mimetype },
+      });
+
+      const [signedUrl] = await fileRef.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 10 * 365 * 24 * 60 * 60 * 1000,
+      });
+
+      return signedUrl as string;
+    } catch (e) {
+      this.logger.error('Firebase Storage upload KYC echoue, fallback base64', e);
+      return null;
+    }
   }
 }

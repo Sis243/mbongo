@@ -16,6 +16,7 @@ import { validateEnvironment } from './config/validate-env';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MerchantController } from './merchant.controller';
+import { PaymentGatewayModule } from './payment-gateway/payment-gateway.module';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -36,6 +37,7 @@ import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filte
     AdminAuthModule,
     NotificationsModule,
     OtpModule,
+    PaymentGatewayModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

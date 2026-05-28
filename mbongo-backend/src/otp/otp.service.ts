@@ -1,37 +1,38 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { SmsAdapter } from '../sms/sms-adapter.interface';
 import { randomInt } from 'crypto';
 
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject('SMS_ADAPTER') private readonly sms: SmsAdapter,
+  ) {}
 
   async requestOtp(phone: string, purpose: 'register' | 'login' | 'reset' = 'register') {
-    // Invalidate previous OTPs for this phone+purpose
     await this.prisma.$executeRaw`
       UPDATE "OtpCode" SET "used" = true
       WHERE "phone" = ${phone} AND "purpose" = ${purpose} AND "used" = false
     `;
 
     const code = String(randomInt(100000, 999999));
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await this.prisma.$executeRaw`
       INSERT INTO "OtpCode" ("id", "phone", "code", "purpose", "expiresAt")
       VALUES (gen_random_uuid()::text, ${phone}, ${code}, ${purpose}, ${expiresAt})
     `;
 
-    // TEST MODE — log OTP to console (visible in Vercel logs)
-    this.logger.log(`[OTP TEST] Phone: ${phone} | Purpose: ${purpose} | Code: ${code}`);
+    await this.sms.send(phone, `Votre code Mbongo: ${code}`);
 
     const isTest = process.env.NODE_ENV !== 'production' || process.env.OTP_TEST_MODE === 'true';
 
     return {
       sent: true,
       phone,
-      // Return code in test mode so you can see it in the API response
       ...(isTest && { code, note: 'TEST MODE — code visible dans les logs Vercel' }),
     };
   }
@@ -54,7 +55,6 @@ export class OtpService {
       return { valid: false, reason: 'Code expiré' };
     }
 
-    // Mark as used
     await this.prisma.$executeRaw`
       UPDATE "OtpCode" SET "used" = true WHERE "id" = ${otp.id}
     `;

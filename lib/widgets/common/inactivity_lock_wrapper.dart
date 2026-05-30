@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
@@ -85,23 +86,36 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
     }
   }
 
+  Future<void> _forceLogout() async {
+    await AuthService.logout();
+    if (!mounted) return;
+    inactivityLock.unlock();
+    if (context.mounted) context.go('/auth/login');
+  }
+
   Future<void> _unlockWithPin() async {
     final pin = _pinCtrl.text.trim();
     if (pin.isEmpty) return;
     setState(() { _loading = true; _error = null; });
 
     try {
-      // Verify PIN via real login with stored phone
       final creds = await _getStoredPhone();
       if (creds == null) {
-        setState(() { _loading = false; _error = 'Session expirée. Reconnectez-vous.'; });
+        await _forceLogout();
         return;
       }
       await ref.read(authProvider.notifier).login(phone: creds, pin: pin);
       if (!mounted) return;
       inactivityLock.unlock();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      // Compte introuvable ou session invalide → logout forcé
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('401') || msg.contains('403') || msg.contains('404')
+          || msg.contains('not found') || msg.contains('unauthorized')) {
+        await _forceLogout();
+        return;
+      }
       setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
     }
   }
@@ -207,6 +221,15 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 16),
+                      TextButton.icon(
+                        onPressed: _loading ? null : _forceLogout,
+                        icon: const Icon(Icons.logout_rounded, size: 16, color: AppColors.muted),
+                        label: const Text(
+                          'Changer de compte',
+                          style: TextStyle(color: AppColors.muted, fontSize: 12.5),
+                        ),
+                      ),
                     ],
                   ),
                 ),

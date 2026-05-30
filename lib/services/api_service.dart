@@ -274,11 +274,38 @@ class ApiService {
   static Future<Map<String, dynamic>> getAppVersion() async {
     try {
       final response = await _get('/app/version');
-      if (response is Map) return Map<String, dynamic>.from(response);
-      return {};
+      return response;
     } catch (_) {
       return {};
     }
+  }
+
+  // ── Core Banking ──────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> lookupBankAccount(String accountNumber) async {
+    try {
+      return await _get('/bank/lookup?accountNumber=${Uri.encodeComponent(accountNumber)}');
+    } catch (_) {
+      return {'exists': false};
+    }
+  }
+
+  static Future<Map<String, dynamic>> linkBankAccount(String accountNumber) async {
+    return _post('/bank/link', body: {'accountNumber': accountNumber});
+  }
+
+  static Future<List<Map<String, dynamic>>> getLinkedBankAccounts() async {
+    try {
+      final resp = await _get('/bank/linked');
+      final list = resp['data'];
+      if (list is! List) return [];
+      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> unlinkBankAccount(String id) async {
+    await _delete('/bank/linked/$id');
   }
 
   static Future<Map<String, dynamic>> resetPin(String phone, String code, String newPin) async {
@@ -621,6 +648,28 @@ class ApiService {
     } on SocketException {
       throw const ApiException(
           'API Mbongo inaccessible. Verifiez que le backend tourne.');
+    } finally {
+      client.close();
+    }
+  }
+
+  static Future<Map<String, dynamic>> _delete(String path) async {
+    final client = HttpClient();
+    try {
+      final request = await client.deleteUrl(Uri.parse('$_baseUrl$path'));
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final token = await AuthService.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      }
+      final response = await request.close();
+      final decoded = await _decodeResponse(response);
+      if (response.statusCode >= 400) {
+        throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
+      }
+      return _mapResponse(decoded);
+    } on SocketException {
+      throw const ApiException('API Mbongo inaccessible. Verifiez que le backend tourne.');
     } finally {
       client.close();
     }

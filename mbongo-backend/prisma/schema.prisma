@@ -117,13 +117,14 @@ model User {
   merchantApiKeyPreview String?
   createdAt            DateTime   @default(now())
 
-  wallet         Wallet?
-  virtualCards   VirtualCard[]
-  sessions       UserSession[]
-  kycSubmissions KycSubmission[]
-  auditLogs      AuditLog[]
-  disputes       Dispute[]
-  notifications  Notification[]
+  wallet              Wallet?
+  virtualCards        VirtualCard[]
+  sessions            UserSession[]
+  kycSubmissions      KycSubmission[]
+  auditLogs           AuditLog[]
+  disputes            Dispute[]
+  notifications       Notification[]
+  linkedBankAccounts  LinkedBankAccount[]
 
   @@index([status])
 }
@@ -642,6 +643,23 @@ model Currency {
   updatedAt DateTime @updatedAt
 
   @@index([isEnabled])
+}
+
+model LinkedBankAccount {
+  id            String   @id @default(uuid())
+  userId        String
+  accountNumber String
+  bankName      String   @default("Banque Partenaire")
+  accountHolder String
+  balance       Float    @default(0)
+  currency      String   @default("CDF")
+  accountType   String   @default("Compte Courant")
+  linkedAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, accountNumber])
+  @@index([userId])
 }
 
 model OtpCode {

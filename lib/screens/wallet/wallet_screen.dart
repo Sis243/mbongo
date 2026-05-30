@@ -226,34 +226,63 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (m) => '${m[1]} ',
     );
+    final isUsd = currency == 'USD';
+    final color = isUsd ? AppColors.gold : AppColors.cyan;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: palette.panelAlt,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.28)),
+        gradient: LinearGradient(
+          colors: [palette.cardGradient.first, color.withValues(alpha: 0.18)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: AppColors.gold.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.gold, size: 18),
+            child: Icon(
+              isUsd ? Icons.attach_money_rounded : Icons.account_balance_wallet_rounded,
+              color: color,
+            ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            'Portefeuille $currency',
-            style: const TextStyle(color: AppColors.textSoft, fontSize: 13, fontWeight: FontWeight.w700),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Portefeuille $currency',
+                  style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isUsd ? 'Compte international' : 'Compte secondaire',
+                  style: const TextStyle(color: AppColors.textSoft, fontSize: 11),
+                ),
+              ],
+            ),
           ),
-          const Spacer(),
-          Text(
-            '$fmt $currency',
-            style: const TextStyle(color: AppColors.gold, fontSize: 16, fontWeight: FontWeight.w900),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                isUsd ? '\$ $fmt' : '$fmt $currency',
+                style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              Text(
+                currency,
+                style: TextStyle(color: color.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+            ],
           ),
         ],
       ),

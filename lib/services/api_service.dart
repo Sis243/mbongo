@@ -280,6 +280,20 @@ class ApiService {
     }
   }
 
+  // ── Backup phone ──────────────────────────────────────────────────
+  static Future<String?> getBackupPhone() async {
+    try {
+      final r = await _get('/users/me/backup-phone');
+      return r['backupPhone'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> updateBackupPhone(String phone) async {
+    await _patch('/users/me/backup-phone', body: {'backupPhone': phone});
+  }
+
   // ── Core Banking ──────────────────────────────────────────────────
   static Future<Map<String, dynamic>> lookupBankAccount(String accountNumber) async {
     try {
@@ -437,6 +451,29 @@ class ApiService {
         'method': method,
         'terminalLabel': terminalLabel,
         'location': location,
+        'idempotencyKey': idempotencyKey,
+      },
+    );
+  }
+
+  static Future<Map<String, dynamic>> getBillPayMethods() async {
+    return _get('/bill-pay/methods');
+  }
+
+  static Future<Map<String, dynamic>> payBill({
+    required String methodId,
+    required String methodName,
+    required String reference,
+    required double amount,
+    String? idempotencyKey,
+  }) async {
+    return _post(
+      '/transactions/bill-pay',
+      body: {
+        'methodId': methodId,
+        'methodName': methodName,
+        'reference': reference,
+        'amount': amount,
         'idempotencyKey': idempotencyKey,
       },
     );

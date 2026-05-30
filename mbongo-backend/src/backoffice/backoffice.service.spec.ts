@@ -6,7 +6,7 @@ const admin = {
   phone: '+243000',
   roles: ['ops'],
   permissions: ['REVIEW_KYC'],
-  type: 'admin',
+  type: 'admin' as const,
 };
 
 describe('BackofficeService reviewKycSubmission', () => {
@@ -49,7 +49,7 @@ describe('BackofficeService reviewKycSubmission', () => {
       $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)),
     };
 
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
     return { service, prisma, tx };
   };
 
@@ -101,7 +101,7 @@ describe('BackofficeService admin role safety', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
 
     await expect(
       service.createAdminUser({ phone: '+243000', pin: '1234', roleIds: [] }, admin),
@@ -115,7 +115,7 @@ describe('BackofficeService admin role safety', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
 
     await expect(
       service.updateAdminRoles('admin-1', { roleIds: [] }, admin),
@@ -135,7 +135,7 @@ describe('BackofficeService admin role safety', () => {
         count: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
 
     await expect(
       service.upsertAdminRole(
@@ -162,7 +162,7 @@ describe('BackofficeService admin role safety', () => {
         count: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
 
     await expect(
       service.upsertAdminRole(
@@ -266,7 +266,7 @@ describe('BackofficeService agent cash operations', () => {
         ]),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
 
     await expect(service.getAgentCashOperations()).resolves.toEqual(
       expect.objectContaining({
@@ -311,7 +311,7 @@ describe('BackofficeService agent cash operations', () => {
       },
       $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)),
     };
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
 
     await service.settleCashAgentCommission(
       'agent-1',
@@ -353,7 +353,7 @@ describe('BackofficeService agent cash operations', () => {
       },
       $transaction: jest.fn(),
     };
-    const service = new BackofficeService(prisma as never, {} as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
 
     await expect(service.settleCashAgentCommission('agent-1', {}, admin)).rejects.toThrow(
       'Aucune commission agent a payer',

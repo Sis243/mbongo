@@ -76,6 +76,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .read(authProvider.notifier)
           .login(phone: phone, pin: pin);
       await AuthService.setBiometricEnabled(biometricEnabled);
+      if (biometricEnabled) {
+        await AppStorage().saveBioCredentials(phone, pin);
+      } else {
+        await AppStorage().clearBioCredentials();
+      }
       if (!mounted) return;
       setState(() => loading = false);
       context.go('/home');

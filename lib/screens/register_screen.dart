@@ -462,7 +462,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: const MbongoSubAppBar(title: 'Creer mon compte'),
+      appBar: MbongoSubAppBar(title: widget.resumeKyc ? 'Mon dossier KYC' : 'Creer mon compte'),
       body: Stack(
         children: [
           Positioned.fill(
@@ -517,8 +517,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
+                              children: [
+                                const Text(
                                   'MBONGO',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -526,10 +526,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
-                                  'Ouverture de compte',
-                                  style: TextStyle(
+                                  widget.resumeKyc ? 'Verification KYC' : 'Ouverture de compte',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 17,
                                     fontWeight: FontWeight.w800,
@@ -541,9 +541,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Creer mon compte MBONGO',
-                        style: TextStyle(
+                      Text(
+                        widget.resumeKyc ? 'Mon dossier KYC' : 'Creer mon compte MBONGO',
+                        style: const TextStyle(
                           color: AppColors.text,
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
@@ -612,26 +612,38 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     children: [
                       TextField(
                         controller: nameCtrl,
-                        onChanged: (_) {
-                          setState(() {});
-                          _persistDraft();
-                        },
-                        decoration: const InputDecoration(
+                        readOnly: widget.resumeKyc,
+                        onChanged: widget.resumeKyc
+                            ? null
+                            : (_) {
+                                setState(() {});
+                                _persistDraft();
+                              },
+                        decoration: InputDecoration(
                           labelText: 'Nom complet',
-                          prefixIcon: Icon(Icons.person_outline_rounded),
+                          prefixIcon: const Icon(Icons.person_outline_rounded),
+                          suffixIcon: widget.resumeKyc
+                              ? const Icon(Icons.lock_outline_rounded, size: 16)
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: phoneCtrl,
-                        onChanged: (_) {
-                          setState(() {});
-                          _persistDraft();
-                        },
+                        readOnly: widget.resumeKyc,
+                        onChanged: widget.resumeKyc
+                            ? null
+                            : (_) {
+                                setState(() {});
+                                _persistDraft();
+                              },
                         keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Numero de telephone',
-                          prefixIcon: Icon(Icons.phone_outlined),
+                          prefixIcon: const Icon(Icons.phone_outlined),
+                          suffixIcon: widget.resumeKyc
+                              ? const Icon(Icons.lock_outline_rounded, size: 16)
+                              : null,
                         ),
                       ),
                       if (!widget.resumeKyc) ...[

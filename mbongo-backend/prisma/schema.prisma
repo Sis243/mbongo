@@ -112,6 +112,7 @@ model User {
   email     String?    @unique
   pinHash   String
   fcmToken             String?
+  backupPhone          String?
   status               UserStatus @default(ACTIVE)
   merchantApiKey       String?    @unique
   merchantApiKeyPreview String?
@@ -672,4 +673,20 @@ model OtpCode {
   createdAt DateTime @default(now())
 
   @@index([phone, purpose, used])
+}
+
+model BillPayMethod {
+  id             String   @id @default(uuid())
+  category       String
+  name           String
+  description    String   @default("")
+  logoUrl        String   @default("")
+  referenceLabel String   @default("Numero de reference")
+  currency       String   @default("CDF")
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([category, isActive])
 }

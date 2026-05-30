@@ -18,6 +18,7 @@ import { AppService } from './app.service';
 import { MerchantController } from './merchant.controller';
 import { PaymentGatewayModule } from './payment-gateway/payment-gateway.module';
 import { CoreBankingModule } from './core-banking/core-banking.module';
+import { BillPayModule } from './bill-pay/bill-pay.module';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -40,6 +41,7 @@ import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filte
     OtpModule,
     PaymentGatewayModule,
     CoreBankingModule,
+    BillPayModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

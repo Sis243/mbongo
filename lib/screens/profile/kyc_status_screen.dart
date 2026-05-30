@@ -180,23 +180,71 @@ class _KycStatusScreenState extends State<KycStatusScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const RegisterScreen(resumeKyc: true),
+                if (_status == 'valide')
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0D2B1A), Color(0xFF163D27)],
                       ),
-                    );
-                    if (!mounted) return;
-                    await _load();
-                  },
-                  child: Text(
-                    _status == 'en_attente'
-                        ? 'Voir et ajuster le dossier'
-                        : 'Reprendre le dossier',
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: AppColors.green.withValues(alpha: 0.30),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.verified_rounded,
+                          color: AppColors.green,
+                          size: 30,
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Identite verifiee',
+                                style: TextStyle(
+                                  color: AppColors.text,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Toutes les operations sont debloquees.',
+                                style: TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RegisterScreen(resumeKyc: true),
+                        ),
+                      );
+                      if (!mounted) return;
+                      await _load();
+                    },
+                    child: Text(
+                      _status == 'en_attente'
+                          ? 'Voir et ajuster le dossier'
+                          : 'Reprendre le dossier',
+                    ),
                   ),
-                ),
               ],
             ),
     );

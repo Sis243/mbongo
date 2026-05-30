@@ -30,11 +30,12 @@ import 'transfer/transfer_international_screen.dart';
 import 'wallet/wallet_screen.dart';
 import 'tv/tv_subscription_screen.dart';
 import 'withdraw/withdraw_screen.dart';
+import 'bill_pay/bill_pay_screen.dart';
 
 const _kycSensitiveServices = {
   'Envoyer', 'Demander', 'Changer', 'International',
   'Retirer', 'Mes cartes', 'Unites', 'Abonnement TV', 'Deposer',
-  'Payer',
+  'Payer', 'Factures',
 };
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -84,6 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ServiceItem(title: 'Approuver', icon: Icons.verified_rounded),
       ServiceItem(title: 'Taux de change', icon: Icons.currency_exchange_rounded),
       ServiceItem(title: 'Payer', icon: Icons.storefront_rounded, isNew: true),
+      ServiceItem(title: 'Factures', icon: Icons.receipt_long_rounded, isNew: true),
     ];
 
     final wallet = walletAsync.valueOrNull;
@@ -734,6 +736,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('Approuver')) return const ApprovalsScreen();
     if (title.contains('Taux')) return const ExchangeRatesScreen();
     if (title.contains('Payer')) return const MerchantPaymentScreen();
+    if (title.contains('Factures')) return const BillPayScreen();
     return null;
   }
 

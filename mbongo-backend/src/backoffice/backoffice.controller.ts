@@ -530,4 +530,48 @@ export class BackofficeController {
   ) {
     return this.backofficeService.changeAdminPin(admin.sub, body.currentPin, body.newPin);
   }
+
+  /* ─── Bill-pay methods admin CRUD ─── */
+
+  @Get('bill-pay-methods')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  listBillPayMethods() {
+    return this.backofficeService.listBillPayMethods();
+  }
+
+  @Post('bill-pay-methods')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  createBillPayMethod(@Body() body: {
+    category: string;
+    name: string;
+    description?: string;
+    logoUrl?: string;
+    referenceLabel?: string;
+    currency?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }) {
+    return this.backofficeService.createBillPayMethod(body);
+  }
+
+  @Patch('bill-pay-methods/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  updateBillPayMethod(@Param('id') id: string, @Body() body: {
+    category?: string;
+    name?: string;
+    description?: string;
+    logoUrl?: string;
+    referenceLabel?: string;
+    currency?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }) {
+    return this.backofficeService.updateBillPayMethod(id, body);
+  }
+
+  @Delete('bill-pay-methods/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  deleteBillPayMethod(@Param('id') id: string) {
+    return this.backofficeService.deleteBillPayMethod(id);
+  }
 }

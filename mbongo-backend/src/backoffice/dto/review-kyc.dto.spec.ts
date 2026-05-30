@@ -21,7 +21,7 @@ describe('ReviewKycDto', () => {
 
     expect(result.success).toBe(true);
 
-    if (result.success) {
+    if (result.success && result.data.status === 'REJECTED') {
       expect(result.data.rejectionReason).toBe('Document illisible');
     }
   });

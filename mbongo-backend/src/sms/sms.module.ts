@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ConsoleSmsAdapter } from './console-sms.adapter';
+import { ExternalSmsAdapter } from './external-sms.adapter';
 
 @Module({
   providers: [
-    ConsoleSmsAdapter,
-    { provide: 'SMS_ADAPTER', useClass: ConsoleSmsAdapter },
+    ExternalSmsAdapter,
+    { provide: 'SMS_ADAPTER', useClass: ExternalSmsAdapter },
   ],
   exports: ['SMS_ADAPTER'],
 })

@@ -2939,4 +2939,58 @@ export class BackofficeService {
     });
     return { id: updated.id, rate: updated.rate, rateLabel: updated.rateLabel, updatedAt: updated.updatedAt };
   }
+
+  /* ─── Bill-pay methods admin CRUD ─── */
+
+  async listBillPayMethods() {
+    return this.prisma.billPayMethod.findMany({
+      orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async createBillPayMethod(body: {
+    category: string;
+    name: string;
+    description?: string;
+    logoUrl?: string;
+    referenceLabel?: string;
+    currency?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }) {
+    return this.prisma.billPayMethod.create({
+      data: {
+        category: body.category,
+        name: body.name,
+        description: body.description ?? '',
+        logoUrl: body.logoUrl ?? '',
+        referenceLabel: body.referenceLabel ?? 'Numéro de référence',
+        currency: body.currency ?? 'CDF',
+        isActive: body.isActive ?? true,
+        sortOrder: body.sortOrder ?? 0,
+      },
+    });
+  }
+
+  async updateBillPayMethod(id: string, body: {
+    category?: string;
+    name?: string;
+    description?: string;
+    logoUrl?: string;
+    referenceLabel?: string;
+    currency?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }) {
+    const existing = await this.prisma.billPayMethod.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Méthode de paiement introuvable');
+    return this.prisma.billPayMethod.update({ where: { id }, data: body });
+  }
+
+  async deleteBillPayMethod(id: string) {
+    const existing = await this.prisma.billPayMethod.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Méthode de paiement introuvable');
+    await this.prisma.billPayMethod.delete({ where: { id } });
+    return { success: true };
+  }
 }

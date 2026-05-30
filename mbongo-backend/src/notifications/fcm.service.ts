@@ -54,18 +54,30 @@ export class FcmService {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const admin = require('firebase-admin');
+      const fcmPayload = {
+        notification: { title: msg.title, body: msg.body },
+        data: msg.data ?? {},
+        android: {
+          notification: {
+            channelId: 'mbongo_channel_v2',
+            sound: 'mbongo_notif',
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'mbongo_notif.wav',
+            },
+          },
+        },
+      };
       if (targets.length === 1) {
-        await admin.messaging().send({
-          token: targets[0],
-          notification: { title: msg.title, body: msg.body },
-          data: msg.data ?? {},
-        });
+        await admin.messaging().send({ token: targets[0], ...fcmPayload });
         return { sent: 1, failed: 0 };
       }
       const res = await admin.messaging().sendEachForMulticast({
         tokens: targets,
-        notification: { title: msg.title, body: msg.body },
-        data: msg.data ?? {},
+        ...fcmPayload,
       });
       return { sent: res.successCount, failed: res.failureCount };
     } catch (e) {

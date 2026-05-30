@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -109,6 +109,21 @@ export class AuthService {
     return {
       revoked: true,
     };
+  }
+
+  async changePin(userId: string, currentPin: string, newPin: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Utilisateur introuvable');
+
+    const valid = await bcrypt.compare(String(currentPin), user.pinHash);
+    if (!valid) throw new UnauthorizedException('Code PIN actuel incorrect');
+
+    if (String(newPin).length < 4) throw new BadRequestException('Le nouveau PIN doit contenir au moins 4 chiffres');
+
+    const pinHash = await bcrypt.hash(String(newPin), 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { pinHash } });
+
+    return { success: true };
   }
 
   async resetPin({ phone, code, newPin }: { phone: string; code: string; newPin: string }) {

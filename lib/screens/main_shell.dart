@@ -1,10 +1,9 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import '../providers/pending_tab_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-
 import '../core/theme/app_colors.dart';
 import '../features/notifications/presentation/notifications_provider.dart';
 import '../services/api_service.dart';
@@ -33,6 +32,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   int _roleMode = 0;
   bool _roleChecked = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  StreamSubscription<int>? _notificationNavSub;
 
   // User mode
   static const _userPages = [
@@ -56,6 +56,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
+    _notificationNavSub = NotificationNavigation.stream.listen((tab) {
+      if (mounted) setState(() => currentIndex = tab);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdate());
     Connectivity().checkConnectivity().then((results) {
       if (mounted) {
@@ -101,6 +104,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   void dispose() {
+    _notificationNavSub?.cancel();
     _connectivitySub?.cancel();
     super.dispose();
   }

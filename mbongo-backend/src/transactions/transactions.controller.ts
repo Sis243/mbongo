@@ -4,6 +4,7 @@ import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAirtimePurchaseDto } from './dto/create-airtime-purchase.dto';
+import { CreateBillPaymentDto } from './dto/create-bill-payment.dto';
 import { CreateDepositDto } from './dto/create-deposit.dto';
 import { CreateInternationalTransferDto } from './dto/create-international-transfer.dto';
 import { CreateMerchantPaymentDto } from './dto/create-merchant-payment.dto';
@@ -168,6 +169,14 @@ export class TransactionsController {
   @Post('merchant-pay')
   createMerchantPayment(@Body() body: CreateMerchantPaymentDto, @CurrentUser() user: JwtRequestUser) {
     return this.transactionsService.createMerchantPayment({
+      ...body,
+      userId: user.userId,
+    });
+  }
+
+  @Post('bill-pay')
+  createBillPayment(@Body() body: CreateBillPaymentDto, @CurrentUser() user: JwtRequestUser) {
+    return this.transactionsService.createBillPayment({
       ...body,
       userId: user.userId,
     });

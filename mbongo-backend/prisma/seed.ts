@@ -388,6 +388,34 @@ async function main() {
     });
   }
 
+  // ── Bill-pay methods ─────────────────────────────────────────────
+  const billers = [
+    // UTILITY
+    { category: 'UTILITY', name: 'SNEL',     description: 'Facture électricité SNEL',   referenceLabel: 'Numéro de compteur', currency: 'CDF', sortOrder: 1 },
+    { category: 'UTILITY', name: 'REGIDESO', description: 'Facture eau REGIDESO',        referenceLabel: 'Numéro de compteur', currency: 'CDF', sortOrder: 2 },
+    // TELECOM
+    { category: 'TELECOM', name: 'Airtel Airtime',   description: 'Recharge Airtel',        referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 1 },
+    { category: 'TELECOM', name: 'Orange Airtime',   description: 'Recharge Orange',        referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 2 },
+    { category: 'TELECOM', name: 'Africell Airtime', description: 'Recharge Africell',      referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 3 },
+    { category: 'TELECOM', name: 'Vodacom Airtime',  description: 'Recharge Vodacom',       referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 4 },
+    // TV
+    { category: 'TV', name: 'Canal+ Satellite', description: 'Abonnement Canal+',    referenceLabel: 'Numéro abonné', currency: 'CDF', sortOrder: 1 },
+    { category: 'TV', name: 'StarTimes',        description: 'Abonnement StarTimes',  referenceLabel: 'Numéro de carte', currency: 'CDF', sortOrder: 2 },
+    // INTERNET
+    { category: 'INTERNET', name: 'Airtel Internet',   description: 'Forfait data Airtel',   referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 1 },
+    { category: 'INTERNET', name: 'Orange Internet',   description: 'Forfait data Orange',   referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 2 },
+    { category: 'INTERNET', name: 'Vodacom Internet',  description: 'Forfait data Vodacom',  referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 3 },
+    // INSURANCE
+    { category: 'INSURANCE', name: 'SONAS', description: 'Prime assurance SONAS', referenceLabel: 'Numéro de police', currency: 'CDF', sortOrder: 1 },
+  ];
+
+  for (const b of billers) {
+    const existing = await prisma.billPayMethod.findFirst({ where: { name: b.name, category: b.category } });
+    if (!existing) {
+      await prisma.billPayMethod.create({ data: { ...b, logoUrl: '', isActive: true } });
+    }
+  }
+
   console.log('Seed Mbongo terminé avec succès.');
 }
 

@@ -5,7 +5,9 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { FcmService } from '../notifications/fcm.service';
 import { CreateAirtimePurchaseDto } from './dto/create-airtime-purchase.dto';
+import { CreateBillPaymentDto } from './dto/create-bill-payment.dto';
 import { CreateDepositDto } from './dto/create-deposit.dto';
 import { CreateInternationalTransferDto } from './dto/create-international-transfer.dto';
 import { CreateMerchantPaymentDto } from './dto/create-merchant-payment.dto';
@@ -23,11 +25,15 @@ const DEFAULT_FEE_RULES: Record<string, { maxAmount: number; fixedFee: number; p
   airtime:        { maxAmount: 1_000_000,  fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
   tv:             { maxAmount: 2_000_000,  fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
   merchant:       { maxAmount: 5_000_000,  fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
+  'bill-pay':     { maxAmount: 10_000_000, fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
 };
 
 @Injectable()
 export class TransactionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fcm: FcmService,
+  ) {}
 
   private async loadFeeRule(feeId: string) {
     const dbFee = await this.prisma.transactionFee?.findUnique({
@@ -115,7 +121,7 @@ export class TransactionsService {
       throw new BadRequestException('Solde insuffisant');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdTx = await this.prisma.$transaction(async (tx) => {
       // Re-read sender wallet inside transaction for a consistent snapshot
       const freshSenderWallet = await tx.wallet.findUnique({ where: { id: senderWallet.id } });
       if (!freshSenderWallet) throw new NotFoundException('Wallet emetteur introuvable');
@@ -174,8 +180,24 @@ export class TransactionsService {
         ],
       });
 
-      return this.serializeTransaction(transaction);
+      return transaction;
     });
+
+    // FCM push to receiver — non-blocking, outside DB transaction
+    const [senderUser, receiverUser] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: senderId }, select: { name: true } }),
+      this.prisma.user.findUnique({ where: { id: receiverUserId }, select: { fcmToken: true } }),
+    ]);
+    if (receiverUser?.fcmToken) {
+      this.fcm.send({
+        token: receiverUser.fcmToken,
+        title: 'Virement reçu',
+        body: `${senderUser?.name ?? 'Un utilisateur'} vous a envoyé ${body.amount.toLocaleString()} CDF`,
+        data: { type: 'TRANSFER_RECEIVED', txId: createdTx.id },
+      }).catch(() => {});
+    }
+
+    return this.serializeTransaction(createdTx);
   }
 
   async createDeposit(body: CreateDepositDto) {
@@ -245,7 +267,7 @@ export class TransactionsService {
       return this.serializeTransaction(transaction);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const confirmedDeposit = await this.prisma.$transaction(async (tx) => {
       const updatedWallet = await tx.wallet.update({
         where: { id: wallet.id },
         data: {
@@ -292,8 +314,21 @@ export class TransactionsService {
         },
       });
 
-      return this.serializeTransaction(transaction);
+      return transaction;
     });
+
+    // FCM — confirm deposit to user (non-blocking)
+    const depositUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+    if (depositUser?.fcmToken) {
+      this.fcm.send({
+        token: depositUser.fcmToken,
+        title: 'Dépôt confirmé',
+        body: `${body.amount.toLocaleString()} CDF ont été crédités sur votre compte.`,
+        data: { type: 'DEPOSIT_SUCCESS', txId: confirmedDeposit.id },
+      }).catch(() => {});
+    }
+
+    return this.serializeTransaction(confirmedDeposit);
   }
 
   async createWithdrawal(body: CreateWithdrawalDto) {
@@ -383,7 +418,7 @@ export class TransactionsService {
       return this.serializeTransaction(transaction);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const confirmedWithdrawal = await this.prisma.$transaction(async (tx) => {
       // Re-read inside transaction for consistent snapshot before debit
       const freshWallet = await tx.wallet.findUnique({ where: { id: wallet.id } });
       if (!freshWallet) throw new NotFoundException('Wallet introuvable');
@@ -432,14 +467,27 @@ export class TransactionsService {
         },
       });
 
-      return this.serializeTransaction(transaction);
+      return transaction;
     });
+
+    // FCM — confirm withdrawal to user (non-blocking)
+    const withdrawUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+    if (withdrawUser?.fcmToken) {
+      this.fcm.send({
+        token: withdrawUser.fcmToken,
+        title: 'Retrait effectué',
+        body: `Retrait de ${body.amount.toLocaleString()} CDF traité avec succès.`,
+        data: { type: 'WITHDRAWAL_SUCCESS', txId: confirmedWithdrawal.id },
+      }).catch(() => {});
+    }
+
+    return this.serializeTransaction(confirmedWithdrawal);
   }
 
   async createAirtimePurchase(body: CreateAirtimePurchaseDto) {
     const userId = this.requireUserId(body.userId);
     const feeRule = await this.loadFeeRule('airtime');
-    return this.createExpenseMovement({
+    const result = await this.createExpenseMovement({
       userId,
       amount: body.amount,
       feeRule,
@@ -452,12 +500,26 @@ export class TransactionsService {
         phone: body.phone,
       },
     });
+
+    const txResult = result as unknown as { id: string; status: string };
+    if (txResult.status === 'SUCCESS') {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+      if (user?.fcmToken) {
+        this.fcm.send({
+          token: user.fcmToken,
+          title: 'Recharge effectuée',
+          body: `Votre recharge ${body.operatorName} de ${body.amount.toLocaleString()} CDF a été traitée.`,
+          data: { type: 'AIRTIME_SUCCESS', txId: txResult.id },
+        }).catch(() => {});
+      }
+    }
+    return result;
   }
 
   async createTvPayment(body: CreateTvPaymentDto) {
     const userId = this.requireUserId(body.userId);
     const feeRule = await this.loadFeeRule('tv');
-    return this.createExpenseMovement({
+    const result = await this.createExpenseMovement({
       userId,
       amount: body.amount,
       feeRule,
@@ -471,6 +533,20 @@ export class TransactionsService {
         subscriberId: body.subscriberId,
       },
     });
+
+    const txResult = result as unknown as { id: string; status: string };
+    if (txResult.status === 'SUCCESS') {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+      if (user?.fcmToken) {
+        this.fcm.send({
+          token: user.fcmToken,
+          title: 'Abonnement TV payé',
+          body: `Votre abonnement ${body.providerName} a été renouvelé avec succès.`,
+          data: { type: 'TV_PAYMENT_SUCCESS', txId: txResult.id },
+        }).catch(() => {});
+      }
+    }
+    return result;
   }
 
   async createMerchantPayment(body: CreateMerchantPaymentDto) {
@@ -491,6 +567,41 @@ export class TransactionsService {
         location: body.location ?? '',
       },
     });
+  }
+
+  async createBillPayment(body: CreateBillPaymentDto) {
+    const userId = this.requireUserId(body.userId);
+    const feeRule = await this.loadFeeRule('bill-pay');
+    const result = await this.createExpenseMovement({
+      userId,
+      amount: body.amount,
+      feeRule,
+      transactionType: `BILL:${body.methodName}`,
+      entryType: 'BILL_PAY',
+      description: `${body.methodName} - ref: ${body.reference}`,
+      idempotencyKey: this.normalizeIdempotencyKey(body.idempotencyKey),
+      metadata: {
+        methodId: body.methodId,
+        methodName: body.methodName,
+        reference: body.reference,
+      },
+    });
+
+    // FCM push confirmation — non-blocking
+    const txResult = result as unknown as { id: string; status: string };
+    if (txResult.status === 'SUCCESS') {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+      if (user?.fcmToken) {
+        this.fcm.send({
+          token: user.fcmToken,
+          title: 'Paiement effectué',
+          body: `Votre paiement ${body.methodName} a été traité avec succès.`,
+          data: { type: 'BILL_PAYMENT_SUCCESS', txId: txResult.id },
+        }).catch(() => {});
+      }
+    }
+
+    return result;
   }
 
   async createInternationalTransfer(body: CreateInternationalTransferDto) {

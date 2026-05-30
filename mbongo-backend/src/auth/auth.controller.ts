@@ -1,8 +1,11 @@
-import { Body, Controller, Headers, Ip, Post } from '@nestjs/common';
+import { Body, Controller, Headers, Ip, Post, UseGuards } from '@nestjs/common';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { CurrentUser } from './current-user.decorator';
+import type { JwtRequestUser } from './auth.types';
 
 @Controller('auth')
 export class AuthController {
@@ -43,5 +46,14 @@ export class AuthController {
   @Post('reset-pin')
   resetPin(@Body() body: { phone: string; code: string; newPin: string }) {
     return this.authService.resetPin(body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-pin')
+  changePin(
+    @CurrentUser() user: JwtRequestUser,
+    @Body() body: { currentPin: string; newPin: string },
+  ) {
+    return this.authService.changePin(user.userId, body.currentPin, body.newPin);
   }
 }

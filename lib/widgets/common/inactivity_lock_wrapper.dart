@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/storage/app_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
-import '../../features/auth/presentation/auth_notifier.dart';
 import '../../services/auth_service.dart';
 import '../../services/biometric_service.dart';
 import '../../services/inactivity_lock_service.dart';
@@ -52,14 +51,14 @@ class _InactivityLockWrapperState extends State<InactivityLockWrapper> {
   }
 }
 
-class _LockScreen extends ConsumerStatefulWidget {
+class _LockScreen extends StatefulWidget {
   const _LockScreen();
 
   @override
-  ConsumerState<_LockScreen> createState() => _LockScreenState();
+  State<_LockScreen> createState() => _LockScreenState();
 }
 
-class _LockScreenState extends ConsumerState<_LockScreen> {
+class _LockScreenState extends State<_LockScreen> {
   final _pinCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
@@ -99,24 +98,21 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
     setState(() { _loading = true; _error = null; });
 
     try {
-      final creds = await _getStoredPhone();
-      if (creds == null) {
+      final creds = await AppStorage().getBioCredentials();
+      if (creds.pin == null || creds.pin!.isEmpty) {
         await _forceLogout();
         return;
       }
-      await ref.read(authProvider.notifier).login(phone: creds, pin: pin);
-      if (!mounted) return;
-      inactivityLock.unlock();
-    } catch (e) {
-      if (!mounted) return;
-      // Compte introuvable ou session invalide → logout forcé
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('401') || msg.contains('403') || msg.contains('404')
-          || msg.contains('not found') || msg.contains('unauthorized')) {
-        await _forceLogout();
-        return;
+      if (pin == creds.pin) {
+        if (!mounted) return;
+        inactivityLock.unlock();
+      } else {
+        if (!mounted) return;
+        setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
       }
-      setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = 'Erreur de vérification.'; });
     }
   }
 
@@ -124,11 +120,6 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
     final ok = await BiometricService.authenticate();
     if (!ok || !mounted) return;
     inactivityLock.unlock();
-  }
-
-  Future<String?> _getStoredPhone() async {
-    final user = await AuthService.getCurrentUser();
-    return user?['phone']?.toString();
   }
 
   @override

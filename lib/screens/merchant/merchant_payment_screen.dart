@@ -7,6 +7,7 @@ import '../../core/theme/mbongo_theme.dart';
 import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 
 final _merchantsProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
@@ -422,6 +423,19 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       setState(() => _error = 'Saisissez un montant valide.');
       return;
     }
+
+    final name = (widget.merchant['name'] ?? '').toString();
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: 'Paiement marchand',
+      icon: Icons.storefront_rounded,
+      rows: [
+        ConfirmRow(label: 'Marchand', value: name),
+        ConfirmRow(label: 'Méthode', value: _method),
+        ConfirmRow(label: 'Montant', value: '${_amountCtrl.text.trim()} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+      ],
+    );
+    if (!mounted || !confirmed) return;
 
     setState(() {
       _loading = true;

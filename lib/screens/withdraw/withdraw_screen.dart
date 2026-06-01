@@ -19,6 +19,7 @@ import '../profile/kyc_status_screen.dart';
 import '../register_screen.dart';
 import 'withdraw_success_screen.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 
 class WithdrawScreen extends ConsumerStatefulWidget {
   const WithdrawScreen({super.key});
@@ -155,6 +156,21 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     }
 
     final reference = _generateReference();
+
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: 'Retrait',
+      icon: Icons.payments_rounded,
+      rows: [
+        ConfirmRow(label: 'Canal', value: modes[modeIndex]),
+        ConfirmRow(label: 'Montant', value: '${amountController.text.trim()} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+        if (_isMobileMoney) ConfirmRow(label: 'Numéro', value: phoneController.text.trim()),
+        if (modes[modeIndex] == 'Guichet' && _selectedCashAgent != null)
+          ConfirmRow(label: 'Agent', value: _selectedCashAgent!.label),
+      ],
+    );
+    if (!mounted || !confirmed) return;
+
     try {
       await ref.read(walletRepositoryProvider).withdraw(
             amount: amount,

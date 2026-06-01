@@ -10,6 +10,7 @@ import '../../widgets/common/mbongo_money_particles.dart';
 import '../profile/kyc_status_screen.dart';
 import '../register_screen.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 
 class TransferInternationalScreen extends ConsumerStatefulWidget {
   const TransferInternationalScreen({super.key});
@@ -76,6 +77,19 @@ class _TransferInternationalScreenState
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Montant invalide.')));
       return;
     }
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: 'Transfert International',
+      icon: Icons.flight_takeoff_rounded,
+      rows: [
+        ConfirmRow(label: 'Bénéficiaire', value: beneficiaryController.text.trim()),
+        ConfirmRow(label: 'Pays', value: countryController.text.trim()),
+        ConfirmRow(label: 'Montant', value: '${amount.toStringAsFixed(2)} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+        ConfirmRow(label: 'Motif', value: reasonController.text.trim()),
+      ],
+    );
+    if (!mounted || !confirmed) return;
+
     setState(() => _submitting = true);
     try {
       await ref.read(walletRepositoryProvider).transferInternational(

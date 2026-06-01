@@ -12,6 +12,7 @@ import '../profile/kyc_status_screen.dart';
 import '../register_screen.dart';
 import 'send_money_success_screen.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 
 class SendMoneyScreen extends ConsumerStatefulWidget {
   const SendMoneyScreen({super.key});
@@ -77,6 +78,19 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       _toast("Veuillez saisir un montant valide.");
       return;
     }
+
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: "Envoi d'argent",
+      icon: Icons.send_rounded,
+      rows: [
+        ConfirmRow(label: 'Bénéficiaire', value: nameController.text.trim()),
+        ConfirmRow(label: 'Téléphone', value: phoneController.text.trim()),
+        ConfirmRow(label: 'Montant', value: '${amountController.text.trim()} $selectedCurrency', bold: true, valueColor: const Color(0xFFD4A843)),
+        ConfirmRow(label: 'Motif', value: reasonController.text.trim().isEmpty ? "Transfert d'argent" : reasonController.text.trim()),
+      ],
+    );
+    if (!mounted || !confirmed) return;
 
     setState(() => isLoading = true);
     try {

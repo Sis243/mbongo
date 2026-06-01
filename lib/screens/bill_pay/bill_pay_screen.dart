@@ -7,6 +7,7 @@ import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../services/api_service.dart';
 import '../../widgets/common/app_scaffold.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 
 class BillPayScreen extends ConsumerStatefulWidget {
   const BillPayScreen({super.key});
@@ -175,7 +176,18 @@ class _BillPayScreenState extends ConsumerState<BillPayScreen>
                               return;
                             }
 
-                            Navigator.pop(ctx);
+                            final confirmed = await showTransactionConfirmSheet(
+                              context: context,
+                              title: 'Paiement facture',
+                              icon: _iconForCategory(method['category'] as String? ?? ''),
+                              rows: [
+                                ConfirmRow(label: 'Service', value: method['name'] as String? ?? ''),
+                                ConfirmRow(label: 'Référence', value: ref2),
+                                ConfirmRow(label: 'Montant', value: '$amt ${method['currency'] ?? 'CDF'}', bold: true, valueColor: const Color(0xFFD4A843)),
+                              ],
+                            );
+                            if (confirmed != true) return;
+                            if (ctx.mounted) Navigator.pop(ctx);
                             setSt(() {});
                             await _submitPayment(
                               methodId:

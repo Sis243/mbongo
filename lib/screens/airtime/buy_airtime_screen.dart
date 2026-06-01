@@ -9,6 +9,7 @@ import '../../features/wallet/data/wallet_repository.dart';
 import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../models/account_model.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 import '../../widgets/cards/wallet_card.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import 'buy_airtime_success_screen.dart';
@@ -92,6 +93,18 @@ class _BuyAirtimeScreenState extends ConsumerState<BuyAirtimeScreen> {
       _toast("Le minimum d'achat en USD est 1.");
       return;
     }
+
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: 'Recharge Airtime',
+      icon: Icons.sim_card_rounded,
+      rows: [
+        ConfirmRow(label: 'Opérateur', value: operator),
+        ConfirmRow(label: 'Numéro', value: phoneController.text.trim()),
+        ConfirmRow(label: 'Montant', value: '$amount $currency', bold: true, valueColor: const Color(0xFFD4A843)),
+      ],
+    );
+    if (!mounted || !confirmed) return;
 
     try {
       await ref.read(walletRepositoryProvider).buyAirtime(

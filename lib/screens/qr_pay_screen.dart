@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import 'merchant/pos_ticket_details_screen.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import '../widgets/common/mbongo_sub_app_bar.dart';
+import '../widgets/common/transaction_confirm_sheet.dart';
 
 final _merchantsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
@@ -134,6 +135,19 @@ class _QrPayScreenState extends ConsumerState<QrPayScreen> {
       _toast('Solde insuffisant.');
       return;
     }
+
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: 'Paiement POS',
+      icon: Icons.qr_code_scanner_rounded,
+      rows: [
+        ConfirmRow(label: 'Marchand', value: merchant),
+        ConfirmRow(label: 'Terminal', value: terminal),
+        ConfirmRow(label: 'Méthode', value: selectedMethod),
+        ConfirmRow(label: 'Montant', value: '${money(amount)} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+      ],
+    );
+    if (!mounted || !confirmed) return;
 
     try {
       await ref.read(dioClientProvider).post('/transactions/merchant-pay', {

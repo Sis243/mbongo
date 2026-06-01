@@ -12,6 +12,7 @@ import '../../widgets/cards/wallet_card.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import 'tv_subscription_success_screen.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 
 class TvSubscriptionScreen extends ConsumerStatefulWidget {
   const TvSubscriptionScreen({super.key});
@@ -108,6 +109,19 @@ class _TvSubscriptionScreenState extends ConsumerState<TvSubscriptionScreen> {
       _toast("Veuillez renseigner le numero d'abonne.");
       return;
     }
+
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: 'Abonnement TV',
+      icon: Icons.tv_rounded,
+      rows: [
+        ConfirmRow(label: 'Fournisseur', value: provider),
+        ConfirmRow(label: 'Abonné', value: subscriberController.text.trim()),
+        ConfirmRow(label: 'Bouquet', value: bouquet),
+        ConfirmRow(label: 'Montant', value: '$amount $currency', bold: true, valueColor: const Color(0xFFD4A843)),
+      ],
+    );
+    if (!mounted || !confirmed) return;
 
     try {
       await ref.read(walletRepositoryProvider).payTv(

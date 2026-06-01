@@ -8,5 +8,5 @@ export interface BankAccountLookup {
 }
 
 export interface CoreBankingAdapter {
-  lookupAccount(accountNumber: string): Promise<BankAccountLookup>;
+  lookupAccount(accountNumber: string, holderName?: string): Promise<BankAccountLookup>;
 }

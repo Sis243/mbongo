@@ -53,14 +53,18 @@ function isCadecoNumber(accountNumber: string): boolean {
 }
 
 export class MockCoreBankingAdapter implements CoreBankingAdapter {
-  async lookupAccount(accountNumber: string): Promise<BankAccountLookup> {
+  async lookupAccount(accountNumber: string, holderName?: string): Promise<BankAccountLookup> {
     const normalized = accountNumber.trim();
 
     // 1. Comptes demo connus
     if (KNOWN_ACCOUNTS[normalized]) return KNOWN_ACCOUNTS[normalized];
 
-    // 2. Tout numéro CADECO (00032) → simulation réaliste
-    if (isCadecoNumber(normalized)) return simulateCadeco(normalized);
+    // 2. Tout numéro CADECO (00032) → simulation avec vrai nom si disponible
+    if (isCadecoNumber(normalized)) {
+      const result = simulateCadeco(normalized);
+      if (holderName?.trim()) result.accountHolder = holderName.trim().toUpperCase();
+      return result;
+    }
 
     // 3. Autres formats → introuvable
     return { exists: false };

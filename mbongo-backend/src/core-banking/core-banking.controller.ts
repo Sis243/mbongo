@@ -14,9 +14,13 @@ export class CoreBankingController {
   ) {}
 
   @Get('lookup')
-  async lookupAccount(@Query('accountNumber') accountNumber: string) {
+  async lookupAccount(
+    @Query('accountNumber') accountNumber: string,
+    @CurrentUser() user: JwtRequestUser,
+  ) {
     if (!accountNumber?.trim()) throw new BadRequestException('Numéro de compte requis');
-    const result = await this.adapter.lookupAccount(accountNumber.trim());
+    const dbUser = await this.prisma.user.findUnique({ where: { id: user.userId }, select: { name: true } });
+    const result = await this.adapter.lookupAccount(accountNumber.trim(), dbUser?.name ?? undefined);
     if (!result.exists) return { exists: false };
     return {
       exists: true,

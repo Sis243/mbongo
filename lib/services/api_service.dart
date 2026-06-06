@@ -322,6 +322,20 @@ class ApiService {
     await _delete('/bank/linked/$id');
   }
 
+  static Future<Map<String, dynamic>> walletToAccount({
+    required String accountId,
+    required double amount,
+  }) async {
+    return _post('/transactions/wallet-to-account', body: {'accountId': accountId, 'amount': amount});
+  }
+
+  static Future<Map<String, dynamic>> accountToWallet({
+    required String accountId,
+    required double amount,
+  }) async {
+    return _post('/transactions/account-to-wallet', body: {'accountId': accountId, 'amount': amount});
+  }
+
   static Future<Map<String, dynamic>> resetPin(String phone, String code, String newPin) async {
     return _post('/auth/reset-pin', body: {'phone': phone, 'code': code, 'newPin': newPin});
   }

@@ -9,6 +9,8 @@ import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../models/account_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
+import '../../core/utils/money.dart';
 import '../cards/virtual_cards_screen.dart';
 import '../transactions_screen.dart';
 import '../transfer/send_money_screen.dart';
@@ -786,9 +788,86 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
           Text(displayBalance, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
           Text('Solde disponible — $currency', style: const TextStyle(color: Color(0xFFD6E2FF), fontSize: 12, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _CardButton(
+                  icon: Icons.arrow_downward_rounded,
+                  label: 'Compte → Wallet',
+                  color: color,
+                  onTap: () => _doTransfer(acc, toWallet: true),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _CardButton(
+                  icon: Icons.arrow_upward_rounded,
+                  label: 'Wallet → Compte',
+                  color: color,
+                  onTap: () => _doTransfer(acc, toWallet: false),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _doTransfer(Map<String, dynamic> acc, {required bool toWallet}) async {
+    final currency = acc['currency']?.toString() ?? 'CDF';
+    final accountId = acc['id']?.toString() ?? '';
+    final accountName = acc['bankName']?.toString() ?? 'Compte';
+    final walletBalance = ref.read(walletProvider).valueOrNull?.balance ?? 0.0;
+    final accountBalance = ((acc['balance'] ?? 0) as num).toDouble();
+    final amtCtrl = TextEditingController();
+
+    final amount = await showModalBottomSheet<double>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _AmountSheet(
+        title: toWallet ? 'Compte → Wallet' : 'Wallet → Compte',
+        hint: toWallet
+            ? 'Dispo: ${Money.format(accountBalance, currency)}'
+            : 'Dispo: ${Money.format(walletBalance, currency)}',
+        currency: currency,
+        controller: amtCtrl,
+      ),
+    );
+    if (amount == null || amount <= 0 || !mounted) return;
+
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: toWallet ? 'Compte → Wallet' : 'Wallet → Compte',
+      icon: toWallet ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+      rows: [
+        ConfirmRow(label: toWallet ? 'Source' : 'Destination', value: accountName),
+        ConfirmRow(label: 'Montant', value: Money.format(amount, currency), bold: true, valueColor: const Color(0xFFD4A843)),
+      ],
+    );
+    if (!confirmed || !mounted) return;
+
+    try {
+      if (toWallet) {
+        await ApiService.accountToWallet(accountId: accountId, amount: amount);
+      } else {
+        await ApiService.walletToAccount(accountId: accountId, amount: amount);
+      }
+      await _loadLinkedAccounts();
+      ref.read(walletProvider.notifier).refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.green,
+            content: Text(toWallet ? 'Transfert vers wallet effectué.' : 'Virement vers compte effectué.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
   Future<void> _unlinkAccount(String id) async {
@@ -930,4 +1009,108 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     );
   }
 
+}
+
+class _CardButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _CardButton({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 15),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AmountSheet extends StatelessWidget {
+  final String title;
+  final String hint;
+  final String currency;
+  final TextEditingController controller;
+  const _AmountSheet({required this.title, required this.hint, required this.currency, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      margin: EdgeInsets.only(left: 12, right: 12, bottom: bottom > 0 ? 0 : 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A2A3D),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, bottom > 0 ? bottom + 16 : 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 16),
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              Text(hint, style: const TextStyle(color: Color(0xFF8EACC9), fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+                decoration: InputDecoration(
+                  labelText: 'Montant ($currency)',
+                  labelStyle: const TextStyle(color: Color(0xFF8EACC9)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(null),
+                      child: const Text('Annuler'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final v = double.tryParse(controller.text.trim().replaceAll(',', '.'));
+                        Navigator.of(context).pop(v);
+                      },
+                      child: const Text('Suivant'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

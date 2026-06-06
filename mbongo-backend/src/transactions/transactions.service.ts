@@ -1031,4 +1031,62 @@ export class TransactionsService {
       return {};
     }
   }
+
+  async transferWalletToAccount(userId: string, accountId: string, amount: number) {
+    if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Montant invalide');
+
+    const [wallet, account] = await Promise.all([
+      this.prisma.wallet.findUnique({ where: { userId } }),
+      this.prisma.linkedBankAccount.findFirst({ where: { id: accountId, userId } }),
+    ]);
+    if (!wallet) throw new NotFoundException('Wallet introuvable');
+    if (!account) throw new NotFoundException('Compte bancaire introuvable');
+    if (wallet.balance < amount) throw new BadRequestException('Solde wallet insuffisant');
+
+    const [tx] = await this.prisma.$transaction([
+      this.prisma.transaction.create({
+        data: {
+          type: 'WALLET_TO_ACCOUNT',
+          status: 'SUCCESS',
+          amount,
+          fee: 0,
+          senderId: userId,
+          reference: this.createReference('WTA'),
+          metadata: JSON.stringify({ accountNumber: account.accountNumber, bankName: account.bankName }),
+        },
+      }),
+      this.prisma.wallet.update({ where: { userId }, data: { balance: { decrement: amount } } }),
+      this.prisma.linkedBankAccount.update({ where: { id: accountId }, data: { balance: { increment: amount } } }),
+    ]);
+    return this.serializeTransaction(tx);
+  }
+
+  async transferAccountToWallet(userId: string, accountId: string, amount: number) {
+    if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Montant invalide');
+
+    const [wallet, account] = await Promise.all([
+      this.prisma.wallet.findUnique({ where: { userId } }),
+      this.prisma.linkedBankAccount.findFirst({ where: { id: accountId, userId } }),
+    ]);
+    if (!wallet) throw new NotFoundException('Wallet introuvable');
+    if (!account) throw new NotFoundException('Compte bancaire introuvable');
+    if (account.balance < amount) throw new BadRequestException('Solde compte insuffisant');
+
+    const [tx] = await this.prisma.$transaction([
+      this.prisma.transaction.create({
+        data: {
+          type: 'ACCOUNT_TO_WALLET',
+          status: 'SUCCESS',
+          amount,
+          fee: 0,
+          receiverId: userId,
+          reference: this.createReference('ATW'),
+          metadata: JSON.stringify({ accountNumber: account.accountNumber, bankName: account.bankName }),
+        },
+      }),
+      this.prisma.linkedBankAccount.update({ where: { id: accountId }, data: { balance: { decrement: amount } } }),
+      this.prisma.wallet.update({ where: { userId }, data: { balance: { increment: amount } } }),
+    ]);
+    return this.serializeTransaction(tx);
+  }
 }

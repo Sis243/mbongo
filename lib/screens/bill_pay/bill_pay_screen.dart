@@ -22,8 +22,6 @@ class _BillPayScreenState extends ConsumerState<BillPayScreen>
 
   static const _categories = [
     ('UTILITY',   'Utilitaires', Icons.bolt_rounded),
-    ('TELECOM',   'Telecoms',    Icons.phone_android_rounded),
-    ('TV',        'TV',          Icons.tv_rounded),
     ('INTERNET',  'Internet',    Icons.wifi_rounded),
     ('INSURANCE', 'Assurances',  Icons.shield_rounded),
   ];

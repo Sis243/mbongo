@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
 import '../features/notifications/presentation/notifications_provider.dart';
 import '../services/api_service.dart';
+import '../services/update_service.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../widgets/common/inactivity_lock_wrapper.dart';
 import '../widgets/common/mbongo_money_particles.dart';
@@ -69,6 +70,16 @@ class _MainShellState extends ConsumerState<MainShell> {
       if (mounted && offline != _isOffline) setState(() => _isOffline = offline);
     });
     _checkRoles();
+    _checkUpdate();
+  }
+
+  Future<void> _checkUpdate() async {
+    try {
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+      final info = await UpdateService.checkForUpdate();
+      if (info.hasUpdate && mounted) UpdateService.showUpdateDialog(context, info);
+    } catch (_) {}
   }
 
   Future<void> _checkRoles() async {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -248,5 +248,23 @@ export class TransactionsController {
       },
     });
     return { data: disputes };
+  }
+
+  @Post('wallet-to-account')
+  walletToAccount(
+    @Body() body: { accountId: string; amount: number },
+    @CurrentUser() user: JwtRequestUser,
+  ) {
+    if (!body.accountId?.trim()) throw new BadRequestException('accountId requis');
+    return this.transactionsService.transferWalletToAccount(user.userId, body.accountId.trim(), body.amount);
+  }
+
+  @Post('account-to-wallet')
+  accountToWallet(
+    @Body() body: { accountId: string; amount: number },
+    @CurrentUser() user: JwtRequestUser,
+  ) {
+    if (!body.accountId?.trim()) throw new BadRequestException('accountId requis');
+    return this.transactionsService.transferAccountToWallet(user.userId, body.accountId.trim(), body.amount);
   }
 }

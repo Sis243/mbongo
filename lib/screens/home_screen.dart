@@ -15,7 +15,6 @@ import '../widgets/home/banner_carousel.dart';
 import '../widgets/home/service_tile.dart';
 import 'airtime/buy_airtime_screen.dart';
 import 'appro/appro_mbongo_screen.dart';
-import 'appro/approvals_screen.dart';
 import 'cards/virtual_cards_screen.dart';
 import 'exchange/exchange_money_screen.dart';
 import 'login_screen.dart';
@@ -82,7 +81,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ServiceItem(title: 'Unites', icon: Icons.phone_android_rounded),
       ServiceItem(title: 'Abonnement TV', icon: Icons.tv_rounded),
       ServiceItem(title: 'Deposer', icon: Icons.account_balance_wallet_rounded),
-      ServiceItem(title: 'Approuver', icon: Icons.verified_rounded),
       ServiceItem(title: 'Taux de change', icon: Icons.currency_exchange_rounded),
       ServiceItem(title: 'Payer', icon: Icons.storefront_rounded, isNew: true),
       ServiceItem(title: 'Factures', icon: Icons.receipt_long_rounded, isNew: true),
@@ -717,7 +715,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('Unites')) return AppColors.orange;
     if (title.contains('TV')) return AppColors.gold;
     if (title.contains('Deposer')) return AppColors.cyan;
-    if (title.contains('Approuver')) return AppColors.green;
+
     if (title.contains('Taux')) return AppColors.gold;
     if (title.contains('Payer')) return AppColors.green;
     return palette.accent;
@@ -733,7 +731,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('Unites')) return const BuyAirtimeScreen();
     if (title.contains('TV')) return const TvSubscriptionScreen();
     if (title.contains('Deposer')) return const ApproMbongoScreen();
-    if (title.contains('Approuver')) return const ApprovalsScreen();
+
     if (title.contains('Taux')) return const ExchangeRatesScreen();
     if (title.contains('Payer')) return const MerchantPaymentScreen();
     if (title.contains('Factures')) return const BillPayScreen();

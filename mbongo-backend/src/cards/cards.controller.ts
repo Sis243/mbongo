@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -6,6 +7,8 @@ import { CardsService } from './cards.service';
 import { CreateVirtualCardDto } from './dto/create-virtual-card.dto';
 import { TopupVirtualCardDto } from './dto/topup-virtual-card.dto';
 
+@ApiTags('Cards')
+@ApiBearerAuth('access-token')
 @Controller('cards')
 @UseGuards(JwtAuthGuard)
 export class CardsController {
@@ -46,3 +49,4 @@ export class CardsController {
     return this.cardsService.toggleStatus(cardId, user.userId);
   }
 }
+

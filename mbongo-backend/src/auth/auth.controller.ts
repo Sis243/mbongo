@@ -1,4 +1,5 @@
-import { Body, Controller, Headers, Ip, Post, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Headers, Ip, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -7,6 +8,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { JwtRequestUser } from './auth.types';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -57,3 +59,4 @@ export class AuthController {
     return this.authService.changePin(user.userId, body.currentPin, body.newPin);
   }
 }
+

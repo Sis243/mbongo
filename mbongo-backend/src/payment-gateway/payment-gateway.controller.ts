@@ -1,10 +1,13 @@
-import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { PaymentGatewayAdapter } from './payment-gateway-adapter.interface';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 
+@ApiTags('Payment Gateway')
+@ApiBearerAuth('access-token')
 @Controller('transactions/deposit')
 @UseGuards(JwtAuthGuard)
 export class PaymentGatewayController {
@@ -32,3 +35,4 @@ export class PaymentGatewayController {
     return { success: true, ...result };
   }
 }
+

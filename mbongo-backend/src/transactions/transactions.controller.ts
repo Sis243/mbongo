@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+﻿import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,6 +15,8 @@ import { CreateTvPaymentDto } from './dto/create-tv-payment.dto';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 import { TransactionsService } from './transactions.service';
 
+@ApiTags('Transactions')
+@ApiBearerAuth('access-token')
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
 export class TransactionsController {
@@ -268,3 +271,4 @@ export class TransactionsController {
     return this.transactionsService.transferAccountToWallet(user.userId, body.accountId.trim(), body.amount);
   }
 }
+

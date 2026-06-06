@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Ip, Post, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Get, Headers, Ip, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { IsString, Length, Matches } from 'class-validator';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
@@ -20,6 +21,7 @@ class DisableTotpDto {
   pin!: string;
 }
 
+@ApiTags('Admin Auth')
 @Controller('admin-auth')
 export class AdminAuthController {
   constructor(private adminAuthService: AdminAuthService) {}
@@ -57,3 +59,4 @@ export class AdminAuthController {
     return this.adminAuthService.disableTotp(admin.sub, dto.pin);
   }
 }
+

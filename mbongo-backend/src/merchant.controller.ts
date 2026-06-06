@@ -1,10 +1,13 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { randomBytes } from 'crypto';
 import { CurrentUser } from './auth/current-user.decorator';
 import type { JwtRequestUser } from './auth/auth.types';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PrismaService } from './prisma/prisma.service';
 
+@ApiTags('Merchant')
+@ApiBearerAuth('access-token')
 @Controller('merchant')
 @UseGuards(JwtAuthGuard)
 export class MerchantController {
@@ -211,3 +214,4 @@ export class MerchantController {
     }
   }
 }
+

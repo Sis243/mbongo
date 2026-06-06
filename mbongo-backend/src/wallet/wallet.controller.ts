@@ -1,10 +1,13 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from './wallet.service';
 
+@ApiTags('Wallet')
+@ApiBearerAuth('access-token')
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
 export class WalletController {
@@ -81,3 +84,4 @@ export class WalletController {
     return { data: fees };
   }
 }
+

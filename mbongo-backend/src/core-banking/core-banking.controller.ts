@@ -1,10 +1,13 @@
-import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
+﻿import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CoreBankingAdapter } from './core-banking-adapter.interface';
 
+@ApiTags('Bank')
+@ApiBearerAuth('access-token')
 @Controller('bank')
 @UseGuards(JwtAuthGuard)
 export class CoreBankingController {
@@ -79,3 +82,4 @@ export class CoreBankingController {
     return { success: true };
   }
 }
+

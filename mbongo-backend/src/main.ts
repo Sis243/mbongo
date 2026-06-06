@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { authRateLimit, requestLogger, securityHeaders } from './security/security.middleware';
 
@@ -38,9 +39,39 @@ async function bootstrap() {
     credentials: true,
   });
 
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('MBONGO API')
+    .setDescription(
+      'API de la plateforme MBONGO — authentification, portefeuille, transactions, paiements, cartes virtuelles, KYC, agents, marchands et administration.',
+    )
+    .setVersion('3.0')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
+    .addTag('Auth', 'Inscription, connexion, OTP, refresh token')
+    .addTag('Users', 'Profil utilisateur')
+    .addTag('Wallet', 'Portefeuille CDF/USD')
+    .addTag('Transactions', 'Virements, retraits, dépôts, airtime, TV, factures, marchand')
+    .addTag('Bank', 'Comptes bancaires liés (CADECO)')
+    .addTag('Cards', 'Cartes virtuelles')
+    .addTag('KYC', 'Vérification d\'identité')
+    .addTag('Merchant', 'Espace marchand')
+    .addTag('Notifications', 'Notifications in-app')
+    .addTag('Payment Gateway', 'Passerelle de paiement')
+    .addTag('Bill Pay', 'Méthodes de paiement de factures')
+    .addTag('OTP', 'Codes OTP SMS')
+    .addTag('Admin Auth', 'Authentification administrateur')
+    .addTag('Backoffice', 'Administration back-office')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('swagger', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+    customSiteTitle: 'MBONGO API Docs',
+  });
+
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
 
   console.log(`MBONGO API running on http://localhost:${port}`);
+  console.log(`Swagger docs: http://localhost:${port}/swagger`);
 }
 bootstrap();

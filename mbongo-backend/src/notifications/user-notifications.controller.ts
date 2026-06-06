@@ -1,9 +1,12 @@
-import { Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+﻿import { Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserNotificationsService } from './user-notifications.service';
 
+@ApiTags('Notifications')
+@ApiBearerAuth('access-token')
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class UserNotificationsController {
@@ -32,3 +35,4 @@ export class UserNotificationsController {
     return { success: true };
   }
 }
+

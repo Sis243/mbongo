@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentAdmin } from '../admin-auth/decorators/current-admin.decorator';
 import { RequireAdminPermissions } from '../admin-auth/decorators/require-admin-permissions.decorator';
 import { AdminPermissionGuard } from '../admin-auth/guards/admin-permission.guard';
@@ -25,6 +26,8 @@ import { UpsertCashAgentDto } from './dto/upsert-cash-agent.dto';
 import { UpsertMerchantDto } from './dto/upsert-merchant.dto';
 import { BackofficeService } from './backoffice.service';
 
+@ApiTags('Backoffice')
+@ApiBearerAuth('access-token')
 @Controller('backoffice')
 @UseGuards(AdminJwtGuard, AdminPermissionGuard)
 export class BackofficeController {
@@ -575,3 +578,4 @@ export class BackofficeController {
     return this.backofficeService.deleteBillPayMethod(id);
   }
 }
+

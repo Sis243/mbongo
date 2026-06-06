@@ -1,6 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+﻿import { Body, Controller, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OtpService } from './otp.service';
 
+@ApiTags('OTP')
 @Controller('otp')
 export class OtpController {
   constructor(private readonly otpService: OtpService) {}
@@ -15,3 +17,4 @@ export class OtpController {
     return this.otpService.verifyOtp(body.phone, body.code, body.purpose ?? 'register');
   }
 }
+

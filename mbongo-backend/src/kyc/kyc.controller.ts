@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Get,
@@ -7,6 +7,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
@@ -15,6 +16,8 @@ import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { KycService } from './kyc.service';
 import type { KycUploadedFile } from './kyc-file.types';
 
+@ApiTags('KYC')
+@ApiBearerAuth('access-token')
 @Controller('kyc')
 export class KycController {
   constructor(private readonly kycService: KycService) {}
@@ -66,3 +69,4 @@ export class KycController {
   }
 
 }
+

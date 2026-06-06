@@ -1,4 +1,4 @@
-﻿import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
+﻿import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtRequestUser } from '../auth/auth.types';
@@ -31,6 +31,34 @@ export class UsersController {
   @Get()
   findAll(@CurrentUser() user: JwtRequestUser) {
     return this.usersService.getOne(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('search')
+  async search(@Query('q') q: string, @CurrentUser() user: JwtRequestUser) {
+    if (!q?.trim() || q.trim().length < 2) return { users: [] };
+    const query = q.trim();
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        id: { not: user.userId },
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { phone: { contains: query } },
+        ],
+      },
+      select: { id: true, name: true, phone: true },
+      take: 10,
+      orderBy: { name: 'asc' },
+    });
+    return {
+      users: users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        phone: u.phone,
+        initials: u.name.split(' ').filter(Boolean).map((n) => n[0]).join('').substring(0, 2).toUpperCase(),
+      })),
+    };
   }
 
   @UseGuards(JwtAuthGuard)

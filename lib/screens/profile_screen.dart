@@ -21,6 +21,7 @@ import 'profile/support_screen.dart';
 import 'agents/agents_screen.dart';
 import 'dispute/dispute_screen.dart';
 import 'profile/update_profile_screen.dart';
+import 'profile/share_profile_screen.dart';
 import 'exchange_rates/exchange_rates_screen.dart';
 import 'referral/referral_screen.dart';
 
@@ -218,6 +219,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   const SizedBox(height: 18),
                                   _buildKycPanel(context),
                                   const SizedBox(height: 18),
+                                  _buildActionTile(
+                                    icon: Icons.qr_code_rounded,
+                                    title: 'Mon QR de paiement',
+                                    subtitle: 'Partager pour recevoir',
+                                    color: AppColors.gold,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const ShareProfileScreen()),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
                                   _buildActionTile(
                                     icon: Icons.edit_rounded,
                                     title: 'Modifier le profil',

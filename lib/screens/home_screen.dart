@@ -30,6 +30,8 @@ import 'wallet/wallet_screen.dart';
 import 'tv/tv_subscription_screen.dart';
 import 'withdraw/withdraw_screen.dart';
 import 'bill_pay/bill_pay_screen.dart';
+import 'profile/share_profile_screen.dart';
+import 'qr/qr_scan_router.dart';
 
 const _kycSensitiveServices = {
   'Envoyer', 'Demander', 'Changer', 'International',
@@ -84,6 +86,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ServiceItem(title: 'Taux de change', icon: Icons.currency_exchange_rounded),
       ServiceItem(title: 'Payer', icon: Icons.storefront_rounded, isNew: true),
       ServiceItem(title: 'Factures', icon: Icons.receipt_long_rounded, isNew: true),
+      ServiceItem(title: 'Scanner QR', icon: Icons.qr_code_scanner_rounded, isNew: true),
+      ServiceItem(title: 'Mon QR', icon: Icons.qr_code_rounded),
     ];
 
     final wallet = walletAsync.valueOrNull;
@@ -735,10 +739,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (title.contains('Taux')) return const ExchangeRatesScreen();
     if (title.contains('Payer')) return const MerchantPaymentScreen();
     if (title.contains('Factures')) return const BillPayScreen();
+    if (title.contains('Mon QR')) return const ShareProfileScreen();
     return null;
   }
 
   Future<void> _onServiceTap(String title) async {
+    // QR scan : action directe, pas de screen widget
+    if (title.contains('Scanner QR')) {
+      await scanAndRoute(context);
+      return;
+    }
     final screen = _screenForService(title);
     if (screen == null) return;
 

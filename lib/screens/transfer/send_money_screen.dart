@@ -14,6 +14,7 @@ import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 import '../../widgets/common/transaction_confirm_sheet.dart';
 import '../profile/kyc_status_screen.dart';
+import 'qr_scanner_screen.dart';
 import '../register_screen.dart';
 import 'send_money_success_screen.dart';
 
@@ -46,7 +47,9 @@ class _MbongoUser {
 // Screen
 // ─────────────────────────────────────────────────────────
 class SendMoneyScreen extends ConsumerStatefulWidget {
-  const SendMoneyScreen({super.key});
+  final String? prefilledPhone;
+  final String? prefilledName;
+  const SendMoneyScreen({super.key, this.prefilledPhone, this.prefilledName});
 
   @override
   ConsumerState<SendMoneyScreen> createState() => _SendMoneyScreenState();
@@ -80,6 +83,23 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   void initState() {
     super.initState();
     _loadKycAccess();
+    // Pré-remplissage depuis QR ou appel externe
+    if (widget.prefilledPhone != null && widget.prefilledPhone!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _searchCtrl.text = widget.prefilledPhone!;
+        _runSearch(widget.prefilledPhone!).then((_) {
+          if (_results.isNotEmpty && mounted) {
+            _selectUser(_results.first);
+          } else if (widget.prefilledName != null && widget.prefilledName!.isNotEmpty && mounted) {
+            // Fallback : user not found but we know name + phone
+            setState(() {
+              _selected = _MbongoUser(id: '', name: widget.prefilledName!, phone: widget.prefilledPhone!, initials: widget.prefilledName!.split(' ').where((w) => w.isNotEmpty).map((w) => w[0]).take(2).join().toUpperCase());
+              _phase = 1;
+            });
+          }
+        });
+      });
+    }
   }
 
   Future<void> _loadKycAccess() async {
@@ -95,6 +115,22 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     _amountCtrl.dispose();
     _reasonCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanQr() async {
+    final result = await Navigator.push<QrScanResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (result == null || !mounted) return;
+    // Search by phone to get the full user record
+    await _runSearch(result.phone);
+    if (_results.isNotEmpty) {
+      _selectUser(_results.first);
+    } else if (result.name.isNotEmpty) {
+      // User not found in MBONGO but we have data from QR
+      _toast('Ce numéro n\'est pas encore enregistré dans MBONGO.');
+    }
   }
 
   void _onSearchChanged(String value) {
@@ -285,7 +321,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
             children: [
               Icon(Icons.person_search_rounded, color: palette.accent),
               const SizedBox(width: 8),
-              const Text('Bénéficiaire', style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w800)),
+              const Expanded(child: Text('Bénéficiaire', style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w800))),
+              IconButton(
+                icon: Icon(Icons.qr_code_scanner_rounded, color: palette.accent),
+                tooltip: 'Scanner un QR',
+                onPressed: _scanQr,
+              ),
             ],
           ),
           const SizedBox(height: 14),

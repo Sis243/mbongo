@@ -63,10 +63,21 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
+
+  // Swagger UI via CDN (compatible Vercel serverless)
   SwaggerModule.setup('swagger', app, document, {
     swaggerOptions: { persistAuthorization: true },
     customSiteTitle: 'MBONGO API Docs',
+    customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css',
+    customJs: [
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.min.js',
+    ],
   });
+
+  // Endpoint JSON brut du spec — utilisé par SwaggerHub
+  const express = await import('express');
+  (app as any).use('/swagger.json', express.default.Router().get('/', (_req: any, res: any) => res.json(document)));
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);

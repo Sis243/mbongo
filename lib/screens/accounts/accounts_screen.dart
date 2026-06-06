@@ -6,7 +6,6 @@ import '../../core/theme/mbongo_theme.dart';
 import '../../features/auth/presentation/auth_notifier.dart';
 import '../../features/cards/presentation/card_notifier.dart';
 import '../../features/wallet/presentation/wallet_notifier.dart';
-import '../../models/account_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/transaction_confirm_sheet.dart';
@@ -50,9 +49,6 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     return currency == 'USD' ? '\$ $formatted' : 'CDF $formatted';
   }
 
-  String _masked(String currency) {
-    return currency == 'USD' ? '\$ ********' : 'CDF ********';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,30 +92,6 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
               final credits = walletData?.totalIncoming ?? 0.0;
               final debits = walletData?.totalOutgoing ?? 0.0;
 
-              final accounts = walletData != null
-                  ? [
-                      AccountModel(
-                        id: walletData.id,
-                        type: 'Portefeuille ${walletData.currency}',
-                        currency: walletData.currency,
-                        number: 'MBONGO-${walletData.currency}',
-                        balance: walletData.balance,
-                        selected: true,
-                      ),
-                      ...walletData.extraBalances.map((b) {
-                        final cur = b['currency']?.toString() ?? 'USD';
-                        final bal = ((b['balance'] ?? b['amount'] ?? 0) as num).toDouble();
-                        return AccountModel(
-                          id: '${walletData.id}-$cur',
-                          type: 'Portefeuille $cur',
-                          currency: cur,
-                          number: 'MBONGO-$cur',
-                          balance: bal,
-                          selected: false,
-                        );
-                      }),
-                    ]
-                  : <AccountModel>[];
 
 
               return RefreshIndicator(
@@ -136,8 +108,8 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                   _buildOverview(
                     credits,
                     debits,
+                    _linkedBankAccounts.length,
                     cards.length,
-                    accounts.length,
                     palette,
                   ),
                   const SizedBox(height: 18),
@@ -150,52 +122,22 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                           icon: Icons.send_rounded,
                           color: palette.accent,
                           palette: palette,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SendMoneyScreen(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendMoneyScreen())),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _quickAction(
                           title: 'Cartes',
-                          subtitle: cards.isEmpty
-                              ? 'Activer'
-                              : '${cards.length} activees',
+                          subtitle: cards.isEmpty ? 'Activer' : '${cards.length} activees',
                           icon: Icons.credit_card_rounded,
                           color: palette.accentStrong,
                           palette: palette,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const VirtualCardsScreen(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VirtualCardsScreen())),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Mon portefeuille actif',
-                    style: TextStyle(
-                      color: AppColors.text,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (accounts.isEmpty)
-                    _emptyAccounts(palette)
-                  else
-                    ...accounts.map((account) => _buildAccountCard(account, palette)),
                   const SizedBox(height: 22),
                   _buildLinkedBankSection(palette),
                   const SizedBox(height: 18),
@@ -280,7 +222,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Vue de synthese des comptes, des cartes et des derniers mouvements.',
+            'Vos comptes bancaires liés à MBONGO. Gérez, transférez et consultez vos soldes.',
             style: TextStyle(
               color: AppColors.textSoft,
               fontSize: 13,
@@ -437,154 +379,6 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     );
   }
 
-  Widget _buildAccountCard(AccountModel account, MbongoThemePalette palette) {
-    final hidden = _hiddenCurrencies.contains(account.currency);
-    final color = account.currency == 'USD' ? palette.accentStrong : palette.accent;
-    final amount =
-        hidden ? _masked(account.currency) : _money(account.balance, account.currency);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            palette.cardGradient.first,
-            palette.cardGradient.last,
-            color.withValues(alpha: 0.18),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.36)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.14),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  account.currency == 'USD'
-                      ? Icons.attach_money_rounded
-                      : Icons.account_balance_wallet_rounded,
-                  color: color,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      account.type,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      account.number,
-                      style: const TextStyle(
-                        color: Color(0xFFD6E2FF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    if (hidden) {
-                      _hiddenCurrencies.remove(account.currency);
-                    } else {
-                      _hiddenCurrencies.add(account.currency);
-                    }
-                  });
-                },
-                icon: Icon(
-                  hidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                  color: Colors.white70,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              account.currency == 'USD' ? 'Compte international' : 'Compte principal',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            amount,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 25,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            account.currency == 'USD'
-                ? 'Compte de liquidite internationale'
-                : 'Compte de disponibilite locale',
-            style: const TextStyle(
-              color: Color(0xFFD6E2FF),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyAccounts(MbongoThemePalette palette) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: palette.panelAlt,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Text(
-        'Aucun compte visible pour le moment.',
-        style: TextStyle(
-          color: AppColors.darkMuted,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
   Widget _emptyRecent(MbongoThemePalette palette) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -658,15 +452,33 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
   }
 
   Widget _buildLinkedBankSection(MbongoThemePalette palette) {
+    // Totaux par devise
+    double totalCdf = 0, totalUsd = 0;
+    for (final acc in _linkedBankAccounts) {
+      final bal = ((acc['balance'] ?? 0) as num).toDouble();
+      if ((acc['currency']?.toString() ?? 'CDF') == 'USD') { totalUsd += bal; } else { totalCdf += bal; }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // En-tête section
         Row(
           children: [
-            const Expanded(
-              child: Text(
-                'Comptes bancaires liés',
-                style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w900),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Mes Comptes CADECO', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 4),
+                  if (_linkedBankAccounts.isNotEmpty)
+                    Text(
+                      '${_linkedBankAccounts.length} compte${_linkedBankAccounts.length > 1 ? 's' : ''}'
+                      '${totalCdf > 0 ? ' · CDF ${_money(totalCdf, "CDF")}' : ''}'
+                      '${totalUsd > 0 ? ' · \$ ${totalUsd.toStringAsFixed(2)}' : ''}',
+                      style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                ],
               ),
             ),
             TextButton.icon(
@@ -676,41 +488,65 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        const Text(
-          'Saisissez votre numéro de compte CADECO pour afficher votre solde.',
-          style: TextStyle(color: AppColors.muted, fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.35),
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         if (_loadingLinked)
-          const Center(child: Padding(
-            padding: EdgeInsets.all(16),
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ))
+          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(strokeWidth: 2)))
         else if (_linkedBankAccounts.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: palette.panelAlt,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.account_balance_rounded, color: AppColors.muted, size: 28),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Text(
-                    'Aucun compte bancaire lié.\nAppuyez sur "Lier" pour ajouter un compte.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13, height: 1.4),
-                  ),
-                ),
-              ],
-            ),
-          )
+          _buildEmptyBankAccounts(palette)
         else
           ..._linkedBankAccounts.map((acc) => _buildLinkedBankCard(acc, palette)),
       ],
+    );
+  }
+
+  Widget _buildEmptyBankAccounts(MbongoThemePalette palette) {
+    return GestureDetector(
+      onTap: () => _showLinkBankSheet(palette),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: palette.panelAlt,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.3), style: BorderStyle.solid),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: palette.accent.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.account_balance_rounded, color: palette.accent, size: 26),
+            ),
+            const SizedBox(height: 14),
+            const Text('Aucun compte bancaire lié', style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            const Text(
+              'Liez votre compte CADECO pour consulter votre solde, effectuer des virements et approvisionner votre wallet.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSoft, fontSize: 12.5, height: 1.45),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.gold.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, color: AppColors.gold, size: 18),
+                  SizedBox(width: 6),
+                  Text('Lier un compte CADECO', style: TextStyle(color: AppColors.gold, fontWeight: FontWeight.w800, fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -718,100 +554,201 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     final currency = acc['currency']?.toString() ?? 'CDF';
     final balance = ((acc['balance'] ?? 0) as num).toDouble();
     final hidden = _hiddenCurrencies.contains('bank_${acc['id']}');
-    final displayBalance = hidden ? (currency == 'USD' ? '\$ ••••••' : 'CDF ••••••') : _money(balance, currency);
-    final color = currency == 'USD' ? AppColors.gold : AppColors.cyan;
+    final displayBalance = hidden ? (currency == 'USD' ? '\$ ••••••••' : 'CDF ••••••••') : _money(balance, currency);
+    final isUsd = currency == 'USD';
+    final accountType = acc['accountType']?.toString() ?? 'Compte Courant';
+    final accountHolder = acc['accountHolder']?.toString() ?? '';
+    final accountNumber = acc['accountNumber']?.toString() ?? '';
+    final bankName = acc['bankName']?.toString() ?? 'CADECO';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [palette.cardGradient.first, palette.cardGradient.last, color.withValues(alpha: 0.14)],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.36)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 14, offset: const Offset(0, 8))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    // Couleurs selon devise
+    final cardColors = isUsd
+        ? [const Color(0xFF0A1628), const Color(0xFF0D3320), const Color(0xFF0A4520)]
+        : [const Color(0xFF0A1628), const Color(0xFF0D1E45), const Color(0xFF0B2870)];
+    final accentColor = isUsd ? const Color(0xFFD4A843) : const Color(0xFF4A9FFF);
+    final chipColor = isUsd ? const Color(0xFFD4A843) : const Color(0xFFB8C8E8);
+
+    // Formater le numéro de compte lisiblement
+    String formatAccNum(String num) {
+      final clean = num.replaceAll(RegExp(r'[\s-]'), '');
+      if (clean.length >= 8) {
+        return '•••• •••• ${clean.substring(clean.length - 4)}';
+      }
+      return num;
+    }
+
+    return Column(
+      children: [
+        // ── Carte bancaire premium ───────────────────────────────────
+        Container(
+          margin: const EdgeInsets.only(bottom: 0),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: cardColors,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 24, offset: const Offset(0, 12)),
+              BoxShadow(color: accentColor.withValues(alpha: 0.08), blurRadius: 40, offset: const Offset(0, 8)),
+            ],
+          ),
+          child: Stack(
             children: [
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
-                child: Icon(Icons.account_balance_rounded, color: color),
+              // Pattern de fond subtil
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Opacity(
+                    opacity: 0.04,
+                    child: CustomPaint(painter: _CardPatternPainter(accentColor)),
+                  ),
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.all(22),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(acc['bankName']?.toString() ?? 'Banque', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 2),
-                    Text(acc['accountNumber']?.toString() ?? '', style: const TextStyle(color: Color(0xFFD6E2FF), fontSize: 12, fontWeight: FontWeight.w700)),
+                    // ── Ligne 1 : banque + devise + actions ──────────
+                    Row(
+                      children: [
+                        // Logo puce
+                        Container(
+                          width: 36, height: 28,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [chipColor, chipColor.withValues(alpha: 0.7)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Stack(
+                            children: [
+                              Positioned(left: 8, top: 4, child: Container(width: 20, height: 20, decoration: BoxDecoration(color: chipColor.withValues(alpha: 0.4), shape: BoxShape.circle))),
+                              Positioned(left: 2, top: 6, child: Container(width: 16, height: 16, decoration: BoxDecoration(color: chipColor.withValues(alpha: 0.25), shape: BoxShape.circle))),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(bankName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                        ),
+                        // Badge devise
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: accentColor.withValues(alpha: 0.35)),
+                          ),
+                          child: Text(currency, style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                        ),
+                        const SizedBox(width: 4),
+                        // Visibilité
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            final key = 'bank_${acc['id']}';
+                            if (hidden) { _hiddenCurrencies.remove(key); } else { _hiddenCurrencies.add(key); }
+                          }),
+                          child: Icon(hidden ? Icons.visibility_off_rounded : Icons.visibility_rounded, color: Colors.white38, size: 20),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+
+                    // ── Type de compte ───────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      ),
+                      child: Text(accountType.toUpperCase(), style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 9.5, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ── Titulaire ────────────────────────────────────
+                    Text(
+                      accountHolder,
+                      style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900, letterSpacing: 0.3),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // ── Solde ────────────────────────────────────────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('SOLDE DISPONIBLE', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                              const SizedBox(height: 5),
+                              Text(
+                                displayBalance,
+                                style: TextStyle(color: isUsd ? const Color(0xFFD4A843) : Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Numéro de compte
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('N° COMPTE', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 8.5, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
+                            const SizedBox(height: 4),
+                            Text(formatAccNum(accountNumber), style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: Icon(hidden ? Icons.visibility_rounded : Icons.visibility_off_rounded, color: Colors.white70),
-                onPressed: () => setState(() {
-                  final key = 'bank_${acc['id']}';
-                  if (hidden) { _hiddenCurrencies.remove(key); } else { _hiddenCurrencies.add(key); }
-                }),
+            ],
+          ),
+        ),
+
+        // ── Boutons d'action sous la carte ───────────────────────────
+        Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          decoration: BoxDecoration(
+            color: palette.panelAlt,
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
+            border: Border.all(color: accentColor.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _doTransfer(acc, toWallet: true),
+                  icon: Icon(Icons.arrow_downward_rounded, size: 15, color: accentColor),
+                  label: Text('Compte → Wallet', style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w800)),
+                ),
+              ),
+              Container(width: 1, height: 24, color: AppColors.border.withValues(alpha: 0.3)),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _doTransfer(acc, toWallet: false),
+                  icon: Icon(Icons.arrow_upward_rounded, size: 15, color: accentColor),
+                  label: Text('Wallet → Compte', style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w800)),
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.link_off_rounded, color: Colors.white54, size: 20),
+                icon: const Icon(Icons.link_off_rounded, color: AppColors.muted, size: 18),
                 onPressed: () => _unlinkAccount(acc['id']?.toString() ?? ''),
+                tooltip: 'Délier ce compte',
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
-                child: Text(acc['accountType']?.toString() ?? 'Compte', style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w800)),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
-                child: Text(acc['accountHolder']?.toString() ?? '', style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w800)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(displayBalance, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 4),
-          Text('Solde disponible — $currency', style: const TextStyle(color: Color(0xFFD6E2FF), fontSize: 12, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _CardButton(
-                  icon: Icons.arrow_downward_rounded,
-                  label: 'Compte → Wallet',
-                  color: color,
-                  onTap: () => _doTransfer(acc, toWallet: true),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CardButton(
-                  icon: Icons.arrow_upward_rounded,
-                  label: 'Wallet → Compte',
-                  color: color,
-                  onTap: () => _doTransfer(acc, toWallet: false),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -855,8 +792,10 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
       } else {
         await ApiService.walletToAccount(accountId: accountId, amount: amount);
       }
-      await _loadLinkedAccounts();
-      ref.read(walletProvider.notifier).refresh();
+      await Future.wait([
+        _loadLinkedAccounts(),
+        ref.read(walletProvider.notifier).refresh(),
+      ]);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1011,37 +950,23 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
 
 }
 
-class _CardButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
+// Pattern décoratif de fond sur les cartes bancaires
+class _CardPatternPainter extends CustomPainter {
   final Color color;
-  final VoidCallback onTap;
-  const _CardButton({required this.icon, required this.label, required this.color, required this.onTap});
+  const _CardPatternPainter(this.color);
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.10),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 15),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w800)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1;
+    for (double i = -size.height; i < size.width + size.height; i += 28) {
+      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
+    }
+    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.2), size.height * 0.55, paint..strokeWidth = 0.8);
+    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.2), size.height * 0.75, paint..strokeWidth = 0.5);
   }
+
+  @override
+  bool shouldRepaint(_CardPatternPainter old) => old.color != color;
 }
 
 class _AmountSheet extends StatelessWidget {

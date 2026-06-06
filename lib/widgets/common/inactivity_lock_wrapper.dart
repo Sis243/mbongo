@@ -86,7 +86,10 @@ class _LockScreenState extends State<_LockScreen> {
   }
 
   Future<void> _forceLogout() async {
-    await AuthService.logout();
+    await Future.wait([
+      AuthService.logout(),
+      AppStorage().clearBioCredentials(),
+    ]);
     if (!mounted) return;
     inactivityLock.unlock();
     if (context.mounted) context.go('/auth/login');

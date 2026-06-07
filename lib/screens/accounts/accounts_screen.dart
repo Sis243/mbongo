@@ -4,14 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../features/auth/presentation/auth_notifier.dart';
-import '../../features/cards/presentation/card_notifier.dart';
 import '../../features/wallet/presentation/wallet_notifier.dart';
 import '../../services/api_service.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/transaction_confirm_sheet.dart';
 import '../../core/utils/money.dart';
-import '../cards/virtual_cards_screen.dart';
-import '../transactions_screen.dart';
 import '../transfer/send_money_screen.dart';
 
 class AccountsScreen extends ConsumerStatefulWidget {
@@ -84,23 +81,17 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
           Builder(
             builder: (context) {
               final currentUser = ref.watch(authProvider).valueOrNull;
-              final walletData = ref.watch(walletProvider).valueOrNull;
-              final cards = ref.watch(cardProvider).valueOrNull ?? [];
-
               final clientName = currentUser?.name ?? 'Client';
-              final allTxs = (walletData?.transactions ?? [])
-                  .map((t) => t.toMap())
-                  .toList();
-              final recent = allTxs.take(4).toList();
-              final credits = walletData?.totalIncoming ?? 0.0;
-              final debits = walletData?.totalOutgoing ?? 0.0;
 
-
+              // Totaux depuis les comptes bancaires liés (pas le wallet)
+              double totalCdf = 0, totalUsd = 0;
+              for (final acc in _linkedBankAccounts) {
+                final bal = ((acc['balance'] ?? 0) as num).toDouble();
+                if ((acc['currency']?.toString() ?? 'CDF') == 'USD') { totalUsd += bal; } else { totalCdf += bal; }
+              }
 
               return RefreshIndicator(
                 onRefresh: () async {
-                  await ref.read(walletProvider.notifier).refresh();
-                  ref.invalidate(cardProvider);
                   await _loadLinkedAccounts();
                 },
                 child: ListView(
@@ -108,72 +99,18 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                 children: [
                   _buildHeader(clientName, palette),
                   const SizedBox(height: 18),
-                  _buildOverview(
-                    credits,
-                    debits,
-                    _linkedBankAccounts.length,
-                    cards.length,
-                    palette,
-                  ),
+                  _buildAccountSummary(totalCdf, totalUsd, palette),
                   const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _quickAction(
-                          title: 'Transferer',
-                          subtitle: 'Virement rapide',
-                          icon: Icons.send_rounded,
-                          color: palette.accent,
-                          palette: palette,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendMoneyScreen())),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _quickAction(
-                          title: 'Cartes',
-                          subtitle: cards.isEmpty ? 'Activer' : '${cards.length} activees',
-                          icon: Icons.credit_card_rounded,
-                          color: palette.accentStrong,
-                          palette: palette,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VirtualCardsScreen())),
-                        ),
-                      ),
-                    ],
+                  _quickAction(
+                    title: 'Virement rapide',
+                    subtitle: 'Envoyer de l\'argent',
+                    icon: Icons.send_rounded,
+                    color: palette.accent,
+                    palette: palette,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendMoneyScreen())),
                   ),
                   const SizedBox(height: 22),
                   _buildLinkedBankSection(palette),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Derniers mouvements',
-                          style: TextStyle(
-                            color: AppColors.text,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const TransactionsScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text('Tout voir'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (recent.isEmpty)
-                    _emptyRecent(palette)
-                  else
-                    ...recent.map((tx) => _recentTile(tx, palette)),
                 ],
               ),
             );
@@ -237,80 +174,35 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     );
   }
 
-  Widget _buildOverview(
-    double credits,
-    double debits,
-    int cardCount,
-    int accountCount,
-    MbongoThemePalette palette,
-  ) {
+  Widget _buildAccountSummary(double totalCdf, double totalUsd, MbongoThemePalette palette) {
+    final count = _linkedBankAccounts.length;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: palette.panel,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.22)),
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _overviewCell('Entrees', _money(credits, 'CDF'), AppColors.green),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _overviewCell('Sorties', _money(debits, 'CDF'), AppColors.orange),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _overviewCell('Comptes', accountCount.toString(), AppColors.cyan),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _overviewCell('Cartes', cardCount.toString(), palette.accentStrong),
-              ),
-            ],
-          ),
-        ],
-      ),
+      child: Row(children: [
+        Expanded(child: _summaryCell('Comptes liés', '$count compte${count != 1 ? 's' : ''}', AppColors.cyan, palette)),
+        const SizedBox(width: 10),
+        if (totalCdf > 0) Expanded(child: _summaryCell('Total CDF', _money(totalCdf, 'CDF'), palette.accent, palette)),
+        if (totalCdf > 0 && totalUsd > 0) const SizedBox(width: 10),
+        if (totalUsd > 0) Expanded(child: _summaryCell('Total USD', '\$ ${totalUsd.toStringAsFixed(2)}', AppColors.gold, palette)),
+        if (totalCdf == 0 && totalUsd == 0) Expanded(child: _summaryCell('Solde total', 'CDF 0,00', AppColors.muted, palette)),
+      ]),
     );
   }
 
-  Widget _overviewCell(String label, String value, Color color) {
+  Widget _summaryCell(String label, String value, Color color, MbongoThemePalette palette) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: MbongoThemeController.current.panelAlt,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.20)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: palette.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.18))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Text(value, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis),
+      ]),
     );
   }
 
@@ -378,78 +270,6 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _emptyRecent(MbongoThemePalette palette) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: palette.panelAlt,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Text(
-        'Aucun mouvement recent.',
-        style: TextStyle(
-          color: AppColors.darkMuted,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
-  Widget _recentTile(Map<String, dynamic> tx, MbongoThemePalette palette) {
-    final isCredit = (tx['isCredit'] ?? false) == true;
-    final amount = ((tx['amount'] ?? 0) as num).toDouble();
-    final currency = (tx['currency'] ?? 'CDF').toString();
-    final label = (tx['label'] ?? 'Transaction').toString();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: palette.panelAlt,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: (isCredit ? AppColors.green : AppColors.primary)
-                  .withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isCredit ? Icons.call_received_rounded : Icons.call_made_rounded,
-              color: isCredit ? AppColors.green : AppColors.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.darkText,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            '${isCredit ? '+' : '-'} ${_money(amount, currency)}',
-            style: TextStyle(
-              color: isCredit ? AppColors.green : AppColors.primary,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -190,6 +190,14 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
     final reason = _reasonCtrl.text.trim().isEmpty ? "Transfert d'argent" : _reasonCtrl.text.trim();
 
+    // Frais : 0,5% du montant, min 50 CDF, 0 si montant < 500 CDF
+    double fee = 0;
+    if (amount >= 500) {
+      fee = double.parse((amount * 0.005).toStringAsFixed(2));
+      if (fee < 50) fee = 50;
+    }
+    final total = amount + fee;
+
     final confirmed = await showTransactionConfirmSheet(
       context: context,
       title: "Envoi d'argent",
@@ -197,7 +205,9 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       rows: [
         ConfirmRow(label: 'Bénéficiaire', value: user.name),
         ConfirmRow(label: 'Téléphone', value: user.maskedPhone),
-        ConfirmRow(label: 'Montant', value: Money.format(amount, _currency), bold: true, valueColor: const Color(0xFFD4A843)),
+        ConfirmRow(label: 'Montant envoyé', value: Money.format(amount, _currency), bold: true, valueColor: const Color(0xFFD4A843)),
+        if (fee > 0) ConfirmRow(label: 'Frais (0,5%)', value: Money.format(fee, _currency), valueColor: const Color(0xFFFF9800)),
+        if (fee > 0) ConfirmRow(label: 'Total débité', value: Money.format(total, _currency), bold: true),
         ConfirmRow(label: 'Motif', value: reason),
       ],
     );

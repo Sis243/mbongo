@@ -33,6 +33,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   void initState() {
     super.initState();
     _loadKyc();
+    // Rafraîchir le solde à chaque ouverture de l'écran
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(walletProvider.notifier).refresh();
+    });
   }
 
   Future<void> _loadKyc() async {

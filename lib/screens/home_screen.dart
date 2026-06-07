@@ -53,6 +53,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _loadKyc();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(walletProvider.notifier).refresh();
+    });
   }
 
   Future<void> _loadKyc() async {

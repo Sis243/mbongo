@@ -17,15 +17,15 @@ import { CreateTvPaymentDto } from './dto/create-tv-payment.dto';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
 
 const DEFAULT_FEE_RULES: Record<string, { maxAmount: number; fixedFee: number; percentFee: number; agentFixedCommission: number; agentPercentCommission: number }> = {
-  'add-money':    { maxAmount: 5_000_000,  fixedFee: 500, percentFee: 1, agentFixedCommission: 250, agentPercentCommission: 0.5 },
-  withdrawal:     { maxAmount: 5_000_000,  fixedFee: 500, percentFee: 2, agentFixedCommission: 250, agentPercentCommission: 0.5 },
-  transfer:       { maxAmount: 15_000_000, fixedFee: 500, percentFee: 1, agentFixedCommission: 250, agentPercentCommission: 0.5 },
-  'virtual-card': { maxAmount: 10_000_000, fixedFee: 500, percentFee: 2, agentFixedCommission: 250, agentPercentCommission: 0.5 },
-  'payment-link': { maxAmount: 5_000_000,  fixedFee: 0,   percentFee: 2, agentFixedCommission: 250, agentPercentCommission: 0.5 },
-  airtime:        { maxAmount: 1_000_000,  fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
-  tv:             { maxAmount: 2_000_000,  fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
-  merchant:       { maxAmount: 5_000_000,  fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
-  'bill-pay':     { maxAmount: 10_000_000, fixedFee: 0,   percentFee: 0, agentFixedCommission: 0,   agentPercentCommission: 0 },
+  'add-money':    { maxAmount: 5_000_000,  fixedFee: 0, percentFee: 0.5, agentFixedCommission: 0, agentPercentCommission: 0.25 },
+  withdrawal:     { maxAmount: 5_000_000,  fixedFee: 0, percentFee: 1,   agentFixedCommission: 0, agentPercentCommission: 0.5  },
+  transfer:       { maxAmount: 15_000_000, fixedFee: 0, percentFee: 0.5, agentFixedCommission: 0, agentPercentCommission: 0.25 },
+  'virtual-card': { maxAmount: 10_000_000, fixedFee: 0, percentFee: 1,   agentFixedCommission: 0, agentPercentCommission: 0.5  },
+  'payment-link': { maxAmount: 5_000_000,  fixedFee: 0, percentFee: 1,   agentFixedCommission: 0, agentPercentCommission: 0.5  },
+  airtime:        { maxAmount: 1_000_000,  fixedFee: 0, percentFee: 0,   agentFixedCommission: 0, agentPercentCommission: 0    },
+  tv:             { maxAmount: 2_000_000,  fixedFee: 0, percentFee: 0,   agentFixedCommission: 0, agentPercentCommission: 0    },
+  merchant:       { maxAmount: 5_000_000,  fixedFee: 0, percentFee: 0,   agentFixedCommission: 0, agentPercentCommission: 0    },
+  'bill-pay':     { maxAmount: 10_000_000, fixedFee: 0, percentFee: 0,   agentFixedCommission: 0, agentPercentCommission: 0    },
 };
 
 @Injectable()
@@ -116,16 +116,20 @@ export class TransactionsService {
       throw new NotFoundException('Wallet emetteur ou recepteur introuvable');
     }
 
+    const fee = this.calculateFee(body.amount, feeRule);
+    const totalDebit = Number((body.amount + fee).toFixed(2));
+
     // Early UX check — the atomic guard is inside the $transaction via debitWallet
-    if (senderWallet.balance < body.amount) {
-      throw new BadRequestException('Solde insuffisant');
+    if (senderWallet.balance < totalDebit) {
+      throw new BadRequestException('Solde insuffisant (montant + frais)');
     }
 
     const createdTx = await this.prisma.$transaction(async (tx) => {
       // Re-read sender wallet inside transaction for a consistent snapshot
       const freshSenderWallet = await tx.wallet.findUnique({ where: { id: senderWallet.id } });
       if (!freshSenderWallet) throw new NotFoundException('Wallet emetteur introuvable');
-      const updatedSenderWallet = await this.debitWallet(tx, freshSenderWallet, body.amount);
+      // Débiter montant + frais de l'expéditeur
+      const updatedSenderWallet = await this.debitWallet(tx, freshSenderWallet, totalDebit);
 
       const updatedReceiverWallet = await tx.wallet.update({
         where: { id: receiverWallet.id },
@@ -136,7 +140,6 @@ export class TransactionsService {
         },
       });
 
-      const fee = this.calculateFee(body.amount, feeRule);
       const transaction = await tx.transaction.create({
         data: {
           type: body.description?.trim() ? `TRANSFER:${body.description.trim()}` : 'TRANSFER',
@@ -161,7 +164,7 @@ export class TransactionsService {
             entryType: 'TRANSFER',
             direction: 'DEBIT',
             amount: body.amount,
-            balanceBefore: senderWallet.balance,
+            balanceBefore: freshSenderWallet.balance,
             balanceAfter: updatedSenderWallet.balance,
             description: body.description?.trim() ?? 'Transfert sortant',
             metadata: JSON.stringify({ receiverId: receiverUserId }),

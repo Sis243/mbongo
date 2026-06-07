@@ -157,13 +157,19 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
     final reference = _generateReference();
 
+    // Frais retrait : 1% du montant, min 0
+    final feeWithdraw = double.parse((amount * 0.01).toStringAsFixed(2));
+    final totalWithdraw = amount + feeWithdraw;
+
     final confirmed = await showTransactionConfirmSheet(
       context: context,
       title: 'Retrait',
       icon: Icons.payments_rounded,
       rows: [
         ConfirmRow(label: 'Canal', value: modes[modeIndex]),
-        ConfirmRow(label: 'Montant', value: '${amountController.text.trim()} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+        ConfirmRow(label: 'Montant retiré', value: '${amountController.text.trim()} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+        if (feeWithdraw > 0) ConfirmRow(label: 'Frais (1%)', value: 'CDF ${feeWithdraw.toStringAsFixed(2)}', valueColor: const Color(0xFFFF9800)),
+        if (feeWithdraw > 0) ConfirmRow(label: 'Total débité', value: 'CDF ${totalWithdraw.toStringAsFixed(2)}', bold: true),
         if (_isMobileMoney) ConfirmRow(label: 'Numéro', value: phoneController.text.trim()),
         if (modes[modeIndex] == 'Guichet' && _selectedCashAgent != null)
           ConfirmRow(label: 'Agent', value: _selectedCashAgent!.label),

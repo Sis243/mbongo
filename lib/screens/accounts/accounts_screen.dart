@@ -30,6 +30,9 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
   void initState() {
     super.initState();
     _loadLinkedAccounts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(walletProvider.notifier).refresh();
+    });
   }
 
   Future<void> _loadLinkedAccounts() async {

@@ -77,6 +77,9 @@ class _TransferInternationalScreenState
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Montant invalide.')));
       return;
     }
+    final feeIntl = double.parse((amount * 0.005).toStringAsFixed(2));
+    final totalIntl = amount + feeIntl;
+
     final confirmed = await showTransactionConfirmSheet(
       context: context,
       title: 'Transfert International',
@@ -84,7 +87,9 @@ class _TransferInternationalScreenState
       rows: [
         ConfirmRow(label: 'Bénéficiaire', value: beneficiaryController.text.trim()),
         ConfirmRow(label: 'Pays', value: countryController.text.trim()),
-        ConfirmRow(label: 'Montant', value: '${amount.toStringAsFixed(2)} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+        ConfirmRow(label: 'Montant envoyé', value: '${amount.toStringAsFixed(2)} CDF', bold: true, valueColor: const Color(0xFFD4A843)),
+        if (feeIntl > 0) ConfirmRow(label: 'Frais (0,5%)', value: 'CDF ${feeIntl.toStringAsFixed(2)}', valueColor: const Color(0xFFFF9800)),
+        if (feeIntl > 0) ConfirmRow(label: 'Total débité', value: 'CDF ${totalIntl.toStringAsFixed(2)}', bold: true),
         ConfirmRow(label: 'Motif', value: reasonController.text.trim()),
       ],
     );

@@ -155,49 +155,52 @@ class _BillPayScreenState extends ConsumerState<BillPayScreen>
                     ),
                   ),
                   const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: _paying
-                        ? null
-                        : () async {
-                            final ref2 = refCtrl.text.trim();
-                            final amtText =
-                                amtCtrl.text.trim().replaceAll(',', '.');
-                            final amt = double.tryParse(amtText);
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _paying
+                          ? null
+                          : () async {
+                              final ref2 = refCtrl.text.trim();
+                              final amtText =
+                                  amtCtrl.text.trim().replaceAll(',', '.');
+                              final amt = double.tryParse(amtText);
 
-                            if (ref2.isEmpty) {
-                              _toast(
-                                  'Veuillez saisir le numero de reference.');
-                              return;
-                            }
-                            if (amt == null || amt <= 0) {
-                              _toast('Veuillez saisir un montant valide.');
-                              return;
-                            }
+                              if (ref2.isEmpty) {
+                                _toast(
+                                    'Veuillez saisir le numero de reference.');
+                                return;
+                              }
+                              if (amt == null || amt <= 0) {
+                                _toast('Veuillez saisir un montant valide.');
+                                return;
+                              }
 
-                            final confirmed = await showTransactionConfirmSheet(
-                              context: context,
-                              title: 'Paiement facture',
-                              icon: _iconForCategory(method['category'] as String? ?? ''),
-                              rows: [
-                                ConfirmRow(label: 'Service', value: method['name'] as String? ?? ''),
-                                ConfirmRow(label: 'Référence', value: ref2),
-                                ConfirmRow(label: 'Montant', value: '$amt ${method['currency'] ?? 'CDF'}', bold: true, valueColor: const Color(0xFFD4A843)),
-                              ],
-                            );
-                            if (confirmed != true) return;
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            setSt(() {});
-                            await _submitPayment(
-                              methodId:
-                                  method['id'] as String? ?? '',
-                              methodName:
-                                  method['name'] as String? ?? '',
-                              reference: ref2,
-                              amount: amt,
-                              currency: method['currency'] as String? ?? 'CDF',
-                            );
-                          },
-                    child: const Text('Payer la facture'),
+                              final confirmed = await showTransactionConfirmSheet(
+                                context: context,
+                                title: 'Paiement facture',
+                                icon: _iconForCategory(method['category'] as String? ?? ''),
+                                rows: [
+                                  ConfirmRow(label: 'Service', value: method['name'] as String? ?? ''),
+                                  ConfirmRow(label: 'Référence', value: ref2),
+                                  ConfirmRow(label: 'Montant', value: '$amt ${method['currency'] ?? 'CDF'}', bold: true, valueColor: const Color(0xFFD4A843)),
+                                ],
+                              );
+                              if (confirmed != true) return;
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              setSt(() {});
+                              await _submitPayment(
+                                methodId:
+                                    method['id'] as String? ?? '',
+                                methodName:
+                                    method['name'] as String? ?? '',
+                                reference: ref2,
+                                amount: amt,
+                                currency: method['currency'] as String? ?? 'CDF',
+                              );
+                            },
+                      child: const Text('Payer la facture'),
+                    ),
                   ),
                 ],
               ),

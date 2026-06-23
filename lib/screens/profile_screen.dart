@@ -14,6 +14,7 @@ import '../widgets/common/mbongo_money_particles.dart';
 import 'cards/virtual_cards_screen.dart';
 import 'profile/change_pin_screen.dart';
 import 'profile/faq_screen.dart';
+import 'profile/privacy_policy_screen.dart';
 import 'profile/kyc_status_screen.dart';
 import 'profile/security_screen.dart';
 import 'profile/settings_screen.dart';
@@ -361,6 +362,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                   _buildActionTile(
+                                    icon: Icons.privacy_tip_outlined,
+                                    title: 'Politique de confidentialité',
+                                    subtitle: 'Vos données et vos droits',
+                                    color: AppColors.cyan,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const PrivacyPolicyScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildActionTile(
                                     icon: Icons.currency_exchange_rounded,
                                     title: 'Taux de change',
                                     subtitle: 'Cours des devises',
@@ -427,6 +443,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     color: AppColors.red,
                                     danger: true,
                                     onTap: () async {
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          title: const Text('Déconnexion'),
+                                          content: const Text(
+                                            'Voulez-vous vraiment fermer votre session ?',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, false),
+                                              child: const Text('Annuler'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, true),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: AppColors.red,
+                                              ),
+                                              child: const Text(
+                                                'Se déconnecter',
+                                                style: TextStyle(fontWeight: FontWeight.w800),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirmed != true) return;
                                       await ref
                                           .read(authProvider.notifier)
                                           .logout();

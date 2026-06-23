@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -71,8 +69,6 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   String _currency = 'CDF';
   bool _submitting = false;
 
-  Timer? _debounce;
-
   KycAccess _kycAccess = const KycAccess(
     allowed: false,
     status: 'non_commence',
@@ -110,7 +106,6 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchCtrl.dispose();
     _amountCtrl.dispose();
     _reasonCtrl.dispose();
@@ -133,13 +128,27 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     }
   }
 
-  void _onSearchChanged(String value) {
-    _debounce?.cancel();
-    if (value.trim().length < 2) {
+  // Pas de recherche en direct pendant la saisie : pour la confidentialité,
+  // les résultats n'apparaissent qu'après une action explicite (bouton ou clavier "Rechercher").
+  void _onSearchTextChanged(String value) {
+    if (value.trim().isEmpty) {
       setState(() { _results = []; _searchError = ''; });
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 350), () => _runSearch(value.trim()));
+    if (_results.isNotEmpty || _searchError.isNotEmpty) {
+      setState(() { _results = []; _searchError = ''; });
+    } else {
+      setState(() {});
+    }
+  }
+
+  Future<void> _triggerSearch() async {
+    final q = _searchCtrl.text.trim();
+    if (q.length < 2) {
+      _toast('Saisissez au moins 2 caractères pour rechercher.');
+      return;
+    }
+    await _runSearch(q);
   }
 
   Future<void> _runSearch(String q) async {
@@ -297,12 +306,15 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                     const SizedBox(height: 16),
                     _buildAmountSection(palette),
                     const SizedBox(height: 18),
-                    ElevatedButton(
-                      onPressed: _submitting || !_kycAccess.allowed ? null : _submit,
-                      style: ElevatedButton.styleFrom(backgroundColor: palette.accentStrong),
-                      child: _submitting
-                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-                          : const Text('Valider le transfert'),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _submitting || !_kycAccess.allowed ? null : _submit,
+                        style: ElevatedButton.styleFrom(backgroundColor: palette.accentStrong),
+                        child: _submitting
+                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+                            : const Text('Valider le transfert'),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -347,7 +359,9 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
           else ...[
             TextField(
               controller: _searchCtrl,
-              onChanged: _onSearchChanged,
+              onChanged: _onSearchTextChanged,
+              onSubmitted: (_) => _triggerSearch(),
+              textInputAction: TextInputAction.search,
               autofocus: false,
               decoration: InputDecoration(
                 labelText: 'Nom ou numéro de téléphone',
@@ -359,8 +373,17 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                         child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
                       )
                     : _searchCtrl.text.isNotEmpty
-                        ? IconButton(icon: const Icon(Icons.close_rounded), onPressed: () { _searchCtrl.clear(); setState(() { _results = []; }); })
+                        ? IconButton(icon: const Icon(Icons.close_rounded), onPressed: () { _searchCtrl.clear(); setState(() { _results = []; _searchError = ''; }); })
                         : null,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _searching ? null : _triggerSearch,
+                icon: const Icon(Icons.search_rounded),
+                label: const Text('Rechercher'),
               ),
             ),
             if (_searchError.isNotEmpty) ...[

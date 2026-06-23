@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
+import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/kyc_guard_service.dart';
 import '../../widgets/common/app_scaffold.dart';
@@ -19,6 +20,8 @@ class KycStatusScreen extends StatefulWidget {
 
 class _KycStatusScreenState extends State<KycStatusScreen> {
   bool _loading = true;
+  bool _uploadFailed = false;
+  bool _retrying = false;
   String _status = 'non_commence';
   String _documentType = '';
   String _documentNumber = '';
@@ -47,6 +50,7 @@ class _KycStatusScreenState extends State<KycStatusScreen> {
     final selfiePath = await AuthService.getKycSelfiePath();
     final frontPath = await AuthService.getKycDocumentFrontPath();
     final backPath = await AuthService.getKycDocumentBackPath();
+    final uploadFailed = await AuthService.isKycUploadFailed();
 
     Future<File?> fileOrNull(String? path) async {
       if (path == null || path.isEmpty) return null;
@@ -70,8 +74,58 @@ class _KycStatusScreenState extends State<KycStatusScreen> {
       _selfie = selfie;
       _front = front;
       _back = back;
+      _uploadFailed = uploadFailed;
       _loading = false;
     });
+  }
+
+  Future<void> _retryUpload() async {
+    final frontPath = await AuthService.getKycDocumentFrontPath();
+    final backPath = await AuthService.getKycDocumentBackPath();
+    final selfiePath = await AuthService.getKycSelfiePath();
+    final documentType = await AuthService.getKycDocumentType();
+
+    if (frontPath == null || frontPath.isEmpty || selfiePath == null || selfiePath.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fichiers introuvables — reprendre le dossier.')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _retrying = true);
+    try {
+      await ApiService.submitKyc(
+        documentType: documentType,
+        frontPath: frontPath,
+        backPath: backPath ?? '',
+        selfiePath: selfiePath,
+      );
+      await AuthService.setKycSubmitted(true);
+      await AuthService.setKycStatus('en_attente');
+      await AuthService.setKycSubmittedAt(DateTime.now().toIso8601String());
+      await AuthService.setKycUploadFailed(false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dossier KYC envoyé avec succès.'),
+            backgroundColor: Color(0xFF1B8C4E),
+          ),
+        );
+        await _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Échec: ${e.toString()}'),
+            backgroundColor: const Color(0xFFB00020),
+          ),
+        );
+        setState(() => _retrying = false);
+      }
+    }
   }
 
   Future<void> _syncRemoteStatus() async {
@@ -169,6 +223,47 @@ class _KycStatusScreenState extends State<KycStatusScreen> {
                 ),
                 if (_status == 'refuse' && _refusalReason.isNotEmpty)
                   _reasonCard(_refusalReason),
+                if (_uploadFailed) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF3B1018), Color(0xFF581722)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.cloud_upload_rounded, color: AppColors.red, size: 22),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'L\'envoi du dossier a échoué. Vérifiez votre connexion et réessayez.',
+                            style: TextStyle(
+                              color: Color(0xFFFFD8DD),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        TextButton(
+                          onPressed: _retrying ? null : _retryUpload,
+                          child: _retrying
+                              ? const SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.red),
+                                )
+                              : const Text(
+                                  'Réessayer',
+                                  style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w900),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -228,21 +323,24 @@ class _KycStatusScreenState extends State<KycStatusScreen> {
                     ),
                   )
                 else
-                  ElevatedButton(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterScreen(resumeKyc: true),
-                        ),
-                      );
-                      if (!mounted) return;
-                      await _load();
-                    },
-                    child: Text(
-                      _status == 'en_attente'
-                          ? 'Voir et ajuster le dossier'
-                          : 'Reprendre le dossier',
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(resumeKyc: true),
+                          ),
+                        );
+                        if (!mounted) return;
+                        await _load();
+                      },
+                      child: Text(
+                        _status == 'en_attente'
+                            ? 'Voir et ajuster le dossier'
+                            : 'Reprendre le dossier',
+                      ),
                     ),
                   ),
               ],
@@ -320,42 +418,44 @@ class _KycStatusScreenState extends State<KycStatusScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: stages.map((stage) {
-              final active = stage.$2;
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                decoration: BoxDecoration(
-                  color:
-                      active ? accent.withValues(alpha: 0.12) : palette.panel,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      active
-                          ? Icons.check_circle_rounded
-                          : Icons.radio_button_unchecked_rounded,
-                      size: 15,
-                      color: active ? accent : AppColors.darkMuted,
+          Row(
+            children: [
+              for (int i = 0; i < stages.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: stages[i].$2
+                          ? accent.withValues(alpha: 0.12)
+                          : palette.panel,
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      stage.$1,
-                      style: TextStyle(
-                        color: active ? accent : AppColors.darkMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          stages[i].$2
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: 15,
+                          color: stages[i].$2 ? accent : AppColors.darkMuted,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          stages[i].$1,
+                          style: TextStyle(
+                            color: stages[i].$2 ? accent : AppColors.darkMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              );
-            }).toList(),
+              ],
+            ],
           ),
           const SizedBox(height: 10),
           Text(

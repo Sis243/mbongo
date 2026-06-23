@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../core/storage/app_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
+import '../../services/biometric_service.dart';
 
 class ConfirmRow {
   final String label;
@@ -55,11 +57,33 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
   bool _loading = false;
   String? _error;
   bool _obscure = true;
+  bool _biometricAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    BiometricService.canCheck().then((v) {
+      if (mounted) setState(() => _biometricAvailable = v);
+    });
+  }
 
   @override
   void dispose() {
     _pinCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _confirmWithBiometric() async {
+    setState(() { _loading = true; _error = null; });
+    final ok = await BiometricService.authenticate();
+    if (!mounted) return;
+    if (ok) {
+      HapticFeedback.heavyImpact();
+      Navigator.of(context).pop(true);
+    } else {
+      HapticFeedback.vibrate();
+      setState(() { _loading = false; _error = 'Authentification biométrique échouée.'; });
+    }
   }
 
   Future<void> _confirm() async {
@@ -77,8 +101,10 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
         return;
       }
       if (pin == creds.pin) {
+        HapticFeedback.heavyImpact();
         if (mounted) Navigator.of(context).pop(true);
       } else {
+        HapticFeedback.vibrate();
         if (mounted) setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
       }
     } catch (_) {
@@ -193,6 +219,33 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Biometric shortcut
+              if (_biometricAvailable) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _loading ? null : _confirmWithBiometric,
+                    icon: const Icon(Icons.fingerprint_rounded, size: 22),
+                    label: const Text('Confirmer par biométrie'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Row(
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Text('ou', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
 
               // PIN input
               TextField(

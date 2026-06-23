@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/storage/app_storage.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/phone_validator.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../features/auth/presentation/auth_notifier.dart';
 import '../services/auth_service.dart';
@@ -62,11 +63,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> login() async {
-    final phone = phoneCtrl.text.trim();
+    final phone = PhoneValidator.normalize(phoneCtrl.text);
     final pin = pinCtrl.text.trim();
 
-    if (phone.isEmpty || pin.isEmpty) {
-      _toast('Veuillez entrer votre numero et votre code PIN.');
+    if (pin.isEmpty) {
+      _toast('Veuillez entrer votre code PIN.');
+      return;
+    }
+    final phoneError = PhoneValidator.errorMessage(phone);
+    if (phoneError != null) {
+      _toast(phoneError);
       return;
     }
 
@@ -227,9 +233,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextField(
                       controller: phoneCtrl,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [PhoneInputFormatter()],
                       decoration: const InputDecoration(
-                        labelText: 'Numero de telephone',
-                        hintText: 'Ex: 0990000000',
+                        labelText: 'Numéro de téléphone',
+                        hintText: '081 234 5678',
                         prefixIcon: Icon(Icons.phone_outlined),
                       ),
                     ),

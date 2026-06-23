@@ -68,6 +68,8 @@ class WalletData {
   final List<TxEntry> transactions;
   // Extra balances for multi-currency display: [{currency: 'USD', balance: 0.0}, ...]
   final List<Map<String, dynamic>> extraBalances;
+  // true quand les données viennent du cache local (hors ligne)
+  final bool fromCache;
 
   const WalletData({
     required this.id,
@@ -75,6 +77,7 @@ class WalletData {
     required this.currency,
     required this.transactions,
     this.extraBalances = const [],
+    this.fromCache = false,
   });
 
   WalletData copyWith({
@@ -88,6 +91,7 @@ class WalletData {
         currency: currency,
         transactions: transactions ?? this.transactions,
         extraBalances: extraBalances ?? this.extraBalances,
+        fromCache: fromCache,
       );
 
   double get totalOutgoing => transactions

@@ -356,12 +356,15 @@ class _BuyAirtimeScreenState extends ConsumerState<BuyAirtimeScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.accentStrong,
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: palette.accentStrong,
+                      ),
+                      child: const Text("Acheter maintenant"),
                     ),
-                    child: const Text("Acheter maintenant"),
                   ),
                   const SizedBox(height: 12),
                   Container(

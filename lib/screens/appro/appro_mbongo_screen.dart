@@ -13,7 +13,8 @@ import '../../widgets/common/mbongo_sub_app_bar.dart';
 class ApproMbongoScreen extends ConsumerStatefulWidget {
   final String? prefilledAgentPhone;
   final String? prefilledAgentName;
-  const ApproMbongoScreen({super.key, this.prefilledAgentPhone, this.prefilledAgentName});
+  final String? initialSource;
+  const ApproMbongoScreen({super.key, this.prefilledAgentPhone, this.prefilledAgentName, this.initialSource});
 
   @override
   ConsumerState<ApproMbongoScreen> createState() => _ApproMbongoScreenState();
@@ -47,9 +48,12 @@ class _ApproMbongoScreenState extends ConsumerState<ApproMbongoScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialSource != null) {
+      selectedSource = widget.initialSource!;
+    }
     _loadCashAgents().then((_) {
-      // Pré-sélection de l'agent depuis QR
-      if (widget.prefilledAgentPhone != null && mounted) {
+      if (!mounted) return;
+      if (widget.prefilledAgentPhone != null) {
         final match = _cashAgents.where((a) => a.phone == widget.prefilledAgentPhone).firstOrNull;
         if (match != null) setState(() { _selectedCashAgent = match; selectedSource = 'Agent cash'; });
       }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -14,6 +15,13 @@ class ApiException implements Exception {
 }
 
 class ApiService {
+  static final _sessionExpiredCtrl = StreamController<void>.broadcast();
+  static Stream<void> get sessionExpiredStream => _sessionExpiredCtrl.stream;
+
+  static void _handleStatusCode(int code) {
+    if (code == 401) _sessionExpiredCtrl.add(null);
+  }
+
   static String get _baseUrl {
     const configured = String.fromEnvironment('MBONGO_API_BASE_URL');
     if (configured.isNotEmpty) return configured;
@@ -628,6 +636,7 @@ class ApiService {
       final decoded = await _decodeResponse(response);
 
       if (response.statusCode >= 400) {
+        _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
 
@@ -660,6 +669,7 @@ class ApiService {
       final decoded = await _decodeResponse(response);
 
       if (response.statusCode >= 400) {
+        _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
 
@@ -692,6 +702,7 @@ class ApiService {
       final decoded = await _decodeResponse(response);
 
       if (response.statusCode >= 400) {
+        _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
 
@@ -716,6 +727,7 @@ class ApiService {
       final response = await request.close();
       final decoded = await _decodeResponse(response);
       if (response.statusCode >= 400) {
+        _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
       return _mapResponse(decoded);

@@ -298,15 +298,18 @@ class _CreateVirtualCardScreenState extends ConsumerState<CreateVirtualCardScree
                 ),
               ),
               const SizedBox(height: 18),
-              ElevatedButton(
-                onPressed: isLoading || !_kycAccess.allowed ? null : _submit,
-                child: isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.4),
-                      )
-                    : const Text('Activer la carte'),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isLoading || !_kycAccess.allowed ? null : _submit,
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                        )
+                      : const Text('Activer la carte'),
+                ),
               ),
             ],
           ),

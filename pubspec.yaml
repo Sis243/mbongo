@@ -2,7 +2,7 @@ name: mbongo
 description: "MBONGO V3"
 publish_to: "none"
 
-version: 3.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -51,6 +51,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.3
 
 flutter:
   uses-material-design: true
@@ -62,3 +63,14 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/mbongo.png"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#031C4A"
+  image: assets/images/mbongo_logo.png
+  android: true
+  ios: true
+  android_12:
+    color: "#031C4A"
+    image: assets/images/mbongo_logo.png
+    icon_background_color: "#031C4A"

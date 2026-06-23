@@ -421,9 +421,13 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                   _buildSectionCard(
                     title: "Mode de retrait",
                     icon: Icons.payments_outlined,
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+                    child: GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 3.8,
                       children: List.generate(
                         modes.length,
                         (i) {
@@ -435,8 +439,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                               borderRadius: BorderRadius.circular(16),
                               onTap: () => setState(() => modeIndex = i),
                               child: Container(
-                                width: 170,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? palette.accentStrong
@@ -595,12 +598,15 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.accentStrong,
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: palette.accentStrong,
+                      ),
+                      child: const Text("Valider le retrait"),
                     ),
-                    child: const Text("Valider le retrait"),
                   ),
                 ],
               ),

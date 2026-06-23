@@ -68,90 +68,39 @@ class DepositMethodScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Mobile Money — stub
+            // Mobile Money — ACTIF
             _MethodTile(
               icon: Icons.phone_android_rounded,
               color: AppColors.cyan,
               title: 'Mobile Money',
               subtitle: 'Rechargez directement depuis votre compte mobile money.',
-              badge: 'Bientôt',
-              badgeColor: AppColors.gold,
-              onTap: () => _showComingSoon(context, 'Mobile Money'),
+              badge: 'Disponible',
+              badgeColor: AppColors.green,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ApproMbongoScreen(initialSource: 'Mobile Money'),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
 
-            // Virement bancaire — stub
+            // Virement bancaire — ACTIF
             _MethodTile(
               icon: Icons.account_balance_rounded,
               color: AppColors.gold,
               title: 'Virement bancaire',
               subtitle: 'Transférez depuis votre compte bancaire vers Mbongo.',
-              badge: 'Bientôt',
-              badgeColor: AppColors.gold,
-              onTap: () => _showComingSoon(context, 'Virement bancaire'),
+              badge: 'Disponible',
+              badgeColor: AppColors.green,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ApproMbongoScreen(initialSource: 'Compte bancaire'),
+                ),
+              ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String method) {
-    final palette = MbongoThemeController.current;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: palette.panel,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.schedule_rounded, color: AppColors.gold, size: 32),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '$method — Bientôt disponible',
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Cette fonctionnalité sera disponible prochainement. En attendant, utilisez un Agent Mbongo pour recharger votre compte.',
-                style: TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Compris'),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

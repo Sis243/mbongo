@@ -427,12 +427,15 @@ class _TvSubscriptionScreenState extends ConsumerState<TvSubscriptionScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.accentStrong,
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: palette.accentStrong,
+                      ),
+                      child: const Text("Valider le reabonnement"),
                     ),
-                    child: const Text("Valider le reabonnement"),
                   ),
                 ],
               ),

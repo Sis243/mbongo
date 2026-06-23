@@ -323,21 +323,24 @@ class _ExchangeMoneyScreenState extends ConsumerState<ExchangeMoneyScreen> {
                   const SizedBox(height: 16),
                   _buildPreviewCard(amount, converted),
                   const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: isLoading ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.accentStrong,
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: palette.accentStrong,
+                      ),
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text("Valider l'echange"),
                     ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text("Valider l'echange"),
                   ),
                 ],
               ),

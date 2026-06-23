@@ -37,6 +37,7 @@ class AuthService {
   static const String _kycDocumentBackPathKey = 'mbongo_kyc_document_back_path';
   static const String _kycRefusalReasonKey = 'mbongo_kyc_refusal_reason';
   static const String _kycSubmittedAtKey = 'mbongo_kyc_submitted_at';
+  static const String _kycUploadFailedKey = 'mbongo_kyc_upload_failed';
   static const String _registerDraftNameKey = 'mbongo_register_draft_name';
   static const String _registerDraftPhoneKey = 'mbongo_register_draft_phone';
 
@@ -348,6 +349,16 @@ class AuthService {
   static Future<String> getKycSubmittedAt() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_kycSubmittedAtKey) ?? '';
+  }
+
+  static Future<void> setKycUploadFailed(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kycUploadFailedKey, value);
+  }
+
+  static Future<bool> isKycUploadFailed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kycUploadFailedKey) ?? false;
   }
 
   static Future<void> setRegisterDraftName(String value) async {

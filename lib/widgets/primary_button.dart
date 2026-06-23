@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
 
@@ -27,7 +28,10 @@ class PrimaryButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        onPressed: onPressed,
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          onPressed();
+        },
         child: Text(
           label,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),

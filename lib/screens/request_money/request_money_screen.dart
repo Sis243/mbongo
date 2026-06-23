@@ -222,12 +222,24 @@ class _RequestMoneyScreenState extends ConsumerState<RequestMoneyScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: _submitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: palette.accentStrong,
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _submitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: palette.accentStrong,
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text("Envoyer la demande"),
                     ),
-                    child: Text(_submitting ? "Envoi en cours..." : "Envoyer la demande"),
                   ),
                 ],
               ),

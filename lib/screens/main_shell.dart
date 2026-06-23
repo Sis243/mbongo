@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/pending_tab_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../features/auth/presentation/auth_notifier.dart';
 import '../core/theme/app_colors.dart';
 import '../features/notifications/presentation/notifications_provider.dart';
 import '../services/api_service.dart';
@@ -28,11 +31,14 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int currentIndex = 0;
   bool _isOffline = false;
+  bool _showReconnected = false;
+  Timer? _reconnectedTimer;
   // 0 = user, 1 = merchant, 2 = agent
   int _roleMode = 0;
   bool _roleChecked = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   StreamSubscription<int>? _notificationNavSub;
+  StreamSubscription<void>? _sessionExpiredSub;
 
   // User mode
   static const _userPages = [
@@ -59,6 +65,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     _notificationNavSub = NotificationNavigation.stream.listen((tab) {
       if (mounted) setState(() => currentIndex = tab);
     });
+    _sessionExpiredSub = ApiService.sessionExpiredStream.listen((_) => _onSessionExpired());
+    _checkDeviceSecurity();
     Connectivity().checkConnectivity().then((results) {
       if (mounted) {
         final offline = results.isNotEmpty && results.every((r) => r == ConnectivityResult.none);
@@ -67,7 +75,16 @@ class _MainShellState extends ConsumerState<MainShell> {
     });
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final offline = results.isNotEmpty && results.every((r) => r == ConnectivityResult.none);
-      if (mounted && offline != _isOffline) setState(() => _isOffline = offline);
+      if (!mounted || offline == _isOffline) return;
+      if (!offline && _isOffline) {
+        setState(() { _isOffline = false; _showReconnected = true; });
+        _reconnectedTimer?.cancel();
+        _reconnectedTimer = Timer(const Duration(seconds: 2), () {
+          if (mounted) setState(() => _showReconnected = false);
+        });
+      } else {
+        setState(() => _isOffline = offline);
+      }
     });
     _checkRoles();
     _checkUpdate();
@@ -102,8 +119,55 @@ class _MainShellState extends ConsumerState<MainShell> {
     if (mounted) setState(() => _roleChecked = true);
   }
 
+  static const _securityChannel = MethodChannel('com.mbongo.app/security');
+
+  Future<void> _checkDeviceSecurity() async {
+    try {
+      final isRooted = await _securityChannel.invokeMethod<bool>('isRooted') ?? false;
+      if (!isRooted || !mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFE65100)),
+              SizedBox(width: 10),
+              Text('Appareil non sécurisé'),
+            ],
+          ),
+          content: const Text(
+            'Votre appareil semble être rooté ou modifié.\n\n'
+            'Utiliser MBONGO sur un appareil rooté expose vos données financières à des risques de sécurité importants.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Continuer quand même'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _onSessionExpired() async {
+    await ref.read(authProvider.notifier).logout();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Session expirée. Veuillez vous reconnecter.'),
+        backgroundColor: Color(0xFFB00020),
+        duration: Duration(seconds: 4),
+      ),
+    );
+    context.go('/auth/login');
+  }
+
   @override
   void dispose() {
+    _reconnectedTimer?.cancel();
+    _sessionExpiredSub?.cancel();
     _notificationNavSub?.cancel();
     _connectivitySub?.cancel();
     super.dispose();
@@ -153,7 +217,7 @@ class _MainShellState extends ConsumerState<MainShell> {
               ],
             ),
           ),
-          if (_isOffline)
+          if (_isOffline || _showReconnected)
             Positioned(
               top: 0,
               left: 0,
@@ -162,15 +226,23 @@ class _MainShellState extends ConsumerState<MainShell> {
                 bottom: false,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
-                  color: AppColors.red.withValues(alpha: 0.92),
+                  color: _isOffline
+                      ? AppColors.red.withValues(alpha: 0.92)
+                      : const Color(0xFF1B8C4E).withValues(alpha: 0.93),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
-                      SizedBox(width: 8),
+                      Icon(
+                        _isOffline ? Icons.wifi_off_rounded : Icons.wifi_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        'Hors ligne — verifiez votre connexion',
-                        style: TextStyle(
+                        _isOffline
+                            ? 'Hors ligne — vérifiez votre connexion'
+                            : 'Connexion rétablie',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,

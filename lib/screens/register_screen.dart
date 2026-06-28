@@ -276,8 +276,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final backPath = await AuthService.getKycDocumentBackPath();
 
     if (!mounted) return;
+    const validDocTypes = ['Carte nationale', 'Carte d\'électeur', 'Passeport', 'Permis de conduire'];
     setState(() {
-      documentType = savedDocumentType;
+      documentType = validDocTypes.contains(savedDocumentType) ? savedDocumentType : 'Carte nationale';
       documentNumberCtrl.text = savedDocumentNumber;
       sheetNameCtrl.text = savedSheetName;
       if (selfiePath != null && selfiePath.isNotEmpty) kycSelfie = XFile(selfiePath);
@@ -655,6 +656,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           child: Column(
             children: [
               DropdownButtonFormField<String>(
+                key: ValueKey(documentType),
                 initialValue: documentType,
                 dropdownColor: palette.panel,
                 style: const TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w700),

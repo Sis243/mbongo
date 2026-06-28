@@ -47,7 +47,10 @@ export class WalletService {
     const usdBalance = Number((wallet.balance / cdfRate).toFixed(2));
 
     return {
-      wallet: this.serializeWallet(wallet),
+      id: wallet.id,
+      balance: wallet.balance,
+      currency: 'CDF',
+      userId: wallet.userId,
       balances: [
         { currency: 'CDF', balance: wallet.balance },
         { currency: 'USD', balance: usdBalance },

@@ -22,7 +22,8 @@ class AuthRepository {
 
   Future<String?> _getFcmToken() async {
     try {
-      return await FirebaseMessaging.instance.getToken();
+      return await FirebaseMessaging.instance.getToken()
+          .timeout(const Duration(seconds: 5));
     } catch (_) {
       return null;
     }
@@ -47,12 +48,16 @@ class AuthRepository {
     );
 
     final user = AppUser.fromMap(userMap);
-    await _storage.saveSession(
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      user: user.toMap(),
-    );
-    await _storage.saveBioCredentials(phone, pin);
+    // Sauvegarde session — try-catch pour ne jamais bloquer le login si storage indisponible
+    try {
+      await _storage.saveSession(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        user: user.toMap(),
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Storage peut échouer sur certains appareils — on laisse l'utilisateur entrer quand même
+    }
 
     return user;
   }
@@ -77,11 +82,13 @@ class AuthRepository {
     );
 
     final user = AppUser.fromMap(userMap);
-    await _storage.saveSession(
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      user: user.toMap(),
-    );
+    try {
+      await _storage.saveSession(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        user: user.toMap(),
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {}
 
     return user;
   }

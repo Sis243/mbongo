@@ -9,7 +9,8 @@ class AppStorage {
   factory AppStorage() => _instance;
   AppStorage._internal();
 
-  static const _opts = AndroidOptions(encryptedSharedPreferences: true);
+  // encryptedSharedPreferences: true peut geler les writes sur certains appareils Android
+  static const _opts = AndroidOptions(encryptedSharedPreferences: false);
   static const _storage = FlutterSecureStorage(aOptions: _opts);
 
   static const _kAccess = 'mb_access_token';

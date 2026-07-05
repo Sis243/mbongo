@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
+import '../core/utils/phone_validator.dart';
 import '../core/storage/app_storage.dart';
 import '../features/auth/presentation/auth_notifier.dart';
 import '../services/api_service.dart';
@@ -54,7 +56,7 @@ class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
             pin: creds.pin!,
           );
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+      context.go('/home');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -66,10 +68,11 @@ class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
   }
 
   Future<void> sendOtp() async {
-    final phone = phoneCtrl.text.trim();
-    if (phone.isEmpty) {
+    final phone = PhoneValidator.normalize(phoneCtrl.text);
+    final phoneError = PhoneValidator.errorMessage(phone);
+    if (phoneError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Entrez votre numéro de téléphone.')),
+        SnackBar(content: Text(phoneError)),
       );
       return;
     }

@@ -126,10 +126,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final phone = PhoneValidator.normalize(phoneCtrl.text);
     final pin = pinCtrl.text.trim();
     final documentNumber = documentNumberCtrl.text.trim();
+    // Auto-fill sheetName si pas encore rempli (champ caché dans le nouveau design)
+    if (sheetNameCtrl.text.isEmpty) sheetNameCtrl.text = name;
     final sheetName = sheetNameCtrl.text.trim();
 
     if (name.isEmpty || (!widget.resumeKyc && pin.isEmpty) ||
-        documentNumber.isEmpty || sheetName.isEmpty) {
+        documentNumber.isEmpty) {
       _toast('Veuillez remplir les champs essentiels.');
       return;
     }
@@ -160,18 +162,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => loading = true);
 
     if (!widget.resumeKyc) {
-      await ref.read(authProvider.notifier).register(
-            name: name, phone: phone, pin: pin,
-          );
-      final authState = ref.read(authProvider);
-      if (authState.hasError || authState.valueOrNull == null) {
+      try {
+        await ref.read(authProvider.notifier).register(
+              name: name, phone: phone, pin: pin,
+            );
+      } catch (e) {
         if (!mounted) return;
         setState(() => loading = false);
-        final err = authState.error;
-        if (err is ApiException) {
-          _toast(err.message);
-        } else if (err != null) {
-          _toast(err.toString());
+        if (e is ApiException) {
+          _toast(e.message);
         } else {
           _toast('Création du compte impossible. Vérifiez votre connexion et réessayez.');
         }
@@ -278,7 +277,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!mounted) return;
     const validDocTypes = ['Carte nationale', 'Carte d\'électeur', 'Passeport', 'Permis de conduire'];
     setState(() {
-      documentType = validDocTypes.contains(savedDocumentType) ? savedDocumentType : 'Carte nationale';
+      documentType = validDocTypes.contains(savedDocumentType) ? savedDocumentType : documentType;
       documentNumberCtrl.text = savedDocumentNumber;
       sheetNameCtrl.text = savedSheetName;
       if (selfiePath != null && selfiePath.isNotEmpty) kycSelfie = XFile(selfiePath);
@@ -353,7 +352,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
       final path = result?.files.single.path;
       if (path == null || path.isEmpty) return;
-      if (!await File(path).exists()) { _toast('Le fichier sélectionné est introuvable.'); return; }
+      final file = File(path);
+      if (!await file.exists()) { _toast('Le fichier sélectionné est introuvable.'); return; }
+
+      // Vérifier la taille — fichier trop grand → impossible d'envoyer à Vercel
+      const maxFileSizeBytes = 1.5 * 1024 * 1024; // 1.5 MB par fichier
+      final fileSize = await file.length();
+      if (fileSize > maxFileSizeBytes) {
+        if (!mounted) return;
+        _toast('Fichier trop volumineux (${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB). '
+            'Utilisez la caméra ou la galerie pour une meilleure compression.');
+        return;
+      }
+
       final picked = XFile(path, name: result!.files.single.name);
       if (!mounted) return;
       setState(() {
@@ -603,11 +614,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextField(
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
-                inputFormatters: [PhoneInputFormatter()],
                 onChanged: (_) { setState(() {}); _persistDraft(); },
                 decoration: const InputDecoration(
                   labelText: 'Numéro de téléphone',
-                  hintText: '081 234 5678',
+                  hintText: '0812345678',
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
               ),
@@ -700,95 +710,341 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   // ── Step 2 : Photos ───────────────────────────────────────────────────────
   Widget _buildStepPhotos(MbongoThemePalette palette) {
+    // Auto-fill nom sur feuille depuis step 0
+    if (sheetNameCtrl.text.isEmpty && nameCtrl.text.isNotEmpty) {
+      sheetNameCtrl.text = nameCtrl.text.trim();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _stepHeader(
           palette: palette,
           icon: Icons.camera_alt_rounded,
-          title: 'Photos du dossier',
-          subtitle: 'Photographiez votre pièce d\'identité, puis prenez votre selfie.',
+          title: 'Photos du dossier KYC',
+          subtitle: 'Suivez attentivement les instructions pour chaque photo.',
         ),
-        const SizedBox(height: 18),
-
-        // ── Document photos ──
-        Text('Pièce d\'identité', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w900, fontSize: 14)),
-        const SizedBox(height: 10),
-        if (documentType == 'Passeport')
-          _captureCard(title: 'Page d\'identité', file: kycDocumentFront, onTap: () => _showDocumentPickerSheet(true))
-        else
-          Row(
-            children: [
-              Expanded(child: _captureCard(title: 'Recto', file: kycDocumentFront, onTap: () => _showDocumentPickerSheet(true))),
-              const SizedBox(width: 10),
-              Expanded(child: _captureCard(title: 'Verso', file: kycDocumentBack, onTap: () => _showDocumentPickerSheet(false))),
-            ],
-          ),
-
         const SizedBox(height: 20),
 
-        // ── Selfie ──
-        Text('Selfie avec feuille MBONGO', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w900, fontSize: 14)),
-        const SizedBox(height: 8),
-        _infoTip(
-          icon: Icons.edit_note_rounded,
-          color: AppColors.cyan,
-          text: 'Écrivez vos noms sur une feuille blanche, tenez-la devant vous et prenez un selfie clair.',
+        // ══════════════════════════════════════════════════════
+        // SECTION 1 — PIÈCE D'IDENTITÉ
+        // ══════════════════════════════════════════════════════
+        _kycSectionTitle(
+          icon: Icons.badge_rounded,
+          label: documentType == 'Passeport'
+              ? 'Page d\'identité du passeport'
+              : 'Pièce d\'identité — Recto & Verso',
+          color: palette.accent,
         ),
         const SizedBox(height: 10),
-        const _SelfieSilhouetteHint(),
-        const SizedBox(height: 10),
-        TextField(
-          controller: sheetNameCtrl,
-          onChanged: (_) { setState(() {}); _persistDraft(); },
-          decoration: const InputDecoration(
-            labelText: 'Nom inscrit sur la feuille',
-            prefixIcon: Icon(Icons.edit_note_rounded),
+
+        // Guide document
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: palette.accent.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: palette.accent.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.lightbulb_outline_rounded, color: palette.accent, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Pour une photo valide :',
+                    style: TextStyle(color: palette.accent, fontWeight: FontWeight.w800, fontSize: 12.5),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _kycGuideItem('Posez le document sur une surface plate'),
+              _kycGuideItem('Bon éclairage — sans reflets ni ombres'),
+              _kycGuideItem('Tous les 4 coins du document visibles'),
+              _kycGuideItem('Texte parfaitement lisible'),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        _selfieCaptureTile(palette),
+        const SizedBox(height: 14),
+
+        if (documentType == 'Passeport')
+          _captureCard(
+            title: 'Page d\'identité du passeport',
+            file: kycDocumentFront,
+            onTap: () => _showDocumentPickerSheet(true),
+          )
+        else ...[
+          _captureCard(
+            title: 'Recto — Face avant',
+            file: kycDocumentFront,
+            onTap: () => _showDocumentPickerSheet(true),
+          ),
+          const SizedBox(height: 10),
+          _captureCard(
+            title: 'Verso — Face arrière',
+            file: kycDocumentBack,
+            onTap: () => _showDocumentPickerSheet(false),
+          ),
+        ],
+
+        const SizedBox(height: 28),
+
+        // ══════════════════════════════════════════════════════
+        // SECTION 2 — SELFIE AVEC FEUILLE
+        // ══════════════════════════════════════════════════════
+        _kycSectionTitle(
+          icon: Icons.face_rounded,
+          label: 'Selfie de vérification',
+          color: AppColors.cyan,
+        ),
+        const SizedBox(height: 10),
+
+        // Bloc instruction principal
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.cyan.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.cyan.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Titre
+              Row(
+                children: [
+                  const Icon(Icons.smart_toy_rounded, color: AppColors.cyan, size: 18),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Instructions étape par étape',
+                    style: TextStyle(color: AppColors.cyan, fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Illustration — feuille à tenir
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.face_rounded, color: Colors.white70, size: 50),
+                    const SizedBox(height: 10),
+                    // Feuille simulée
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            nameCtrl.text.trim().isNotEmpty
+                                ? nameCtrl.text.trim().toUpperCase()
+                                : 'VOTRE NOM COMPLET',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'MBONGO',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              letterSpacing: 3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Étapes
+              _kycSelfieStep('1', 'Prenez une feuille blanche et un stylo ou marqueur'),
+              _kycSelfieStep('2', 'Écrivez votre nom complet en haut de la feuille'),
+              _kycSelfieStep('3', 'Écrivez le mot  MBONGO  en dessous, en grandes lettres'),
+              _kycSelfieStep('4', 'Tenez la feuille devant votre visage face à la caméra frontale'),
+              _kycSelfieStep('5', 'Votre visage ET la feuille doivent être entièrement visibles'),
+              _kycSelfieStep('6', 'Bonne luminosité — le texte doit être lisible'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Zone de capture selfie
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: palette.panelAlt,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: kycSelfie != null
+                  ? AppColors.green.withValues(alpha: 0.5)
+                  : AppColors.cyan.withValues(alpha: 0.35),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              if (kycSelfie != null) ...[
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(kycSelfie!.path),
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.green,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: Colors.white, size: 13),
+                            SizedBox(width: 4),
+                            Text('Selfie ajouté', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ] else ...[
+                Container(
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppColors.cyan.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_a_photo_rounded, color: AppColors.cyan, size: 28),
+                        SizedBox(height: 5),
+                        Text('Aucun selfie pris', style: TextStyle(color: AppColors.cyan, fontWeight: FontWeight.w700, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _captureKycSelfie,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.cyan,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.face_rounded, size: 20),
+                  label: Text(
+                    kycSelfie == null ? 'Prendre le selfie avec la feuille' : 'Reprendre le selfie',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _selfieCaptureTile(MbongoThemePalette palette) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: palette.panelAlt,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: kycSelfie != null
-              ? AppColors.green.withValues(alpha: 0.35)
-              : AppColors.border.withValues(alpha: 0.3),
-          width: kycSelfie != null ? 1.5 : 1,
+  Widget _kycSectionTitle({required IconData icon, required String label, required Color color}) {
+    return Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 16),
         ),
-      ),
-      child: Column(
-        children: [
-          if (kycSelfie != null) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(File(kycSelfie!.path), height: 180, width: double.infinity, fit: BoxFit.cover),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
             ),
-            const SizedBox(height: 10),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _captureKycSelfie,
-                  icon: const Icon(Icons.add_a_photo_rounded, size: 18),
-                  label: Text(kycSelfie == null ? 'Prendre le selfie' : 'Reprendre'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: () => _pickKycSelfie(ImageSource.gallery),
-                child: const Icon(Icons.photo_library_rounded, size: 18),
-              ),
-            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _kycGuideItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.check_rounded, size: 13, color: AppColors.green),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: AppColors.textSoft, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kycSelfieStep(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: const BoxDecoration(color: AppColors.cyan, shape: BoxShape.circle),
+            child: Center(
+              child: Text(number, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(text, style: const TextStyle(color: AppColors.text, fontSize: 12.5, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1115,71 +1371,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 }
 
 // ── Bottom private widgets ────────────────────────────────────────────────────
-
-class _SelfieSilhouetteHint extends StatelessWidget {
-  const _SelfieSilhouetteHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 170,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.cyan.withValues(alpha: 0.18)),
-      ),
-      child: CustomPaint(painter: _SilhouettePainter(), child: const SizedBox.expand()),
-    );
-  }
-}
-
-class _SilhouettePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bodyPaint = Paint()
-      ..color = const Color(0xFF2A4A7A).withValues(alpha: 0.65)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(size.width / 2, size.height * 0.20), size.height * 0.12, bodyPaint);
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(size.width / 2, size.height * 0.52), width: size.width * 0.30, height: size.height * 0.28),
-        const Radius.circular(8),
-      ),
-      bodyPaint,
-    );
-
-    final armPaint = Paint()
-      ..color = const Color(0xFF2A4A7A).withValues(alpha: 0.65)
-      ..strokeWidth = size.width * 0.045
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final paperLeft = size.width / 2 - size.width * 0.22;
-    final paperRight = size.width / 2 + size.width * 0.22;
-    final paperTop = size.height * 0.50;
-
-    canvas.drawLine(Offset(size.width / 2 - size.width * 0.15, size.height * 0.44), Offset(paperLeft, paperTop + size.height * 0.15), armPaint);
-    canvas.drawLine(Offset(size.width / 2 + size.width * 0.15, size.height * 0.44), Offset(paperRight, paperTop + size.height * 0.15), armPaint);
-
-    final paperRect = Rect.fromLTRB(paperLeft, paperTop, paperRight, size.height * 0.90);
-    canvas.drawRRect(RRect.fromRectAndRadius(paperRect, const Radius.circular(5)), Paint()..color = Colors.white.withValues(alpha: 0.92));
-    canvas.drawRRect(RRect.fromRectAndRadius(paperRect, const Radius.circular(5)), Paint()..color = const Color(0xFFCCDDEE)..style = PaintingStyle.stroke..strokeWidth = 1);
-
-    _drawText(canvas, '(NOM & PRÉNOM)', Offset(paperRect.left + 6, paperRect.top + 8), paperRect.width - 12, const TextStyle(color: Color(0xFF333333), fontSize: 8.5, fontWeight: FontWeight.w700));
-    _drawText(canvas, 'MBONGO', Offset(paperRect.left + 6, paperRect.top + 26), paperRect.width - 12, const TextStyle(color: Color(0xFF0A3D8F), fontSize: 13, fontWeight: FontWeight.w900));
-    _drawText(canvas, 'Signature : ____________', Offset(paperRect.left + 6, paperRect.top + 50), paperRect.width - 12, const TextStyle(color: Color(0xFF888888), fontSize: 7));
-  }
-
-  void _drawText(Canvas canvas, String text, Offset offset, double maxWidth, TextStyle style) {
-    final tp = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.ltr)..layout(maxWidth: maxWidth);
-    tp.paint(canvas, offset);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
 class _KycCameraCaptureScreen extends StatefulWidget {
   final camera.CameraLensDirection lensDirection;

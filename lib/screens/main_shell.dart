@@ -66,14 +66,33 @@ class _MainShellState extends ConsumerState<MainShell> {
     });
     _sessionExpiredSub = ApiService.sessionExpiredStream.listen((_) => _onSessionExpired());
     _checkDeviceSecurity();
-    Connectivity().checkConnectivity().then((results) {
-      if (mounted) {
-        final offline = results.isNotEmpty && results.every((r) => r == ConnectivityResult.none);
-        setState(() => _isOffline = offline);
-      }
+    // Delay initial check: some devices briefly report ConnectivityResult.none
+    // at startup before the network stack is fully initialized.
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      Connectivity().checkConnectivity().then((results) {
+        if (!mounted) return;
+        final offline = results.isNotEmpty &&
+            results.every((r) => r == ConnectivityResult.none);
+        if (offline) {
+          // Double-check after another second to avoid false positives
+          Future.delayed(const Duration(seconds: 1), () {
+            if (!mounted) return;
+            Connectivity().checkConnectivity().then((r2) {
+              if (!mounted) return;
+              final stillOffline = r2.isNotEmpty &&
+                  r2.every((r) => r == ConnectivityResult.none);
+              setState(() => _isOffline = stillOffline);
+            });
+          });
+        } else {
+          setState(() => _isOffline = false);
+        }
+      });
     });
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
-      final offline = results.isNotEmpty && results.every((r) => r == ConnectivityResult.none);
+      final offline = results.isNotEmpty &&
+          results.every((r) => r == ConnectivityResult.none);
       if (!mounted || offline == _isOffline) return;
       if (!offline && _isOffline) {
         setState(() { _isOffline = false; _showReconnected = true; });
@@ -90,7 +109,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   Future<void> _checkRoles() async {
     try {
-      final log = await ApiService.getAgentProfitLog();
+      final log = await ApiService.getAgentProfitLog()
+          .timeout(const Duration(seconds: 5));
       final agentCode = log['agentCode']?.toString() ?? log['data']?['agentCode']?.toString();
       if (agentCode != null && agentCode.isNotEmpty && mounted) {
         setState(() { _roleMode = 2; _roleChecked = true; });
@@ -98,7 +118,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       }
     } catch (_) {}
     try {
-      final me = await ApiService.getMyMerchantProfile();
+      final me = await ApiService.getMyMerchantProfile()
+          .timeout(const Duration(seconds: 5));
       final isMerchant = me['isMerchant'] == true || me['data']?['isMerchant'] == true;
       if (isMerchant && mounted) {
         setState(() { _roleMode = 1; _roleChecked = true; });

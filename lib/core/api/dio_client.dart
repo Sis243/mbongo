@@ -27,8 +27,8 @@ class DioClient {
 
     _dio = Dio(BaseOptions(
       baseUrl: base,
-      connectTimeout: const Duration(seconds: 20),
-      receiveTimeout: const Duration(seconds: 40),
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 20),
       headers: {'Accept': 'application/json'},
     ));
 
@@ -209,7 +209,7 @@ class _AuthInterceptor extends Interceptor {
 
 class _RetryInterceptor extends Interceptor {
   final Dio _dio;
-  static const _maxRetries = 3;
+  static const _maxRetries = 1;
 
   _RetryInterceptor(this._dio);
 

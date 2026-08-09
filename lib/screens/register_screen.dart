@@ -40,6 +40,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   bool loading = false;
   bool hidePin = true;
+  bool _acceptCgu = false;
   String documentType = 'Carte d\'électeur';
   int _currentStep = 0;
 
@@ -130,6 +131,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (sheetNameCtrl.text.isEmpty) sheetNameCtrl.text = name;
     final sheetName = sheetNameCtrl.text.trim();
 
+    if (!_acceptCgu) {
+      _toast('Veuillez accepter les Conditions Générales d\'Utilisation pour continuer.');
+      return;
+    }
     if (name.isEmpty || (!widget.resumeKyc && pin.isEmpty) ||
         documentNumber.isEmpty) {
       _toast('Veuillez remplir les champs essentiels.');
@@ -1162,6 +1167,71 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return Column(
       children: [
+        if (isLast && !widget.resumeKyc) ...[
+          GestureDetector(
+            onTap: () => setState(() => _acceptCgu = !_acceptCgu),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: _acceptCgu
+                    ? AppColors.green.withValues(alpha: 0.08)
+                    : Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _acceptCgu
+                      ? AppColors.green.withValues(alpha: 0.35)
+                      : AppColors.border.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Checkbox(
+                      value: _acceptCgu,
+                      onChanged: (v) => setState(() => _acceptCgu = v ?? false),
+                      activeColor: AppColors.green,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        style: TextStyle(color: AppColors.textSoft, fontSize: 13, height: 1.45),
+                        children: [
+                          TextSpan(text: 'J\'accepte les '),
+                          TextSpan(
+                            text: 'Conditions Générales d\'Utilisation',
+                            style: TextStyle(
+                              color: AppColors.cyan,
+                              fontWeight: FontWeight.w800,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          TextSpan(text: ' et la '),
+                          TextSpan(
+                            text: 'Politique de Confidentialité',
+                            style: TextStyle(
+                              color: AppColors.cyan,
+                              fontWeight: FontWeight.w800,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          TextSpan(text: ' de MBONGO. Je certifie que les informations fournies sont exactes.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(

@@ -8,7 +8,6 @@ import '../features/auth/presentation/auth_notifier.dart';
 import '../features/notifications/presentation/notifications_provider.dart';
 import '../features/wallet/presentation/wallet_notifier.dart';
 import '../models/service_item.dart';
-import '../services/kyc_guard_service.dart';
 import '../store/mbongo_store.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import '../widgets/home/banner_carousel.dart';
@@ -20,7 +19,6 @@ import 'exchange/exchange_money_screen.dart';
 import 'login_screen.dart';
 import 'exchange_rates/exchange_rates_screen.dart';
 import 'notifications/notifications_screen.dart';
-import 'profile/kyc_status_screen.dart';
 import 'request_money/request_money_screen.dart';
 import 'transactions_screen.dart';
 import 'transfer/send_money_screen.dart';
@@ -33,12 +31,6 @@ import 'bill_pay/bill_pay_screen.dart';
 import 'profile/share_profile_screen.dart';
 import 'qr/qr_scan_router.dart';
 
-const _kycSensitiveServices = {
-  'Envoyer', 'Demander', 'Changer', 'International',
-  'Retirer', 'Mes cartes', 'Unites', 'Abonnement TV', 'Deposer',
-  'Payer', 'Factures',
-};
-
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -47,21 +39,12 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String _kycStatus = 'non_commence';
-
   @override
   void initState() {
     super.initState();
-    _loadKyc();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(walletProvider.notifier).refresh();
     });
-  }
-
-  Future<void> _loadKyc() async {
-    final status = await KycGuardService.syncRemoteStatus();
-    if (!mounted) return;
-    setState(() => _kycStatus = status);
   }
 
   String _money(num value) {
@@ -755,90 +738,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final screen = _screenForService(title);
     if (screen == null) return;
 
-    final isSensitive = _kycSensitiveServices.any((s) => title.contains(s));
-    if (isSensitive && _kycStatus != 'valide') {
-      final access = await KycGuardService.sensitiveOperationAccess();
-      if (!mounted) return;
-      if (!access.allowed) {
-        _showKycBlock(access.message);
-        return;
-      }
-    }
+    // KYC guard temporairement désactivé pour présentation
 
     if (!mounted) return;
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  void _showKycBlock(String message) {
-    final palette = MbongoThemeController.current;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: palette.panel,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.36)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.lock_rounded, color: AppColors.gold),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Opération bloquée',
-                    style: TextStyle(
-                      color: AppColors.text,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              style: const TextStyle(
-                color: AppColors.textSoft,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const KycStatusScreen()),
-                  );
-                },
-                child: const Text('Voir mon dossier KYC'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Fermer'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ActivityTile extends StatelessWidget {

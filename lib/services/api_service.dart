@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
+import 'dart:io' show File;
+
+import 'package:http/http.dart' as http;
 
 import 'auth_service.dart';
 
@@ -156,78 +157,44 @@ class ApiService {
     File? backFile,
     File? selfieFile,
   }) async {
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 30)
-      ..idleTimeout = const Duration(seconds: 60);
-    final boundary = 'mbongo-${DateTime.now().microsecondsSinceEpoch}';
-    final body = BytesBuilder();
-
-    void addTextField(String name, String value) {
-      body.add(utf8.encode('--$boundary\r\n'));
-      body.add(
-          utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'));
-      body.add(utf8.encode('$value\r\n'));
-    }
-
-    Future<void> addFileField(String name, File file) async {
-      final fileName = file.uri.pathSegments.isNotEmpty
-          ? file.uri.pathSegments.last
-          : '$name.jpg';
-      body.add(utf8.encode('--$boundary\r\n'));
-      body.add(
-        utf8.encode(
-          'Content-Disposition: form-data; name="$name"; filename="$fileName"\r\n',
-        ),
-      );
-      body.add(utf8.encode('Content-Type: ${_mimeTypeFor(fileName)}\r\n\r\n'));
-      body.add(await file.readAsBytes());
-      body.add(utf8.encode('\r\n'));
-    }
-
     try {
-      addTextField('documentType', documentType);
-      if (frontFile != null) await addFileField('front', frontFile);
-      if (backFile != null) await addFileField('back', backFile);
-      if (selfieFile != null) await addFileField('selfie', selfieFile);
-      body.add(utf8.encode('--$boundary--\r\n'));
-
-      final bytes = body.takeBytes();
-      final request =
-          await client.postUrl(Uri.parse('$_baseUrl/kyc/me/submit-upload'));
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      request.headers.set(HttpHeaders.contentTypeHeader,
-          'multipart/form-data; boundary=$boundary');
-      request.contentLength = bytes.length;
-
       final token = await AuthService.getAccessToken();
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl/kyc/me/submit-upload'),
+      );
+      request.headers['Accept'] = 'application/json';
       if (token != null && token.isNotEmpty) {
-        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.fields['documentType'] = documentType;
+
+      Future<void> addFile(String field, File file) async {
+        final fileName = file.uri.pathSegments.isNotEmpty
+            ? file.uri.pathSegments.last
+            : '$field.jpg';
+        request.files.add(http.MultipartFile.fromBytes(
+          field,
+          await file.readAsBytes(),
+          filename: fileName,
+        ));
       }
 
-      request.add(bytes);
-      final response = await request.close();
-      final decoded = await _decodeResponse(response);
+      if (frontFile != null) await addFile('front', frontFile);
+      if (backFile != null) await addFile('back', backFile);
+      if (selfieFile != null) await addFile('selfie', selfieFile);
 
-      if (response.statusCode >= 400) {
-        throw ApiException(
-            _extractMessage(decoded, fallback: 'Envoi KYC impossible'));
+      final streamed = await request.send();
+      final body = await streamed.stream.bytesToString();
+      final decoded = _decodeBody(body);
+
+      if (streamed.statusCode >= 400) {
+        throw ApiException(_extractMessage(decoded, fallback: 'Envoi KYC impossible'));
       }
-
-      return Map<String, dynamic>.from(decoded as Map);
-    } on SocketException {
-      throw const ApiException(
-          'API Mbongo inaccessible. Verifiez que le backend tourne.');
-    } finally {
-      client.close();
+      return _mapResponse(decoded);
+    } on http.ClientException {
+      throw const ApiException('API Mbongo inaccessible. Verifiez que le backend tourne.');
     }
-  }
-
-  static String _mimeTypeFor(String fileName) {
-    final lower = fileName.toLowerCase();
-    if (lower.endsWith('.png')) return 'image/png';
-    if (lower.endsWith('.webp')) return 'image/webp';
-    if (lower.endsWith('.pdf')) return 'application/pdf';
-    return 'image/jpeg';
   }
 
   static Future<Map<String, dynamic>> getWalletSummary(String userId) async {
@@ -615,37 +582,38 @@ class ApiService {
     return [];
   }
 
+  static Future<Map<String, String>> _authHeaders({bool json = false}) async {
+    final headers = <String, String>{'Accept': 'application/json'};
+    if (json) headers['Content-Type'] = 'application/json';
+    final token = await AuthService.getAccessToken();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
+  static dynamic _decodeBody(String body) {
+    if (body.isEmpty) return <String, dynamic>{};
+    return jsonDecode(body);
+  }
+
   static Future<Map<String, dynamic>> _get(
     String path, {
     bool authenticated = true,
   }) async {
-    final client = HttpClient();
-
     try {
-      final request = await client.getUrl(Uri.parse('$_baseUrl$path'));
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-
-      if (authenticated) {
-        final token = await AuthService.getAccessToken();
-        if (token != null && token.isNotEmpty) {
-          request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-        }
-      }
-
-      final response = await request.close();
-      final decoded = await _decodeResponse(response);
-
+      final headers = authenticated
+          ? await _authHeaders()
+          : <String, String>{'Accept': 'application/json'};
+      final response = await http.get(Uri.parse('$_baseUrl$path'), headers: headers);
+      final decoded = _decodeBody(response.body);
       if (response.statusCode >= 400) {
         _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
-
       return _mapResponse(decoded);
-    } on SocketException {
-      throw const ApiException(
-          'API Mbongo inaccessible. Verifiez que le backend tourne.');
-    } finally {
-      client.close();
+    } on http.ClientException {
+      throw const ApiException('API Mbongo inaccessible. Verifiez que le backend tourne.');
     }
   }
 
@@ -653,32 +621,21 @@ class ApiService {
     String path, {
     required Map<String, dynamic> body,
   }) async {
-    final client = HttpClient();
-
     try {
-      final request = await client.postUrl(Uri.parse('$_baseUrl$path'));
-      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final token = await AuthService.getAccessToken();
-      if (token != null && token.isNotEmpty) {
-        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      }
-      request.write(jsonEncode(body));
-
-      final response = await request.close();
-      final decoded = await _decodeResponse(response);
-
+      final headers = await _authHeaders(json: true);
+      final response = await http.post(
+        Uri.parse('$_baseUrl$path'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      final decoded = _decodeBody(response.body);
       if (response.statusCode >= 400) {
         _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
-
       return _mapResponse(decoded);
-    } on SocketException {
-      throw const ApiException(
-          'API Mbongo inaccessible. Verifiez que le backend tourne.');
-    } finally {
-      client.close();
+    } on http.ClientException {
+      throw const ApiException('API Mbongo inaccessible. Verifiez que le backend tourne.');
     }
   }
 
@@ -686,65 +643,37 @@ class ApiService {
     String path, {
     required Map<String, dynamic> body,
   }) async {
-    final client = HttpClient();
-
     try {
-      final request = await client.patchUrl(Uri.parse('$_baseUrl$path'));
-      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final token = await AuthService.getAccessToken();
-      if (token != null && token.isNotEmpty) {
-        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      }
-      request.write(jsonEncode(body));
-
-      final response = await request.close();
-      final decoded = await _decodeResponse(response);
-
+      final headers = await _authHeaders(json: true);
+      final response = await http.patch(
+        Uri.parse('$_baseUrl$path'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      final decoded = _decodeBody(response.body);
       if (response.statusCode >= 400) {
         _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
-
       return _mapResponse(decoded);
-    } on SocketException {
-      throw const ApiException(
-          'API Mbongo inaccessible. Verifiez que le backend tourne.');
-    } finally {
-      client.close();
+    } on http.ClientException {
+      throw const ApiException('API Mbongo inaccessible. Verifiez que le backend tourne.');
     }
   }
 
   static Future<Map<String, dynamic>> _delete(String path) async {
-    final client = HttpClient();
     try {
-      final request = await client.deleteUrl(Uri.parse('$_baseUrl$path'));
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final token = await AuthService.getAccessToken();
-      if (token != null && token.isNotEmpty) {
-        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      }
-      final response = await request.close();
-      final decoded = await _decodeResponse(response);
+      final headers = await _authHeaders();
+      final response = await http.delete(Uri.parse('$_baseUrl$path'), headers: headers);
+      final decoded = _decodeBody(response.body);
       if (response.statusCode >= 400) {
         _handleStatusCode(response.statusCode);
         throw ApiException(_extractMessage(decoded, fallback: 'Erreur API'));
       }
       return _mapResponse(decoded);
-    } on SocketException {
+    } on http.ClientException {
       throw const ApiException('API Mbongo inaccessible. Verifiez que le backend tourne.');
-    } finally {
-      client.close();
     }
-  }
-
-  static Future<dynamic> _decodeResponse(HttpClientResponse response) async {
-    final raw = await response.transform(utf8.decoder).join();
-    if (raw.isEmpty) {
-      return <String, dynamic>{};
-    }
-
-    return jsonDecode(raw);
   }
 
   static Map<String, dynamic> _mapResponse(dynamic decoded) {

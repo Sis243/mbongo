@@ -88,12 +88,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await AppStorage().clearBioCredentials();
       }
       if (!mounted) return;
-      setState(() => loading = false);
-      context.go('/home');
+      // Le router redirige automatiquement vers /home grâce au changement d'état auth
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      _toast('Numero ou code PIN incorrect. Verifiez vos informations.');
+      _toast('Numéro ou code PIN incorrect. Vérifiez vos informations.');
     }
   }
 
@@ -233,10 +232,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextField(
                       controller: phoneCtrl,
                       keyboardType: TextInputType.phone,
-                      inputFormatters: [PhoneInputFormatter()],
                       decoration: const InputDecoration(
                         labelText: 'Numéro de téléphone',
-                        hintText: '081 234 5678',
+                        hintText: '0812345678',
                         prefixIcon: Icon(Icons.phone_outlined),
                       ),
                     ),

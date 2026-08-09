@@ -23,8 +23,11 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final authState = ref.read(authProvider);
 
-      // While auth is loading, hold on splash
-      if (authState.isLoading) return '/splash';
+      // Pendant le chargement initial, rester sur splash.
+      // Ne pas rediriger si l'utilisateur est déjà sur une route auth (ex: login en cours).
+      if (authState.isLoading && !path.startsWith('/auth') && path != '/onboarding') {
+        return '/splash';
+      }
 
       final loggedIn = authState.valueOrNull != null;
       final onAuthRoute = path.startsWith('/auth');

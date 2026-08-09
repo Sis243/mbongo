@@ -16,9 +16,13 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
 
   Future<void> login({required String phone, required String pin}) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).login(phone: phone, pin: pin),
-    );
+    try {
+      final user = await ref.read(authRepositoryProvider).login(phone: phone, pin: pin);
+      state = AsyncData(user);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> register({
@@ -27,13 +31,17 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     required String pin,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).register(
+    try {
+      final user = await ref.read(authRepositoryProvider).register(
             name: name,
             phone: phone,
             pin: pin,
-          ),
-    );
+          );
+      state = AsyncData(user);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> logout() async {

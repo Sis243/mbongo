@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../../core/storage/app_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
+import '../../services/auth_service.dart';
 import '../../services/biometric_service.dart';
 
 class ConfirmRow {
@@ -58,12 +59,16 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
   String? _error;
   bool _obscure = true;
   bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
 
   @override
   void initState() {
     super.initState();
     BiometricService.canCheck().then((v) {
       if (mounted) setState(() => _biometricAvailable = v);
+    });
+    AuthService.isBiometricEnabled().then((v) {
+      if (mounted) setState(() => _biometricEnabled = v);
     });
   }
 
@@ -221,7 +226,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
               const SizedBox(height: 20),
 
               // Biometric shortcut
-              if (_biometricAvailable) ...[
+              if (_biometricAvailable && _biometricEnabled) ...[
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(

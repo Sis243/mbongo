@@ -8,3 +8,5 @@ uploads/
 
 .vercel
 .env*.local
+mbongo-backend/.env.neon
+mbongo-backend/.env.vercel

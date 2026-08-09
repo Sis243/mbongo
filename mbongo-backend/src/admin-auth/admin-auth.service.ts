@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as speakeasy from 'speakeasy';
 import * as qrcode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
+import { BrevoEmailService } from '../common/brevo-email.service';
 
 interface AdminLoginMetadata {
   ipAddress?: string;
@@ -15,6 +16,7 @@ export class AdminAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    @Optional() private readonly brevo?: BrevoEmailService,
   ) {}
 
   async login(phone: string, pin: string, metadata: AdminLoginMetadata = {}, totpCode?: string) {
@@ -230,6 +232,64 @@ export class AdminAuthService {
       roles,
       permissions,
     };
+  }
+
+  async forgotPin(phone: string): Promise<{ sent: boolean }> {
+    const admin = await this.prisma.adminUser.findUnique({ where: { phone: phone.trim() } });
+
+    if (!admin || !admin.isActive || !admin.email) {
+      return { sent: false };
+    }
+
+    const resetToken = this.jwtService.sign(
+      { sub: admin.id, type: 'admin-pin-reset' },
+      { expiresIn: '15m' },
+    );
+
+    await this.brevo?.sendAdminPinResetEmail(admin.email, admin.phone, resetToken);
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'ADMIN_PIN_RESET_REQUESTED',
+        entityType: 'AdminAuth',
+        entityId: admin.id,
+        metadata: JSON.stringify({ adminPhone: admin.phone }),
+      },
+    });
+
+    return { sent: true };
+  }
+
+  async resetPin(token: string, newPin: string): Promise<{ success: true }> {
+    let payload: { sub: string; type: string };
+    try {
+      payload = this.jwtService.verify(token) as { sub: string; type: string };
+    } catch {
+      throw new UnauthorizedException('Lien de réinitialisation invalide ou expiré');
+    }
+
+    if (payload.type !== 'admin-pin-reset') {
+      throw new UnauthorizedException('Lien de réinitialisation invalide');
+    }
+
+    const admin = await this.prisma.adminUser.findUnique({ where: { id: payload.sub } });
+    if (!admin || !admin.isActive) {
+      throw new UnauthorizedException('Compte admin introuvable ou inactif');
+    }
+
+    const pinHash = await bcrypt.hash(newPin, 10);
+    await this.prisma.adminUser.update({ where: { id: admin.id }, data: { pinHash } });
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'ADMIN_PIN_RESET_DONE',
+        entityType: 'AdminAuth',
+        entityId: admin.id,
+        metadata: JSON.stringify({ adminPhone: admin.phone }),
+      },
+    });
+
+    return { success: true };
   }
 
   private async auditLogin(args: {

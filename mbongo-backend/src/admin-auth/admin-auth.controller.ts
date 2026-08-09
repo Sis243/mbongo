@@ -1,11 +1,28 @@
 ﻿import { Body, Controller, Get, Headers, Ip, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { IsString, Length, Matches } from 'class-validator';
+import { ApiTags } from '@nestjs/swagger';
+import { IsString, Length, Matches, MinLength } from 'class-validator';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import type { AdminJwtPayload } from './admin-auth.types';
 import { AdminAuthService } from './admin-auth.service';
 import { LoginAdminDto } from './dto/login-admin.dto';
+
+class ForgotPinDto {
+  @IsString()
+  @Matches(/^\+?[0-9]{7,15}$/)
+  phone!: string;
+}
+
+class ResetPinDto {
+  @IsString()
+  @MinLength(1)
+  token!: string;
+
+  @IsString()
+  @Length(4, 8)
+  @Matches(/^[0-9]+$/)
+  newPin!: string;
+}
 
 class ConfirmTotpDto {
   @IsString()
@@ -57,6 +74,16 @@ export class AdminAuthController {
   @Post('totp/disable')
   disableTotp(@CurrentAdmin() admin: AdminJwtPayload, @Body() dto: DisableTotpDto) {
     return this.adminAuthService.disableTotp(admin.sub, dto.pin);
+  }
+
+  @Post('forgot-pin')
+  forgotPin(@Body() dto: ForgotPinDto) {
+    return this.adminAuthService.forgotPin(dto.phone);
+  }
+
+  @Post('reset-pin')
+  resetPin(@Body() dto: ResetPinDto) {
+    return this.adminAuthService.resetPin(dto.token, dto.newPin);
   }
 }
 

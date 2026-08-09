@@ -88,6 +88,31 @@ export class BrevoEmailService {
     });
   }
 
+  async sendAdminPinResetEmail(email: string, nameOrPhone: string, resetToken: string): Promise<void> {
+    const adminPanelUrl = process.env.ADMIN_PANEL_URL ?? 'https://mbongo-admin.vercel.app';
+    const resetUrl = `${adminPanelUrl}/reset-pin?token=${resetToken}`;
+    await this.send({
+      to: { email, name: nameOrPhone },
+      subject: 'Réinitialisation de votre PIN Mbongo Admin',
+      htmlContent: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px">
+          <h2 style="color:#C9A84C">Mbongo Admin</h2>
+          <p>Bonjour ${nameOrPhone},</p>
+          <p>Vous avez demandé la réinitialisation de votre PIN administrateur.</p>
+          <p>Cliquez sur le bouton ci-dessous pour définir un nouveau PIN (lien valable <strong>15 minutes</strong>) :</p>
+          <p style="margin:24px 0">
+            <a href="${resetUrl}" style="background:#111111;color:#C9A84C;padding:14px 28px;text-decoration:none;border-radius:10px;font-weight:bold;font-size:15px">
+              Réinitialiser mon PIN
+            </a>
+          </p>
+          <p style="color:#666;font-size:13px">Ou copiez ce lien : <a href="${resetUrl}">${resetUrl}</a></p>
+          <p style="color:#666;font-size:13px">Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+          <p style="color:#666;font-size:13px">L'équipe Mbongo</p>
+        </div>`,
+      textContent: `Réinitialisez votre PIN admin Mbongo : ${resetUrl} (valable 15 min)`,
+    });
+  }
+
   async sendTransactionEmail(email: string, name: string, amount: number, currency: string, type: string, reference: string): Promise<void> {
     await this.send({
       to: { email, name },

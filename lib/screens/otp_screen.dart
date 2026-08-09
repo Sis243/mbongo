@@ -13,6 +13,7 @@ class OtpScreen extends ConsumerStatefulWidget {
   final String verificationId;
   final bool autoVerified;
   final String? testCode;
+  final bool smsFailed;
 
   const OtpScreen({
     super.key,
@@ -20,6 +21,7 @@ class OtpScreen extends ConsumerStatefulWidget {
     this.verificationId = '',
     this.autoVerified = false,
     this.testCode,
+    this.smsFailed = false,
   });
 
   @override
@@ -101,6 +103,35 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // SMS failure banner
+          if (widget.smsFailed && widget.testCode == null && !otpVerified) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'SMS indisponible. Contactez le support Mbongo pour obtenir votre code.',
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // Test mode banner
           if (widget.testCode != null && !otpVerified) ...[
             Container(

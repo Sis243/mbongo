@@ -81,7 +81,27 @@ class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
     try {
       final result = await ApiService.requestOtp(phone, purpose: 'login');
       final testCode = result['code'] as String?;
+      final via = result['via'] as String? ?? 'none';
+      final sent = result['sent'] == true;
       if (!mounted) return;
+
+      String? bannerMsg;
+      if (via == 'email') {
+        bannerMsg = 'Code envoyé par email.';
+      } else if (!sent || via == 'none') {
+        bannerMsg = 'SMS indisponible — contactez le support Mbongo avec votre numéro.';
+      }
+
+      if (bannerMsg != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(bannerMsg),
+            duration: const Duration(seconds: 5),
+            backgroundColor: via == 'email' ? Colors.green.shade700 : Colors.orange.shade800,
+          ),
+        );
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -89,6 +109,7 @@ class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
             phone: phone,
             verificationId: 'MBONGO-OTP',
             testCode: testCode,
+            smsFailed: !sent && via == 'none',
           ),
         ),
       );

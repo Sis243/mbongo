@@ -66,11 +66,18 @@ class AuthRepository {
     required String name,
     required String phone,
     required String pin,
+    String? email,
   }) async {
     final fcmToken = await _getFcmToken();
     final data = await _client.post(
       '/auth/register',
-      {'name': name, 'phone': phone, 'pin': pin, if (fcmToken != null) 'fcmToken': fcmToken},
+      {
+        'name': name,
+        'phone': phone,
+        'pin': pin,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (fcmToken != null) 'fcmToken': fcmToken,
+      },
       auth: false,
     );
 

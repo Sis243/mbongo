@@ -29,6 +29,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     required String name,
     required String phone,
     required String pin,
+    String? email,
   }) async {
     state = const AsyncLoading();
     try {
@@ -36,6 +37,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
             name: name,
             phone: phone,
             pin: pin,
+            email: email,
           );
       state = AsyncData(user);
     } catch (e, st) {

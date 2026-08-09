@@ -34,6 +34,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final ImagePicker _picker = ImagePicker();
   final nameCtrl = TextEditingController();
   final phoneCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
   final pinCtrl = TextEditingController();
   final documentNumberCtrl = TextEditingController();
   final sheetNameCtrl = TextEditingController();
@@ -125,6 +126,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> createAccount() async {
     final name = nameCtrl.text.trim();
     final phone = PhoneValidator.normalize(phoneCtrl.text);
+    final email = emailCtrl.text.trim().isEmpty ? null : emailCtrl.text.trim();
     final pin = pinCtrl.text.trim();
     final documentNumber = documentNumberCtrl.text.trim();
     // Auto-fill sheetName si pas encore rempli (champ caché dans le nouveau design)
@@ -169,7 +171,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!widget.resumeKyc) {
       try {
         await ref.read(authProvider.notifier).register(
-              name: name, phone: phone, pin: pin,
+              name: name, phone: phone, pin: pin, email: email,
             );
       } catch (e) {
         if (!mounted) return;
@@ -624,6 +626,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   labelText: 'Numéro de téléphone',
                   hintText: '0812345678',
                   prefixIcon: Icon(Icons.phone_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  labelText: 'Adresse email (optionnelle)',
+                  hintText: 'vous@exemple.com',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
               const SizedBox(height: 12),

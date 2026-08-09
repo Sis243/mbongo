@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { CardsService } from '../cards/cards.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FcmService } from '../notifications/fcm.service';
+import { BrevoEmailService } from '../common/brevo-email.service';
 import type { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 
 type ChannelMode = 'sandbox' | 'live';
@@ -134,10 +135,13 @@ interface UpsertAdminRolePayload {
 
 @Injectable()
 export class BackofficeService {
+  private readonly logger = new Logger(BackofficeService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cardsService: CardsService,
     private readonly fcm: FcmService,
+    @Optional() private readonly brevoEmail: BrevoEmailService,
   ) {}
 
   private parseJsonArray(value?: string | null): string[] {
@@ -488,6 +492,11 @@ export class BackofficeService {
   }
 
   async listKycSubmissions(page?: number, limit?: number) {
+    // fileUrl exclu de la liste pour éviter les base64 volumineux — l'admin
+    // preview passe par un endpoint dédié ou via l'URL Firebase directe.
+    const docSelect = { select: { id: true, side: true, fileMimeType: true, fileUrl: true } };
+    const userSelect = { select: { id: true, name: true, phone: true } };
+
     if (page !== undefined && limit !== undefined) {
       const skip = (page - 1) * limit;
       const [data, total] = await Promise.all([
@@ -495,28 +504,40 @@ export class BackofficeService {
           orderBy: { createdAt: 'desc' },
           skip,
           take: limit,
-          include: {
-            documents: true,
-            user: { select: { id: true, name: true, phone: true } },
-          },
+          include: { documents: docSelect, user: userSelect },
         }),
         this.prisma.kycSubmission.count(),
       ]);
-      return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+      return { data: this.sanitizeKycList(data), total, page, limit, totalPages: Math.ceil(total / limit) };
     }
-    return this.prisma.kycSubmission.findMany({
+    const data = await this.prisma.kycSubmission.findMany({
       orderBy: { createdAt: 'desc' },
+      include: { documents: docSelect, user: userSelect },
+    });
+    return this.sanitizeKycList(data);
+  }
+
+  async getKycSubmission(id: string) {
+    const submission = await this.prisma.kycSubmission.findUnique({
+      where: { id },
       include: {
         documents: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-          },
-        },
+        user: { select: { id: true, name: true, phone: true, email: true } },
       },
     });
+    if (!submission) throw new NotFoundException('Soumission KYC introuvable');
+    return submission;
+  }
+
+  private sanitizeKycList(submissions: any[]) {
+    return submissions.map((s) => ({
+      ...s,
+      documents: (s.documents ?? []).map((d: any) => ({
+        ...d,
+        // Tronquer les data: URLs (base64) — remplacer par un placeholder
+        fileUrl: d.fileUrl?.startsWith('data:') ? `[base64:${d.fileMimeType ?? 'file'}]` : d.fileUrl,
+      })),
+    }));
   }
 
   async reviewKycSubmission(id: string, body: ReviewKycPayload, admin: AdminJwtPayload) {
@@ -528,6 +549,7 @@ export class BackofficeService {
             id: true,
             name: true,
             phone: true,
+            email: true,
           },
         },
       },
@@ -555,12 +577,15 @@ export class BackofficeService {
           reviewedBy: admin.sub,
         },
         include: {
-          documents: true,
+          documents: {
+            select: { id: true, side: true, fileMimeType: true, fileUrl: false },
+          },
           user: {
             select: {
               id: true,
               name: true,
               phone: true,
+              email: true,
               fcmToken: true,
             },
           },
@@ -587,22 +612,26 @@ export class BackofficeService {
       return reviewedSubmission;
     });
 
-    // Push notification FCM au mobile (hors transaction, non bloquant)
-    const fcmToken = (reviewed.user as { fcmToken?: string | null } & typeof reviewed.user)?.fcmToken;
-    if (fcmToken) {
-      const isApproved = body.status === 'APPROVED';
+    const user = reviewed.user as { id: string; name: string; phone: string; email?: string | null; fcmToken?: string | null };
+    const isApproved = body.status === 'APPROVED';
+
+    // Push notification FCM (non bloquant)
+    if (user?.fcmToken) {
       this.fcm.send({
-        token: fcmToken,
+        token: user.fcmToken,
         title: isApproved ? 'Compte vérifié ✓' : 'Vérification KYC',
         body: isApproved
           ? 'Votre identité a été vérifiée. Votre compte MBONGO est maintenant actif.'
-          : `Votre dossier KYC a été rejeté. Motif : ${body.rejectionReason ?? 'voir l\'application'}.`,
-        data: {
-          type: 'KYC_REVIEW',
-          status: body.status,
-          submissionId: reviewed.id,
-        },
+          : `Votre dossier KYC a été rejeté. Motif : ${body.rejectionReason ?? "voir l'application"}.`,
+        data: { type: 'KYC_REVIEW', status: body.status, submissionId: reviewed.id },
       }).catch(() => {});
+    }
+
+    // Email Brevo (non bloquant)
+    if (user?.email && this.brevoEmail) {
+      this.brevoEmail
+        .sendKycStatusEmail(user.email, user.name, body.status, body.rejectionReason)
+        .catch((err: Error) => this.logger.warn(`KYC email failed: ${err.message}`));
     }
 
     return reviewed;

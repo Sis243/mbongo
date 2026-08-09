@@ -208,12 +208,13 @@ export class KycService {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const admin = require('firebase-admin');
+      const cleaned = raw.replace(/^﻿/, '').trim();
       if (!admin.apps.length) {
-        const serviceAccount = JSON.parse(raw) as { project_id: string };
+        const serviceAccount = JSON.parse(cleaned) as { project_id: string };
         admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
       }
 
-      const serviceAccount = JSON.parse(raw) as { project_id: string };
+      const serviceAccount = JSON.parse(cleaned) as { project_id: string };
       const projectId = serviceAccount.project_id;
       const bucketName =
         process.env.FIREBASE_STORAGE_BUCKET ?? `${projectId}.appspot.com`;

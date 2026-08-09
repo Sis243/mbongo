@@ -75,6 +75,12 @@ export class BackofficeController {
     return this.backofficeService.listKycSubmissions(p, l);
   }
 
+  @Get('kyc/:id')
+  @RequireAdminPermissions('REVIEW_KYC')
+  getKycSubmission(@Param('id') id: string) {
+    return this.backofficeService.getKycSubmission(id);
+  }
+
   @Patch('kyc/:id/review')
   @RequireAdminPermissions('REVIEW_KYC')
   reviewKycSubmission(

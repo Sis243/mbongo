@@ -28,7 +28,9 @@ export class FcmService {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const admin = require('firebase-admin');
       if (!admin.apps.length) {
-        const serviceAccount = JSON.parse(raw);
+        // Strip BOM and normalize whitespace that can corrupt env var values
+      const cleaned = raw.replace(/^﻿/, '').trim();
+      const serviceAccount = JSON.parse(cleaned);
         this.app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
       } else {
         this.app = admin.apps[0];

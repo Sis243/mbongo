@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ExternalSmsAdapter } from './external-sms.adapter';
+import { BrevoSmsAdapter } from './brevo-sms.adapter';
 
 @Module({
   providers: [
-    ExternalSmsAdapter,
-    { provide: 'SMS_ADAPTER', useClass: ExternalSmsAdapter },
+    BrevoSmsAdapter,
+    { provide: 'SMS_ADAPTER', useClass: BrevoSmsAdapter },
   ],
   exports: ['SMS_ADAPTER'],
 })

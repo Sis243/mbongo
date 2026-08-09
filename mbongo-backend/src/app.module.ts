@@ -20,6 +20,7 @@ import { PaymentGatewayModule } from './payment-gateway/payment-gateway.module';
 import { CoreBankingModule } from './core-banking/core-banking.module';
 import { BillPayModule } from './bill-pay/bill-pay.module';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
+import { BrevoModule } from './common/brevo.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filte
     PaymentGatewayModule,
     CoreBankingModule,
     BillPayModule,
+    BrevoModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

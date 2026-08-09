@@ -393,6 +393,7 @@ async function main() {
     // UTILITY
     { category: 'UTILITY', name: 'SNEL',     description: 'Facture électricité SNEL',   referenceLabel: 'Numéro de compteur', currency: 'CDF', sortOrder: 1 },
     { category: 'UTILITY', name: 'REGIDESO', description: 'Facture eau REGIDESO',        referenceLabel: 'Numéro de compteur', currency: 'CDF', sortOrder: 2 },
+    { category: 'UTILITY', name: 'ANSER',    description: 'Facture électricité ANSER',   referenceLabel: 'Numéro de compteur', currency: 'CDF', sortOrder: 3 },
     // TELECOM
     { category: 'TELECOM', name: 'Airtel Airtime',   description: 'Recharge Airtel',        referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 1 },
     { category: 'TELECOM', name: 'Orange Airtime',   description: 'Recharge Orange',        referenceLabel: 'Numéro de téléphone', currency: 'CDF', sortOrder: 2 },

@@ -13,6 +13,7 @@ import { CreateMoneyRequestDto } from './dto/create-money-request.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { CreateTvPaymentDto } from './dto/create-tv-payment.dto';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import { CreateExchangeDto } from './dto/create-exchange.dto';
 import { TransactionsService } from './transactions.service';
 
 @ApiTags('Transactions')
@@ -251,6 +252,11 @@ export class TransactionsController {
       },
     });
     return { data: disputes };
+  }
+
+  @Post('exchange')
+  createExchange(@Body() body: CreateExchangeDto, @CurrentUser() user: JwtRequestUser) {
+    return this.transactionsService.createExchange({ ...body, userId: user.userId });
   }
 
   @Post('wallet-to-account')

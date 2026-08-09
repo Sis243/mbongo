@@ -1092,4 +1092,97 @@ export class TransactionsService {
     ]);
     return this.serializeTransaction(tx);
   }
+
+  // ── Échange de devises ────────────────────────────────────────────────────
+  async createExchange(body: { userId?: string; fromCurrency: string; toCurrency: string; amount: number; idempotencyKey?: string }) {
+    const userId = this.requireUserId(body.userId);
+    const from = body.fromCurrency.trim().toUpperCase();
+    const to = body.toCurrency.trim().toUpperCase();
+
+    if (from === to) throw new BadRequestException('Les devises source et cible doivent être différentes');
+
+    const [fromCur, toCur] = await Promise.all([
+      this.prisma.currency.findUnique({ where: { id: from } }),
+      this.prisma.currency.findUnique({ where: { id: to } }),
+    ]);
+
+    if (!fromCur || !toCur) throw new NotFoundException('Devise introuvable');
+    if (!fromCur.isEnabled || !toCur.isEnabled) throw new BadRequestException('Devise non disponible');
+
+    await this.assertKycApproved(userId);
+
+    const idempotencyKey = this.normalizeIdempotencyKey(body.idempotencyKey);
+    const existing = await this.findIdempotentTransaction(userId, idempotencyKey);
+    if (existing) return this.serializeTransaction(existing);
+
+    // Taux : chaque currency.rate = "unités de cette devise pour 1 USD"
+    // from → USD → to
+    const amountInUsd = body.amount / fromCur.rate;
+    const convertedAmount = Number((amountInUsd * toCur.rate).toFixed(2));
+    const appliedRate = Number((toCur.rate / fromCur.rate).toFixed(6));
+
+    // Le wallet est en CDF — le débit s'effectue en CDF
+    const cdfRate = (await this.prisma.currency.findUnique({ where: { id: 'CDF' } }))?.rate ?? 2800;
+    const cdfDebit = from === 'CDF'
+      ? body.amount
+      : Number((amountInUsd * cdfRate).toFixed(2));
+
+    const feeRule = await this.loadFeeRule('transfer');
+    const fee = this.calculateFee(cdfDebit, feeRule);
+    const totalDebit = Number((cdfDebit + fee).toFixed(2));
+
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundException('Wallet introuvable');
+    if (wallet.balance < totalDebit) throw new BadRequestException('Solde insuffisant (montant + frais)');
+
+    const createdTx = await this.prisma.$transaction(async (tx) => {
+      const fresh = await tx.wallet.findUnique({ where: { id: wallet.id } });
+      if (!fresh) throw new NotFoundException('Wallet introuvable');
+      const updated = await this.debitWallet(tx, fresh, totalDebit);
+
+      const transaction = await tx.transaction.create({
+        data: {
+          type: `EXCHANGE`,
+          status: 'SUCCESS',
+          amount: body.amount,
+          fee,
+          idempotencyKey: idempotencyKey ?? undefined,
+          senderId: userId,
+          reference: this.createReference('EXC'),
+          currency: from,
+          metadata: JSON.stringify({
+            fromCurrency: from,
+            toCurrency: to,
+            fromAmount: body.amount,
+            toAmount: convertedAmount,
+            appliedRate,
+          }),
+        },
+      });
+
+      await tx.walletLedgerEntry.create({
+        data: {
+          walletId: wallet.id,
+          transactionId: transaction.id,
+          entryType: 'EXCHANGE',
+          direction: 'DEBIT',
+          amount: cdfDebit,
+          balanceBefore: fresh.balance,
+          balanceAfter: updated.balance,
+          description: `Échange ${from} → ${to}`,
+          metadata: JSON.stringify({ fromCurrency: from, toCurrency: to, convertedAmount }),
+        },
+      });
+
+      return transaction;
+    });
+
+    return {
+      ...this.serializeTransaction(createdTx),
+      convertedAmount,
+      fromCurrency: from,
+      toCurrency: to,
+      appliedRate,
+    };
+  }
 }

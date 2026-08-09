@@ -540,6 +540,34 @@ export class BackofficeController {
     return this.backofficeService.changeAdminPin(admin.sub, body.currentPin, body.newPin);
   }
 
+  @Patch('admins/:id/email')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  updateAdminEmail(
+    @Param('id') id: string,
+    @Body() body: { email: string },
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    return this.backofficeService.updateAdminEmail(id, body.email ?? '', admin);
+  }
+
+  @Get('support/otp/:phone')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  getActiveOtp(@Param('phone') phone: string) {
+    return this.backofficeService.getActiveOtp(phone);
+  }
+
+  @Post('notifications/test-push')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  sendTestPush(
+    @Body() body: { userId?: string; token?: string; title?: string; body?: string },
+  ) {
+    return this.backofficeService.sendTestPush(
+      { userId: body.userId, token: body.token },
+      body.title ?? 'Test Mbongo',
+      body.body ?? 'Notification de test',
+    );
+  }
+
   /* ─── Bill-pay methods admin CRUD ─── */
 
   @Get('bill-pay-methods')

@@ -2946,6 +2946,61 @@ export class BackofficeService {
     return { changed: true };
   }
 
+  async updateAdminEmail(targetId: string, email: string, requester: AdminJwtPayload) {
+    const target = await this.prisma.adminUser.findUnique({ where: { id: targetId } });
+    if (!target) throw new NotFoundException('Admin introuvable');
+    const updated = await this.prisma.adminUser.update({
+      where: { id: targetId },
+      data: { email: email.trim().toLowerCase() || null },
+      select: { id: true, phone: true, email: true },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'ADMIN_EMAIL_UPDATED',
+        entityType: 'AdminUser',
+        entityId: targetId,
+        metadata: JSON.stringify({ by: requester.sub, phone: requester.phone, email }),
+      },
+    });
+    return updated;
+  }
+
+  async getActiveOtp(phone: string) {
+    const rows = await this.prisma.$queryRaw<{ code: string; purpose: string; expiresAt: Date; createdAt: Date }[]>`
+      SELECT "code", "purpose", "expiresAt", "createdAt"
+      FROM "OtpCode"
+      WHERE "phone" = ${phone} AND "used" = false AND "expiresAt" > NOW()
+      ORDER BY "createdAt" DESC
+      LIMIT 1
+    `;
+    if (!rows.length) return { found: false, phone };
+    const otp = rows[0];
+    return {
+      found: true,
+      phone,
+      code: otp.code,
+      purpose: otp.purpose,
+      expiresAt: otp.expiresAt,
+    };
+  }
+
+  async sendTestPush(target: { userId?: string; token?: string }, title: string, body: string) {
+    if (target.token) {
+      const result = await this.fcm.send({ token: target.token, title, body });
+      return { ...result, via: 'token' };
+    }
+    if (target.userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: target.userId },
+        select: { fcmToken: true, name: true, phone: true },
+      });
+      if (!user?.fcmToken) throw new NotFoundException('Utilisateur sans token FCM');
+      const result = await this.fcm.send({ token: user.fcmToken, title, body });
+      return { ...result, via: 'userId', user: { name: user.name, phone: user.phone } };
+    }
+    throw new BadRequestException('userId ou token requis');
+  }
+
   /* ─── Exchange rates (via Currency model) ─── */
 
   async listExchangeRates() {

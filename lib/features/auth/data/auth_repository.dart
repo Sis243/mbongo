@@ -122,9 +122,10 @@ class AuthRepository {
     });
   }
 
-  Future<AppUser> updateProfile({String? name}) async {
+  Future<AppUser> updateProfile({String? name, String? email}) async {
     final body = <String, dynamic>{};
     if (name != null && name.trim().isNotEmpty) body['name'] = name.trim();
+    if (email != null && email.trim().isNotEmpty) body['email'] = email.trim();
     final fresh = await _client.patch('/users/me', body);
     final updated = AppUser.fromMap(fresh);
     await _storage.saveCurrentUser(updated.toMap());

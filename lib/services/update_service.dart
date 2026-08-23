@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/theme/app_colors.dart';
 import '../services/api_service.dart';
@@ -125,7 +126,16 @@ class _UpdateDialog extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () async {
+                    final url = info.downloadUrl;
+                    if (url != null && url.isNotEmpty) {
+                      final uri = Uri.tryParse(url);
+                      if (uri != null && await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    }
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
                   icon: const Icon(Icons.download_rounded),
                   label: const Text('Mettre à jour'),
                   style: ElevatedButton.styleFrom(

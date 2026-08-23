@@ -32,6 +32,7 @@ class AppUser {
   final String id;
   final String name;
   final String phone;
+  final String? email;
   final String? kycStatus;
   final WalletInfo wallet;
 
@@ -39,6 +40,7 @@ class AppUser {
     required this.id,
     required this.name,
     required this.phone,
+    this.email,
     this.kycStatus,
     required this.wallet,
   });
@@ -51,6 +53,7 @@ class AppUser {
       id: map['id']?.toString() ?? '',
       name: map['name']?.toString() ?? '',
       phone: map['phone']?.toString() ?? '',
+      email: map['email']?.toString(),
       kycStatus: map['kycStatus']?.toString(),
       wallet: WalletInfo.fromMap(walletMap),
     );
@@ -60,6 +63,7 @@ class AppUser {
         'id': id,
         'name': name,
         'phone': phone,
+        if (email != null) 'email': email,
         'kycStatus': kycStatus,
         'wallet': wallet.toMap(),
       };

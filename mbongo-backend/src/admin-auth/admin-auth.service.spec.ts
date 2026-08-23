@@ -178,3 +178,84 @@ describe('AdminAuthService getMe', () => {
     await expect(service.getMe('admin-1')).rejects.toThrow('Session admin invalide');
   });
 });
+
+describe('AdminAuthService forgotPin', () => {
+  const makeService = (admin: unknown, brevoSpy?: jest.Mock) => {
+    const prisma = {
+      adminUser: { findUnique: jest.fn().mockResolvedValue(admin) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const jwt = { sign: jest.fn().mockReturnValue('reset-token') };
+    const brevo = brevoSpy ? { sendAdminPinResetEmail: brevoSpy } : undefined;
+    return { service: new AdminAuthService(prisma as never, jwt as never, brevo as never), prisma, jwt };
+  };
+
+  it('returns sent:false when admin has no email', async () => {
+    const { service } = makeService({ id: 'a1', isActive: true, email: null, phone: '+243000' });
+    await expect(service.forgotPin('+243000')).resolves.toEqual({ sent: false });
+  });
+
+  it('returns sent:false when admin not found', async () => {
+    const { service } = makeService(null);
+    await expect(service.forgotPin('+243000')).resolves.toEqual({ sent: false });
+  });
+
+  it('sends email and returns sent:true when admin has email', async () => {
+    const spy = jest.fn().mockResolvedValue(undefined);
+    const { service, prisma } = makeService(
+      { id: 'a1', isActive: true, email: 'admin@mbongo.cd', phone: '+243000' },
+      spy,
+    );
+
+    await expect(service.forgotPin('+243000')).resolves.toEqual({ sent: true });
+    expect(spy).toHaveBeenCalledWith('admin@mbongo.cd', '+243000', 'reset-token');
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'ADMIN_PIN_RESET_REQUESTED' }),
+      }),
+    );
+  });
+});
+
+describe('AdminAuthService resetPin', () => {
+  const makeService = (admin: unknown, jwtVerifyResult: unknown) => {
+    const prisma = {
+      adminUser: {
+        findUnique: jest.fn().mockResolvedValue(admin),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const jwt = { verify: jest.fn().mockReturnValue(jwtVerifyResult) };
+    return { service: new AdminAuthService(prisma as never, jwt as never), prisma };
+  };
+
+  it('throws when token is expired or invalid', async () => {
+    const prisma = { adminUser: {}, auditLog: {} };
+    const jwt = { verify: jest.fn().mockImplementation(() => { throw new Error('jwt expired'); }) };
+    const svc = new AdminAuthService(prisma as never, jwt as never);
+    await expect(svc.resetPin('bad-token', '1234')).rejects.toThrow('Lien de réinitialisation invalide ou expiré');
+  });
+
+  it('throws when token type is wrong', async () => {
+    const { service } = makeService(null, { sub: 'a1', type: 'wrong-type' });
+    await expect(service.resetPin('token', '1234')).rejects.toThrow('Lien de réinitialisation invalide');
+  });
+
+  it('updates pinHash and audits on valid token', async () => {
+    const { service, prisma } = makeService(
+      { id: 'a1', isActive: true, phone: '+243000' },
+      { sub: 'a1', type: 'admin-pin-reset' },
+    );
+
+    await expect(service.resetPin('valid-token', '5678')).resolves.toEqual({ success: true });
+    expect(prisma.adminUser.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'a1' } }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'ADMIN_PIN_RESET_DONE' }),
+      }),
+    );
+  });
+});

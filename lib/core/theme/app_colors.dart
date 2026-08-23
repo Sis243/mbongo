@@ -27,6 +27,11 @@ class AppColors {
   static const Color darkText = Color(0xFFE8EEF8);
   static const Color darkMuted = Color(0xFF8FADC8);
 
+  // Textes pour fond clair (thème blanc)
+  static const Color lightText = Color(0xFF0D1F3C);
+  static const Color lightSoft = Color(0xFF3D5A80);
+  static const Color lightMuted = Color(0xFF6B7E9B);
+
   static const Color border = Color(0xFF30476F);
   static const Color shadow = Color(0x22000000);
 

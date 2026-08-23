@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BackofficeService } from './backoffice.service';
 
 const admin = {
@@ -359,5 +359,92 @@ describe('BackofficeService agent cash operations', () => {
       'Aucune commission agent a payer',
     );
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('BackofficeService updateAdminEmail', () => {
+  const makeService = (adminExists: boolean) => {
+    const updated = { id: 'a1', phone: '+243000', email: 'new@mbongo.cd' };
+    const prisma = {
+      adminUser: {
+        findUnique: jest.fn().mockResolvedValue(adminExists ? { id: 'a1', phone: '+243000' } : null),
+        update: jest.fn().mockResolvedValue(updated),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    return { service: new BackofficeService(prisma as never, {} as never, {} as never, null as never), prisma };
+  };
+
+  it('throws NotFoundException when admin does not exist', async () => {
+    const { service } = makeService(false);
+    await expect(service.updateAdminEmail('a1', 'new@mbongo.cd', admin)).rejects.toThrow(NotFoundException);
+  });
+
+  it('updates email and creates audit log', async () => {
+    const { service, prisma } = makeService(true);
+    const result = await service.updateAdminEmail('a1', 'new@mbongo.cd', admin);
+    expect(prisma.adminUser.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'a1' }, data: { email: 'new@mbongo.cd' } }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'ADMIN_EMAIL_UPDATED' }) }),
+    );
+    expect(result).toMatchObject({ id: 'a1', email: 'new@mbongo.cd' });
+  });
+});
+
+describe('BackofficeService getActiveOtp', () => {
+  it('returns found:false when no active OTP exists', async () => {
+    const prisma = { $queryRaw: jest.fn().mockResolvedValue([]) };
+    const service = new BackofficeService(prisma as never, {} as never, {} as never, null as never);
+    await expect(service.getActiveOtp('+243000')).resolves.toEqual({ found: false, phone: '+243000' });
+  });
+
+  it('returns found:true with code when active OTP exists', async () => {
+    const exp = new Date(Date.now() + 300_000);
+    const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([
+        { code: '123456', purpose: 'login', expiresAt: exp, createdAt: new Date() },
+      ]),
+    };
+    const service = new BackofficeService(prisma as never, {} as never, {} as never, null as never);
+    await expect(service.getActiveOtp('+243000')).resolves.toMatchObject({
+      found: true, phone: '+243000', code: '123456', purpose: 'login',
+    });
+  });
+});
+
+describe('BackofficeService sendTestPush', () => {
+  const makeFcm = () => ({ send: jest.fn().mockResolvedValue({ messageId: 'msg-1' }) });
+
+  it('sends directly by token and tags via:token', async () => {
+    const fcm = makeFcm();
+    const prisma = {};
+    const service = new BackofficeService(prisma as never, {} as never, fcm as never, null as never);
+    const result = await service.sendTestPush({ token: 'fcm-abc' }, 'Test', 'Body');
+    expect(fcm.send).toHaveBeenCalledWith({ token: 'fcm-abc', title: 'Test', body: 'Body' });
+    expect(result).toMatchObject({ via: 'token', messageId: 'msg-1' });
+  });
+
+  it('looks up user FCM token and tags via:userId', async () => {
+    const fcm = makeFcm();
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({ fcmToken: 'fcm-xyz', name: 'Alice', phone: '+243999' }) },
+    };
+    const service = new BackofficeService(prisma as never, {} as never, fcm as never, null as never);
+    const result = await service.sendTestPush({ userId: 'u1' }, 'Hello', 'World');
+    expect(fcm.send).toHaveBeenCalledWith({ token: 'fcm-xyz', title: 'Hello', body: 'World' });
+    expect(result).toMatchObject({ via: 'userId', user: { name: 'Alice' } });
+  });
+
+  it('throws NotFoundException when user has no FCM token', async () => {
+    const prisma = { user: { findUnique: jest.fn().mockResolvedValue({ fcmToken: null }) } };
+    const service = new BackofficeService(prisma as never, {} as never, makeFcm() as never, null as never);
+    await expect(service.sendTestPush({ userId: 'u1' }, 'T', 'B')).rejects.toThrow(NotFoundException);
+  });
+
+  it('throws BadRequestException when neither token nor userId is given', async () => {
+    const service = new BackofficeService({} as never, {} as never, makeFcm() as never, null as never);
+    await expect(service.sendTestPush({}, 'T', 'B')).rejects.toThrow(BadRequestException);
   });
 });

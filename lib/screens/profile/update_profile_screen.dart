@@ -16,6 +16,7 @@ class UpdateProfileScreen extends ConsumerStatefulWidget {
 
 class _UpdateProfileScreenState extends ConsumerState<UpdateProfileScreen> {
   late final TextEditingController _nameCtrl;
+  late final TextEditingController _emailCtrl;
   bool _saving = false;
 
   @override
@@ -23,16 +24,19 @@ class _UpdateProfileScreenState extends ConsumerState<UpdateProfileScreen> {
     super.initState();
     final current = ref.read(authProvider).valueOrNull;
     _nameCtrl = TextEditingController(text: current?.name ?? '');
+    _emailCtrl = TextEditingController(text: current?.email ?? '');
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
     if (name.isEmpty) {
       _toast('Veuillez saisir votre nom.');
       return;
@@ -40,7 +44,10 @@ class _UpdateProfileScreenState extends ConsumerState<UpdateProfileScreen> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(authProvider.notifier).updateProfile(name: name);
+      await ref.read(authProvider.notifier).updateProfile(
+            name: name,
+            email: email.isNotEmpty ? email : null,
+          );
       if (!mounted) return;
       _toast('Profil mis a jour.');
       Navigator.pop(context);
@@ -209,6 +216,30 @@ class _UpdateProfileScreenState extends ConsumerState<UpdateProfileScreen> {
                           labelText: 'Nom complet',
                           labelStyle: const TextStyle(color: AppColors.muted),
                           prefixIcon: Icon(Icons.person_outline_rounded, color: palette.accent),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.24)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: palette.accent, width: 1.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: palette.panel,
+                          labelText: 'Adresse e-mail (optionnel)',
+                          labelStyle: const TextStyle(color: AppColors.muted),
+                          prefixIcon: Icon(Icons.email_outlined, color: palette.accent),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
                             borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.24)),

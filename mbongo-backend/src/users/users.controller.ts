@@ -94,6 +94,32 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  async updateMe(
+    @CurrentUser() user: JwtRequestUser,
+    @Body() body: { name?: string; email?: string },
+  ) {
+    const update: { name?: string; email?: string | null } = {};
+
+    if (body.name !== undefined) {
+      const name = body.name?.trim() ?? '';
+      if (!name || name.length < 2) throw new BadRequestException('Nom invalide (minimum 2 caracteres)');
+      if (name.length > 100) throw new BadRequestException('Nom trop long (maximum 100 caracteres)');
+      update.name = name;
+    }
+
+    if (body.email !== undefined) {
+      const email = body.email?.trim() ?? '';
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new BadRequestException('Adresse email invalide');
+      }
+      update.email = email || null;
+    }
+
+    return this.usersService.updateProfile(user.userId, update);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('me/backup-phone')
   async getBackupPhone(@CurrentUser() user: JwtRequestUser) {
     const u = await this.prisma.user.findUnique({

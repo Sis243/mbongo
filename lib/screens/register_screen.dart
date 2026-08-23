@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/api/dio_client.dart' as dio_client;
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../core/utils/phone_validator.dart';
@@ -176,7 +177,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() => loading = false);
-        if (e is ApiException) {
+        if (e is dio_client.ApiException) {
           _toast(e.message);
         } else {
           _toast('Création du compte impossible. Vérifiez votre connexion et réessayez.');
@@ -1414,13 +1415,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ? _pdfPreview(file.path)
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.file(File(file.path), height: 86, width: double.infinity, fit: BoxFit.cover),
+                    child: Image.file(File(file.path), height: 220, width: double.infinity, fit: BoxFit.cover),
                   )
           else
             Container(
-              height: 86, width: double.infinity,
+              height: 220, width: double.infinity,
               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.04), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.badge_outlined, color: AppColors.textSoft),
+              child: const Icon(Icons.badge_outlined, size: 48, color: AppColors.textSoft),
             ),
           const SizedBox(height: 10),
           SizedBox(

@@ -45,6 +45,8 @@ dependencies:
   shimmer: ^3.0.0
   # Version check
   package_info_plus: ^8.0.0
+  # URL launcher (store updates, liens externes)
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

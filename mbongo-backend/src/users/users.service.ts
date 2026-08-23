@@ -31,15 +31,10 @@ export class UsersService {
         email,
         pinHash,
         ...(fcmToken && { fcmToken }),
-        wallet: {
-          create: {
-            balance: 0,
-          },
-        },
+        wallet: { create: { balance: 0 } },
+        kycSubmissions: { create: { status: 'DRAFT' } },
       },
-      include: {
-        wallet: true,
-      },
+      include: { wallet: true },
     });
 
     return this.toPublicUser(user);
@@ -104,6 +99,16 @@ export class UsersService {
     });
 
     return user ? this.toPublicUser(user) : null;
+  }
+
+  async updateProfile(userId: string, update: { name?: string; email?: string | null }) {
+    if (Object.keys(update).length === 0) return this.getOne(userId);
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: update,
+      include: { wallet: true },
+    });
+    return this.toPublicUser(user);
   }
 
   toPublicUser<T extends { pinHash?: string }>(user: T) {

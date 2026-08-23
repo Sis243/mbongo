@@ -64,6 +64,7 @@ interface TopupAdminVirtualCardPayload {
 interface ReviewKycPayload {
   status: 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
+  userType?: 'CLIENT' | 'AGENT' | 'MERCHANT';
 }
 
 interface UpdateUserStatusPayload {
@@ -491,6 +492,86 @@ export class BackofficeService {
     });
   }
 
+  async forceApproveKyc(
+    userId: string,
+    body: { userType?: 'CLIENT' | 'AGENT' | 'MERCHANT'; documentType?: string },
+    admin: AdminJwtPayload,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, phone: true, email: true, fcmToken: true },
+    });
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+
+    // Annuler tout dossier SUBMITTED existant avant de créer le nouveau
+    await this.prisma.kycSubmission.updateMany({
+      where: { userId, status: 'SUBMITTED' },
+      data: { status: 'DRAFT' },
+    });
+
+    const userType = body.userType ?? 'CLIENT';
+
+    const submission = await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const created = await tx.kycSubmission.create({
+        data: {
+          userId,
+          status: 'APPROVED',
+          documentType: body.documentType?.trim() || 'Approbation manuelle',
+          submittedAt: now,
+          reviewedAt: now,
+          reviewedBy: admin.sub,
+        },
+      });
+
+      if (userType === 'AGENT') {
+        const existing = await tx.cashAgent.findFirst({ where: { phone: user.phone } });
+        if (!existing) {
+          const code = `AGT-${user.phone.replace(/^0+/, '').slice(0, 9)}`;
+          await tx.cashAgent.create({ data: { code, name: user.name, phone: user.phone } });
+        }
+      } else if (userType === 'MERCHANT') {
+        const existing = await tx.merchant.findFirst({ where: { phone: user.phone } });
+        if (!existing) {
+          await tx.merchant.create({ data: { name: user.name, phone: user.phone } });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          action: 'KYC_APPROVED',
+          entityType: 'KycSubmission',
+          entityId: created.id,
+          metadata: JSON.stringify({
+            adminId: admin.sub,
+            adminPhone: admin.phone,
+            userId,
+            userPhone: user.phone,
+            method: 'force_approve',
+            userType,
+          }),
+        },
+      });
+
+      return created;
+    });
+
+    if (user.fcmToken) {
+      this.fcm.send({
+        token: user.fcmToken,
+        title: 'Compte vérifié ✓',
+        body: 'Votre identité a été vérifiée. Votre compte MBONGO est maintenant actif.',
+        data: { type: 'KYC_REVIEW', status: 'APPROVED', submissionId: submission.id },
+      }).catch(() => {});
+    }
+
+    if (user.email && this.brevoEmail) {
+      this.brevoEmail.sendKycStatusEmail(user.email, user.name, 'APPROVED').catch(() => {});
+    }
+
+    return submission;
+  }
+
   async listKycSubmissions(page?: number, limit?: number) {
     // fileUrl exclu de la liste pour éviter les base64 volumineux — l'admin
     // preview passe par un endpoint dédié ou via l'URL Firebase directe.
@@ -578,7 +659,7 @@ export class BackofficeService {
         },
         include: {
           documents: {
-            select: { id: true, side: true, fileMimeType: true, fileUrl: false },
+            select: { id: true, side: true, fileMimeType: true, fileUrl: true },
           },
           user: {
             select: {
@@ -591,6 +672,29 @@ export class BackofficeService {
           },
         },
       });
+
+      // Assigner le rôle agent ou marchand si demandé lors de l'approbation
+      if (body.status === 'APPROVED') {
+        const userPhone = submission.user.phone;
+        const userName = submission.user.name;
+
+        if (body.userType === 'AGENT') {
+          const existing = await tx.cashAgent.findFirst({ where: { phone: userPhone } });
+          if (!existing) {
+            const code = `AGT-${userPhone.replace(/^0+/, '').slice(0, 9)}`;
+            await tx.cashAgent.create({
+              data: { code, name: userName, phone: userPhone },
+            });
+          }
+        } else if (body.userType === 'MERCHANT') {
+          const existing = await tx.merchant.findFirst({ where: { phone: userPhone } });
+          if (!existing) {
+            await tx.merchant.create({
+              data: { name: userName, phone: userPhone },
+            });
+          }
+        }
+      }
 
       await tx.auditLog.create({
         data: {
@@ -605,6 +709,7 @@ export class BackofficeService {
             previousStatus: submission.status,
             nextStatus: body.status,
             rejectionReason: reviewedSubmission.rejectionReason,
+            userType: body.userType ?? 'CLIENT',
           }),
         },
       });
@@ -3076,5 +3181,97 @@ export class BackofficeService {
     if (!existing) throw new NotFoundException('Méthode de paiement introuvable');
     await this.prisma.billPayMethod.delete({ where: { id } });
     return { success: true };
+  }
+
+  async creditUserWallet(
+    userId: string,
+    body: { amount: number; currency?: string; reason: string },
+    admin: AdminJwtPayload,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { wallet: true },
+    });
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    if (!user.wallet) throw new NotFoundException('Wallet introuvable');
+
+    const currency = body.currency ?? 'CDF';
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.create({
+        data: {
+          type: 'ADMIN_CREDIT',
+          status: 'SUCCESS',
+          amount: body.amount,
+          fee: 0,
+          currency,
+          receiverId: userId,
+          reference: `ADM-${Date.now()}`,
+          metadata: JSON.stringify({
+            reason: body.reason,
+            adminId: admin.sub,
+            adminPhone: admin.phone,
+          }),
+        },
+      });
+
+      const balanceBefore = user.wallet!.balance;
+      const balanceAfter = balanceBefore + body.amount;
+
+      const updatedWallet = await tx.wallet.update({
+        where: { id: user.wallet!.id },
+        data: { balance: balanceAfter },
+      });
+
+      await tx.walletLedgerEntry.create({
+        data: {
+          walletId: user.wallet!.id,
+          transactionId: transaction.id,
+          entryType: 'ADMIN_CREDIT',
+          direction: 'CREDIT',
+          amount: body.amount,
+          balanceBefore,
+          balanceAfter,
+          description: body.reason,
+          metadata: JSON.stringify({ adminId: admin.sub }),
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: 'WALLET_CREDIT',
+          entityType: 'User',
+          entityId: userId,
+          metadata: JSON.stringify({
+            adminId: admin.sub,
+            adminPhone: admin.phone,
+            amount: body.amount,
+            currency,
+            reason: body.reason,
+            balanceBefore,
+            balanceAfter,
+          }),
+        },
+      });
+
+      return { transaction, wallet: updatedWallet };
+    });
+
+    if (user.fcmToken) {
+      this.fcm
+        .send({
+          token: user.fcmToken,
+          title: 'Crédit reçu',
+          body: `Votre compte a été crédité de ${body.amount.toLocaleString()} ${currency}`,
+          data: { type: 'ADMIN_CREDIT', amount: String(body.amount) },
+        })
+        .catch(() => undefined);
+    }
+
+    return {
+      success: true,
+      transactionId: result.transaction.id,
+      newBalance: result.wallet.balance,
+    };
   }
 }

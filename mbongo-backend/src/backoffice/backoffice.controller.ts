@@ -12,6 +12,7 @@ import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { CreateAdminVirtualCardDto } from './dto/create-admin-virtual-card.dto';
 import { OnboardTerminalDto } from './dto/onboard-terminal.dto';
 import { reviewKycSchema, type ReviewKycDto } from './dto/review-kyc.dto';
+import { CreditWalletDto } from './dto/credit-wallet.dto';
 import { SettleCashAgentCommissionDto } from './dto/settle-cash-agent-commission.dto';
 import { TopupAdminVirtualCardDto } from './dto/topup-admin-virtual-card.dto';
 import { UpdateAdminRolesDto } from './dto/update-admin-roles.dto';
@@ -65,6 +66,16 @@ export class BackofficeController {
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
     return this.backofficeService.updateUserStatus(id, body, admin);
+  }
+
+  @Post('kyc/force-approve/:userId')
+  @RequireAdminPermissions('REVIEW_KYC')
+  forceApproveKyc(
+    @Param('userId') userId: string,
+    @Body() body: { userType?: 'CLIENT' | 'AGENT' | 'MERCHANT'; documentType?: string },
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    return this.backofficeService.forceApproveKyc(userId, body, admin);
   }
 
   @Get('kyc')
@@ -610,6 +621,16 @@ export class BackofficeController {
   @RequireAdminPermissions('MANAGE_SETTINGS')
   deleteBillPayMethod(@Param('id') id: string) {
     return this.backofficeService.deleteBillPayMethod(id);
+  }
+
+  @Post('wallets/:userId/credit')
+  @RequireAdminPermissions('MANAGE_TRANSACTIONS')
+  creditUserWallet(
+    @Param('userId') userId: string,
+    @Body() body: CreditWalletDto,
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    return this.backofficeService.creditUserWallet(userId, body, admin);
   }
 }
 

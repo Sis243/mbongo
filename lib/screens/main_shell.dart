@@ -34,7 +34,6 @@ class _MainShellState extends ConsumerState<MainShell> {
   Timer? _reconnectedTimer;
   // 0 = user, 1 = merchant, 2 = agent
   int _roleMode = 0;
-  bool _roleChecked = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   StreamSubscription<int>? _notificationNavSub;
   StreamSubscription<void>? _sessionExpiredSub;
@@ -110,23 +109,22 @@ class _MainShellState extends ConsumerState<MainShell> {
   Future<void> _checkRoles() async {
     try {
       final log = await ApiService.getAgentProfitLog()
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 3));
       final agentCode = log['agentCode']?.toString() ?? log['data']?['agentCode']?.toString();
       if (agentCode != null && agentCode.isNotEmpty && mounted) {
-        setState(() { _roleMode = 2; _roleChecked = true; });
+        setState(() => _roleMode = 2);
         return;
       }
     } catch (_) {}
     try {
       final me = await ApiService.getMyMerchantProfile()
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 3));
       final isMerchant = me['isMerchant'] == true || me['data']?['isMerchant'] == true;
       if (isMerchant && mounted) {
-        setState(() { _roleMode = 1; _roleChecked = true; });
+        setState(() => _roleMode = 1);
         return;
       }
     } catch (_) {}
-    if (mounted) setState(() => _roleChecked = true);
   }
 
   static const _securityChannel = MethodChannel('com.mbongo.app/security');
@@ -185,9 +183,6 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_roleChecked) {
-      return const _RoleLoadingScreen();
-    }
     final Widget shell;
     if (_roleMode == 1) {
       shell = const MerchantShell();
@@ -427,75 +422,3 @@ class _ShellBackdrop extends StatelessWidget {
   }
 }
 
-class _RoleLoadingScreen extends StatelessWidget {
-  const _RoleLoadingScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MbongoThemeController.current;
-    return Scaffold(
-      backgroundColor: palette.shellBottom,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [palette.shellTop, palette.shellBottom],
-                ),
-              ),
-            ),
-          ),
-          IgnorePointer(
-            child: MbongoMoneyParticles(
-              color: palette.accent,
-              count: 18,
-              opacity: 0.10,
-              height: 0,
-            ),
-          ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: palette.panel,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Image.asset('assets/icon/mbongo.png', fit: BoxFit.contain),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.4,
-                    color: palette.accent,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Chargement...',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

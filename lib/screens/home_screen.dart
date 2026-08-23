@@ -30,6 +30,7 @@ import 'withdraw/withdraw_screen.dart';
 import 'bill_pay/bill_pay_screen.dart';
 import 'profile/share_profile_screen.dart';
 import 'qr/qr_scan_router.dart';
+import '../services/kyc_guard_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -738,7 +739,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final screen = _screenForService(title);
     if (screen == null) return;
 
-    // KYC guard temporairement désactivé pour présentation
+    const infoScreens = ['Taux', 'Mon QR'];
+    final needsKyc = !infoScreens.any((s) => title.contains(s));
+
+    if (needsKyc) {
+      final access = await KycGuardService.sensitiveOperationAccess();
+      if (!access.allowed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(access.message),
+          backgroundColor: const Color(0xFFC44040),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+        return;
+      }
+    }
 
     if (!mounted) return;
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));

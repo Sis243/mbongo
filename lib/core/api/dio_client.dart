@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io' show File;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +21,9 @@ class ApiException implements Exception {
 }
 
 class DioClient {
+  static final _sessionExpiredCtrl = StreamController<void>.broadcast();
+  static Stream<void> get sessionExpiredStream => _sessionExpiredCtrl.stream;
+
   final AppStorage _storage;
   late final Dio _dio;
   late final Dio _refreshDio;
@@ -76,7 +82,11 @@ class DioClient {
     bool auth = true,
   }) async {
     try {
-      final r = await _dio.post<dynamic>(path, data: body);
+      final r = await _dio.post<dynamic>(
+        path,
+        data: body,
+        options: auth ? null : Options(extra: {'skipAuth': true}),
+      );
       return _wrap(r.data);
     } on DioException catch (e) {
       throw _toApiException(e);
@@ -89,6 +99,39 @@ class DioClient {
   ) async {
     try {
       final r = await _dio.patch<dynamic>(path, data: body);
+      return _wrap(r.data);
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> delete(String path) async {
+    try {
+      final r = await _dio.delete<dynamic>(path);
+      return _wrap(r.data);
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required Map<String, String> fields,
+    required Map<String, File> files,
+  }) async {
+    try {
+      final formData = FormData();
+      fields.forEach((key, value) => formData.fields.add(MapEntry(key, value)));
+      for (final entry in files.entries) {
+        formData.files.add(MapEntry(
+          entry.key,
+          await MultipartFile.fromFile(
+            entry.value.path,
+            filename: entry.value.uri.pathSegments.last,
+          ),
+        ));
+      }
+      final r = await _dio.post<dynamic>(path, data: formData);
       return _wrap(r.data);
     } on DioException catch (e) {
       throw _toApiException(e);
@@ -141,10 +184,17 @@ class _AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = await _storage.getAccessToken();
-    if (token != null && token.isNotEmpty) {
-      options.headers['Authorization'] = 'Bearer $token';
+    if (options.extra['skipAuth'] == true) {
+      handler.next(options);
+      return;
     }
+    try {
+      final token = await _storage.getAccessToken()
+          .timeout(const Duration(seconds: 4));
+      if (token != null && token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
+    } catch (_) {}
     handler.next(options);
   }
 
@@ -189,6 +239,7 @@ class _AuthInterceptor extends Interceptor {
       }
     } catch (_) {
       await _storage.clearSession();
+      DioClient._sessionExpiredCtrl.add(null);
       handler.next(err);
       for (final p in _queue) {
         p.handler.next(err);

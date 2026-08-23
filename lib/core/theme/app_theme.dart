@@ -31,9 +31,9 @@ class AppTheme {
 
   static ThemeData light({bool darkMode = true}) {
     final palette = MbongoThemeController.current;
-    final textColor = darkMode ? AppColors.text : AppColors.darkText;
-    final softTextColor = darkMode ? AppColors.textSoft : AppColors.darkMuted;
-    final mutedColor = darkMode ? AppColors.muted : AppColors.darkMuted;
+    final textColor = darkMode ? AppColors.text : AppColors.lightText;
+    final softTextColor = darkMode ? AppColors.textSoft : AppColors.lightSoft;
+    final mutedColor = darkMode ? AppColors.muted : AppColors.lightMuted;
     final fieldFill = darkMode
         ? Colors.white.withValues(alpha: 0.05)
         : Colors.white.withValues(alpha: 0.92);

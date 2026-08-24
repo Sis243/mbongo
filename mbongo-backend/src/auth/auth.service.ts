@@ -126,6 +126,37 @@ export class AuthService {
     return { success: true };
   }
 
+  async loginWithOtp(
+    { phone, code, fcmToken }: { phone: string; code: string; fcmToken?: string },
+    metadata: AuthRequestMetadata = {},
+  ) {
+    const otps = await this.prisma.$queryRaw<{ id: string; expiresAt: Date }[]>`
+      SELECT "id", "expiresAt" FROM "OtpCode"
+      WHERE "phone" = ${phone} AND "code" = ${code} AND "purpose" = 'login' AND "used" = false
+      ORDER BY "createdAt" DESC LIMIT 1
+    `;
+    if (!otps.length) throw new UnauthorizedException('Code invalide ou expiré');
+    if (new Date() > new Date(otps[0].expiresAt)) throw new UnauthorizedException('Code expiré');
+
+    await this.prisma.$executeRaw`UPDATE "OtpCode" SET "used" = true WHERE "id" = ${otps[0].id}`;
+
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+      include: { wallet: true },
+    });
+    if (!user) throw new UnauthorizedException('Utilisateur introuvable');
+
+    if (fcmToken) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { fcmToken } });
+    }
+
+    const tokens = await this.issueTokens(user as AuthenticatedUser, metadata);
+    return {
+      user: this.usersService.toPublicUser(user),
+      tokens,
+    };
+  }
+
   async resetPin({ phone, code, newPin }: { phone: string; code: string; newPin: string }) {
     const otps = await this.prisma.$queryRaw<{ id: string; expiresAt: Date }[]>`
       SELECT "id", "expiresAt" FROM "OtpCode"

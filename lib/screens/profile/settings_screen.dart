@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/storage/app_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../services/auth_service.dart';
+import '../../services/biometric_service.dart';
 import '../../widgets/common/app_scaffold.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -28,6 +30,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool transactionSounds = true;
   String selectedLanguage = 'Francais';
   String selectedTheme = 'cadeco';
+  bool biometricEnabled = false;
+  bool biometricAvailable = false;
+  String biometricLabel = 'Biometrie';
 
   @override
   void initState() {
@@ -42,9 +47,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
     selectedLanguage = await AuthService.getSelectedLanguage();
     selectedTheme = await AuthService.getSelectedTheme();
     MbongoThemeController.setTheme(selectedTheme);
+    biometricAvailable = await BiometricService.canCheck();
+    biometricEnabled = await AuthService.isBiometricEnabled() && biometricAvailable;
+    biometricLabel = await BiometricService.securityLabel();
 
     if (!mounted) return;
     setState(() => _loading = false);
+  }
+
+  Future<void> _setBiometric(bool value) async {
+    if (value) {
+      // Require biometric auth before enabling
+      final ok = await BiometricService.authenticate();
+      if (!ok || !mounted) return;
+      // Need PIN to save credentials — ask via dialog
+      final pin = await _askPinDialog();
+      if (pin == null || pin.isEmpty) return;
+      final creds = await AppStorage().getBioCredentials();
+      final phone = creds.phone ?? await AppStorage().getLastPhone() ?? '';
+      if (phone.isEmpty) {
+        if (mounted) _snack('Impossible de récupérer votre numéro. Reconnectez-vous.');
+        return;
+      }
+      await AppStorage().saveBioCredentials(phone, pin);
+      await AuthService.setBiometricEnabled(true);
+    } else {
+      await AppStorage().clearBioCredentials();
+      await AuthService.setBiometricEnabled(false);
+    }
+    if (!mounted) return;
+    setState(() => biometricEnabled = value);
+  }
+
+  Future<String?> _askPinDialog() async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MbongoThemeController.current.panel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Confirmer votre PIN', style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w900)),
+        content: TextField(
+          controller: ctrl,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Code PIN', prefixIcon: Icon(Icons.lock_outline)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Confirmer')),
+        ],
+      ),
+    );
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _setNotifications(bool value) async {
@@ -151,6 +210,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }).toList(),
                   ),
                 ),
+                if (biometricAvailable) ...[
+                  const SizedBox(height: 14),
+                  _band(
+                    title: 'Securite',
+                    child: _switchTile(
+                      title: biometricLabel,
+                      subtitle: 'Connexion rapide sans saisir le PIN a chaque ouverture',
+                      value: biometricEnabled,
+                      onChanged: _setBiometric,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 _band(
                   title: 'Canaux',

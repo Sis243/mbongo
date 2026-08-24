@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/mbongo_theme.dart';
 import '../features/auth/presentation/auth_notifier.dart';
-import '../services/api_service.dart';
 import '../widgets/common/app_scaffold.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
@@ -30,11 +28,9 @@ class OtpScreen extends ConsumerStatefulWidget {
 
 class _OtpScreenState extends ConsumerState<OtpScreen> {
   final otpCtrl = TextEditingController();
-  final pinCtrl = TextEditingController();
   bool loading = false;
-  bool otpVerified = false;
 
-  Future<void> _verifyOtp() async {
+  Future<void> _verifyAndLogin() async {
     final code = otpCtrl.text.trim();
     if (code.length < 4) {
       _snack('Entrez le code de vérification reçu.');
@@ -42,39 +38,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     }
     setState(() => loading = true);
     try {
-      final result = await ApiService.verifyOtp(widget.phone, code, purpose: 'login');
-      final valid = result['valid'] == true;
-      if (!mounted) return;
-      if (valid) {
-        setState(() => otpVerified = true);
-      } else {
-        _snack(result['reason']?.toString() ?? 'Code invalide ou expiré.');
-      }
+      await ref.read(authProvider.notifier).loginWithOtp(
+        phone: widget.phone,
+        code: code,
+      );
+      // GoRouter redirige automatiquement quand authProvider passe en AsyncData(user)
     } catch (e) {
       if (!mounted) return;
-      _snack('Erreur: ${e.toString()}');
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
-  }
-
-  Future<void> _loginWithPin() async {
-    final pin = pinCtrl.text.trim();
-    if (pin.isEmpty) {
-      _snack('Entrez votre code PIN.');
-      return;
-    }
-    setState(() => loading = true);
-    try {
-      await ref.read(authProvider.notifier).login(
-            phone: widget.phone,
-            pin: pin,
-          );
-      if (!mounted) return;
-      context.go('/home');
-    } catch (e) {
-      if (!mounted) return;
-      _snack(e.toString());
+      _snack('Code invalide ou expiré. Renvoyez un nouveau code.');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -87,7 +58,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   @override
   void dispose() {
     otpCtrl.dispose();
-    pinCtrl.dispose();
     super.dispose();
   }
 
@@ -97,14 +67,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final displayPhone = widget.phone.isEmpty ? '—' : widget.phone;
 
     return AppScaffold(
-      title: otpVerified ? 'Code PIN' : 'Vérification OTP',
+      title: 'Vérification OTP',
       useParticles: true,
       particleDensity: 0.85,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // SMS failure banner
-          if (widget.smsFailed && widget.testCode == null && !otpVerified) ...[
+          if (widget.smsFailed && widget.testCode == null) ...[
             Container(
               padding: const EdgeInsets.all(14),
               margin: const EdgeInsets.only(bottom: 14),
@@ -120,11 +89,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   Expanded(
                     child: Text(
                       'SMS indisponible. Contactez le support Mbongo pour obtenir votre code.',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700, fontSize: 13),
                     ),
                   ),
                 ],
@@ -132,8 +97,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             ),
           ],
 
-          // Test mode banner
-          if (widget.testCode != null && !otpVerified) ...[
+          if (widget.testCode != null) ...[
             Container(
               padding: const EdgeInsets.all(14),
               margin: const EdgeInsets.only(bottom: 14),
@@ -150,24 +114,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Mode TEST — code visible',
-                          style: TextStyle(
-                            color: AppColors.gold,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
+                        const Text('Mode TEST — code visible', style: TextStyle(color: AppColors.gold, fontWeight: FontWeight.w800, fontSize: 12)),
                         const SizedBox(height: 2),
-                        Text(
-                          'Code : ${widget.testCode}',
-                          style: const TextStyle(
-                            color: AppColors.text,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                            letterSpacing: 4,
-                          ),
-                        ),
+                        Text('Code : ${widget.testCode}', style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 4)),
                       ],
                     ),
                   ),
@@ -179,36 +128,16 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: palette.bannerGradient,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: LinearGradient(colors: palette.bannerGradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  otpVerified ? 'Entrez votre PIN' : 'Code de vérification',
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                const Text('Code de vérification', style: TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 6),
-                Text(
-                  otpVerified
-                      ? 'Code OTP validé. Entrez votre PIN pour finaliser la connexion.'
-                      : 'Entrez le code envoyé pour le numéro $displayPhone.',
-                  style: const TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text('Entrez le code envoyé au $displayPhone.', style: const TextStyle(color: AppColors.textSoft, fontSize: 13, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -220,76 +149,52 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               color: palette.panelAlt,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
-              boxShadow: const [
-                BoxShadow(color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 5)),
-              ],
+              boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 5))],
             ),
             child: Column(
               children: [
-                if (!otpVerified) ...[
-                  TextField(
-                    controller: otpCtrl,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 6,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: '— — — — — —',
-                      labelText: 'Code OTP (6 chiffres)',
-                      prefixIcon: Icon(Icons.sms_outlined),
-                      counterText: '',
-                    ),
+                TextField(
+                  controller: otpCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  autofocus: true,
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 8),
+                  decoration: const InputDecoration(
+                    hintText: '— — — — — —',
+                    labelText: 'Code OTP (6 chiffres)',
+                    prefixIcon: Icon(Icons.sms_outlined),
+                    counterText: '',
                   ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: loading ? null : _verifyOtp,
-                      child: loading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Vérifier le code'),
-                    ),
+                  onSubmitted: (_) => _verifyAndLogin(),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: loading ? null : _verifyAndLogin,
+                    child: loading
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2.5))
+                        : const Text('Se connecter'),
                   ),
-                ] else ...[
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: AppColors.green,
-                    size: 36,
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: pinCtrl,
-                    keyboardType: TextInputType.number,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Code PIN',
-                      labelText: 'Code PIN',
-                      prefixIcon: Icon(Icons.lock_outline),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: loading ? null : _loginWithPin,
-                      child: loading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Se connecter'),
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.timer_outlined, color: AppColors.gold, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Le code est valable 5 minutes.', style: TextStyle(color: AppColors.textSoft, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
           ),

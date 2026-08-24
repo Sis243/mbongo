@@ -18,6 +18,7 @@ class AppStorage {
   static const _kUser = 'mb_current_user';
   static const _kBioPhone = 'mb_bio_phone';
   static const _kBioPin = 'mb_bio_pin';
+  static const _kLastPhone = 'mb_last_phone';
 
   Future<void> saveSession({
     required String accessToken,
@@ -75,4 +76,9 @@ class AppStorage {
         _storage.delete(key: _kBioPhone),
         _storage.delete(key: _kBioPin),
       ]).then((_) {});
+
+  Future<void> saveLastPhone(String phone) =>
+      _storage.write(key: _kLastPhone, value: phone);
+
+  Future<String?> getLastPhone() => _storage.read(key: _kLastPhone);
 }

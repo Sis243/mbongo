@@ -51,6 +51,17 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     state = const AsyncData(null);
   }
 
+  Future<void> loginWithOtp({required String phone, required String code}) async {
+    state = const AsyncLoading();
+    try {
+      final user = await ref.read(authRepositoryProvider).loginWithOtp(phone: phone, code: code);
+      state = AsyncData(user);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
   Future<void> changePin({required String currentPin, required String newPin}) async {
     await ref.read(authRepositoryProvider).changePin(
           currentPin: currentPin,

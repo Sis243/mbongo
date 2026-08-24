@@ -115,6 +115,33 @@ class AuthRepository {
     await _storage.clearSession();
   }
 
+  Future<AppUser> loginWithOtp({required String phone, required String code}) async {
+    final fcmToken = await _getFcmToken();
+    final data = await _client.post(
+      '/auth/login-otp',
+      {'phone': phone, 'code': code, if (fcmToken != null) 'fcmToken': fcmToken},
+      auth: false,
+    );
+
+    final tokens = (data['tokens'] as Map?)?.cast<String, dynamic>() ?? {};
+    final accessToken = (tokens['accessToken'] ?? data['accessToken']) as String? ?? '';
+    final refreshToken = (tokens['refreshToken'] ?? data['refreshToken']) as String? ?? '';
+    final userMap = Map<String, dynamic>.from(
+      (data['user'] as Map?)?.cast<String, dynamic>() ?? data,
+    );
+
+    final user = AppUser.fromMap(userMap);
+    try {
+      await _storage.saveSession(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        user: user.toMap(),
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {}
+
+    return user;
+  }
+
   Future<void> changePin({required String currentPin, required String newPin}) async {
     await _client.post('/auth/change-pin', {
       'currentPin': currentPin,

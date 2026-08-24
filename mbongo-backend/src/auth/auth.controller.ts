@@ -45,6 +45,15 @@ export class AuthController {
     return this.authService.logout(body);
   }
 
+  @Post('login-otp')
+  loginWithOtp(
+    @Body() body: { phone: string; code: string; fcmToken?: string },
+    @Headers('user-agent') userAgent: string | undefined,
+    @Ip() ipAddress: string,
+  ) {
+    return this.authService.loginWithOtp(body, { userAgent, ipAddress });
+  }
+
   @Post('reset-pin')
   resetPin(@Body() body: { phone: string; code: string; newPin: string }) {
     return this.authService.resetPin(body);

@@ -33,6 +33,9 @@ class ApiService {
   static Future<Map<String, dynamic>> verifyOtp(String phone, String code, {String purpose = 'login'}) =>
       _client.post('/otp/verify', {'phone': phone, 'code': code, 'purpose': purpose}, auth: false);
 
+  static Future<Map<String, dynamic>> loginWithOtp(String phone, String code) =>
+      _client.post('/auth/login-otp', {'phone': phone, 'code': code}, auth: false);
+
   static Future<Map<String, dynamic>> resetPin(String phone, String code, String newPin) =>
       _client.post('/auth/reset-pin', {'phone': phone, 'code': code, 'newPin': newPin}, auth: false);
 

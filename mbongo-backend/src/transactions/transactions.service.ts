@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { CreateMoneyRequestDto } from './dto/create-money-request.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { CreateTvPaymentDto } from './dto/create-tv-payment.dto';
 import { CreateWithdrawalDto } from './dto/create-withdrawal.dto';
+import type { SmsAdapter } from '../sms/sms-adapter.interface';
 
 const DEFAULT_FEE_RULES: Record<string, { maxAmount: number; fixedFee: number; percentFee: number; agentFixedCommission: number; agentPercentCommission: number }> = {
   'add-money':    { maxAmount: 5_000_000,  fixedFee: 0, percentFee: 0.5, agentFixedCommission: 0, agentPercentCommission: 0.25 },
@@ -35,6 +37,7 @@ export class TransactionsService {
     private readonly prisma: PrismaService,
     private readonly fcm: FcmService,
     private readonly inbox: InboxService,
+    @Inject('SMS_ADAPTER') private readonly sms: SmsAdapter,
   ) {}
 
   private async loadFeeRule(feeId: string) {
@@ -190,8 +193,8 @@ export class TransactionsService {
 
     // Notifications — non-bloquant, hors transaction Prisma
     const [senderUser, receiverUser] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: senderId }, select: { name: true, fcmToken: true } }),
-      this.prisma.user.findUnique({ where: { id: receiverUserId }, select: { name: true, fcmToken: true } }),
+      this.prisma.user.findUnique({ where: { id: senderId }, select: { name: true, phone: true, fcmToken: true } }),
+      this.prisma.user.findUnique({ where: { id: receiverUserId }, select: { name: true, phone: true, fcmToken: true } }),
     ]);
     const currency = 'CDF';
     const amountFmt = body.amount.toLocaleString();
@@ -203,6 +206,9 @@ export class TransactionsService {
     if (senderUser?.fcmToken) {
       this.fcm.send({ token: senderUser.fcmToken, title: outTitle, body: outBody, data: { type: 'TRANSFER_OUT', txId: createdTx.id } }).catch(() => {});
     }
+    if (senderUser?.phone) {
+      this.sms.send(senderUser.phone, `MBONGO: -${amountFmt} ${currency} vers ${receiverUser?.name ?? 'beneficiaire'}. Ref ${createdTx.reference}`).catch(() => {});
+    }
 
     // Receveur — TRANSFER_IN
     const inTitle = 'Virement reçu';
@@ -210,6 +216,9 @@ export class TransactionsService {
     this.inbox.push(receiverUserId, 'TRANSFER_IN', inTitle, inBody, { txId: createdTx.id, amount: body.amount }).catch(() => undefined);
     if (receiverUser?.fcmToken) {
       this.fcm.send({ token: receiverUser.fcmToken, title: inTitle, body: inBody, data: { type: 'TRANSFER_IN', txId: createdTx.id } }).catch(() => {});
+    }
+    if (receiverUser?.phone) {
+      this.sms.send(receiverUser.phone, `MBONGO: +${amountFmt} ${currency} de ${senderUser?.name ?? 'expediteur'}. Ref ${createdTx.reference}`).catch(() => {});
     }
 
     return this.serializeTransaction(createdTx);
@@ -333,12 +342,15 @@ export class TransactionsService {
     });
 
     // Inbox + FCM — confirm deposit to user (non-blocking)
-    const depositUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+    const depositUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true, fcmToken: true } });
     const depTitle = 'Dépôt confirmé';
     const depBody = `${body.amount.toLocaleString()} CDF ont été crédités sur votre compte.`;
     this.inbox.push(userId, 'CREDIT', depTitle, depBody, { txId: confirmedDeposit.id, amount: body.amount, source: body.source }).catch(() => undefined);
     if (depositUser?.fcmToken) {
       this.fcm.send({ token: depositUser.fcmToken, title: depTitle, body: depBody, data: { type: 'DEPOSIT_SUCCESS', txId: confirmedDeposit.id } }).catch(() => {});
+    }
+    if (depositUser?.phone) {
+      this.sms.send(depositUser.phone, `MBONGO: +${body.amount.toLocaleString()} CDF credite sur votre compte.`).catch(() => {});
     }
 
     return this.serializeTransaction(confirmedDeposit);
@@ -484,12 +496,15 @@ export class TransactionsService {
     });
 
     // Inbox + FCM — confirm withdrawal to user (non-blocking)
-    const withdrawUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+    const withdrawUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true, fcmToken: true } });
     const wdTitle = 'Retrait effectué';
     const wdBody = `Retrait de ${body.amount.toLocaleString()} CDF traité avec succès.`;
     this.inbox.push(userId, 'DEBIT', wdTitle, wdBody, { txId: confirmedWithdrawal.id, amount: body.amount, channel: body.channel }).catch(() => undefined);
     if (withdrawUser?.fcmToken) {
       this.fcm.send({ token: withdrawUser.fcmToken, title: wdTitle, body: wdBody, data: { type: 'WITHDRAWAL_SUCCESS', txId: confirmedWithdrawal.id } }).catch(() => {});
+    }
+    if (withdrawUser?.phone) {
+      this.sms.send(withdrawUser.phone, `MBONGO: -${body.amount.toLocaleString()} CDF retrait effectue. Ref ${confirmedWithdrawal.reference}`).catch(() => {});
     }
 
     return this.serializeTransaction(confirmedWithdrawal);
@@ -517,9 +532,12 @@ export class TransactionsService {
       const airtimeTitle = 'Recharge effectuée';
       const airtimeBody = `Recharge ${body.operatorName} de ${body.amount.toLocaleString()} CDF traitée.`;
       this.inbox.push(userId, 'DEBIT', airtimeTitle, airtimeBody, { txId: txResult.id, amount: body.amount, operator: body.operatorName }).catch(() => undefined);
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true, fcmToken: true } });
       if (user?.fcmToken) {
         this.fcm.send({ token: user.fcmToken, title: airtimeTitle, body: airtimeBody, data: { type: 'AIRTIME_SUCCESS', txId: txResult.id } }).catch(() => {});
+      }
+      if (user?.phone) {
+        this.sms.send(user.phone, `MBONGO: Recharge ${body.operatorName} ${body.amount.toLocaleString()} CDF vers ${body.phone}.`).catch(() => {});
       }
     }
     return result;
@@ -548,9 +566,12 @@ export class TransactionsService {
       const tvTitle = 'Abonnement TV payé';
       const tvBody = `Abonnement ${body.providerName} renouvelé avec succès.`;
       this.inbox.push(userId, 'DEBIT', tvTitle, tvBody, { txId: txResult.id, amount: body.amount, provider: body.providerName }).catch(() => undefined);
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true, fcmToken: true } });
       if (user?.fcmToken) {
         this.fcm.send({ token: user.fcmToken, title: tvTitle, body: tvBody, data: { type: 'TV_PAYMENT_SUCCESS', txId: txResult.id } }).catch(() => {});
+      }
+      if (user?.phone) {
+        this.sms.send(user.phone, `MBONGO: Abo ${body.providerName} ${body.amount.toLocaleString()} CDF confirme.`).catch(() => {});
       }
     }
     return result;
@@ -600,9 +621,12 @@ export class TransactionsService {
       const billTitle = 'Paiement effectué';
       const billBody = `Paiement ${body.methodName} traité avec succès.`;
       this.inbox.push(userId, 'DEBIT', billTitle, billBody, { txId: txResult.id, amount: body.amount, method: body.methodName }).catch(() => undefined);
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { phone: true, fcmToken: true } });
       if (user?.fcmToken) {
         this.fcm.send({ token: user.fcmToken, title: billTitle, body: billBody, data: { type: 'BILL_PAYMENT_SUCCESS', txId: txResult.id } }).catch(() => {});
+      }
+      if (user?.phone) {
+        this.sms.send(user.phone, `MBONGO: Paiement ${body.methodName} ${body.amount.toLocaleString()} CDF effectue.`).catch(() => {});
       }
     }
 

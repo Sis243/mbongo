@@ -11,6 +11,7 @@ import { jwtAccessSecret } from '../config/runtime-config';
 import { InboxModule } from '../inbox/inbox.module';
 import { FaqModule } from '../faq/faq.module';
 import { SupportModule } from '../support/support.module';
+import { SmsModule } from '../sms/sms.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SupportModule } from '../support/support.module';
     InboxModule,
     FaqModule,
     SupportModule,
+    SmsModule,
   ],
   controllers: [BackofficeController],
   providers: [BackofficeService, CardsService, PrismaService, AdminJwtGuard, AdminPermissionGuard],

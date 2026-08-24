@@ -49,7 +49,7 @@ describe('BackofficeService reviewKycSubmission', () => {
       $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)),
     };
 
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
     return { service, prisma, tx };
   };
 
@@ -101,7 +101,7 @@ describe('BackofficeService admin role safety', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
 
     await expect(
       service.createAdminUser({ phone: '+243000', pin: '1234', roleIds: [] }, admin),
@@ -115,7 +115,7 @@ describe('BackofficeService admin role safety', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
 
     await expect(
       service.updateAdminRoles('admin-1', { roleIds: [] }, admin),
@@ -135,7 +135,7 @@ describe('BackofficeService admin role safety', () => {
         count: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
 
     await expect(
       service.upsertAdminRole(
@@ -162,7 +162,7 @@ describe('BackofficeService admin role safety', () => {
         count: jest.fn(),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
 
     await expect(
       service.upsertAdminRole(
@@ -266,7 +266,7 @@ describe('BackofficeService agent cash operations', () => {
         ]),
       },
     };
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
 
     await expect(service.getAgentCashOperations()).resolves.toEqual(
       expect.objectContaining({
@@ -311,7 +311,7 @@ describe('BackofficeService agent cash operations', () => {
       },
       $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)),
     };
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
 
     await service.settleCashAgentCommission(
       'agent-1',
@@ -353,7 +353,7 @@ describe('BackofficeService agent cash operations', () => {
       },
       $transaction: jest.fn(),
     };
-    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, undefined as never, undefined as never);
 
     await expect(service.settleCashAgentCommission('agent-1', {}, admin)).rejects.toThrow(
       'Aucune commission agent a payer',
@@ -372,7 +372,7 @@ describe('BackofficeService updateAdminEmail', () => {
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
-    return { service: new BackofficeService(prisma as never, {} as never, {} as never, null as never), prisma };
+    return { service: new BackofficeService(prisma as never, {} as never, {} as never, null as never, undefined as never, undefined as never), prisma };
   };
 
   it('throws NotFoundException when admin does not exist', async () => {
@@ -396,7 +396,7 @@ describe('BackofficeService updateAdminEmail', () => {
 describe('BackofficeService getActiveOtp', () => {
   it('returns found:false when no active OTP exists', async () => {
     const prisma = { $queryRaw: jest.fn().mockResolvedValue([]) };
-    const service = new BackofficeService(prisma as never, {} as never, {} as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, {} as never, null as never, undefined as never, undefined as never);
     await expect(service.getActiveOtp('+243000')).resolves.toEqual({ found: false, phone: '+243000' });
   });
 
@@ -407,7 +407,7 @@ describe('BackofficeService getActiveOtp', () => {
         { code: '123456', purpose: 'login', expiresAt: exp, createdAt: new Date() },
       ]),
     };
-    const service = new BackofficeService(prisma as never, {} as never, {} as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, {} as never, null as never, undefined as never, undefined as never);
     await expect(service.getActiveOtp('+243000')).resolves.toMatchObject({
       found: true, phone: '+243000', code: '123456', purpose: 'login',
     });
@@ -420,7 +420,7 @@ describe('BackofficeService sendTestPush', () => {
   it('sends directly by token and tags via:token', async () => {
     const fcm = makeFcm();
     const prisma = {};
-    const service = new BackofficeService(prisma as never, {} as never, fcm as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, fcm as never, null as never, undefined as never, undefined as never);
     const result = await service.sendTestPush({ token: 'fcm-abc' }, 'Test', 'Body');
     expect(fcm.send).toHaveBeenCalledWith({ token: 'fcm-abc', title: 'Test', body: 'Body' });
     expect(result).toMatchObject({ via: 'token', messageId: 'msg-1' });
@@ -431,7 +431,7 @@ describe('BackofficeService sendTestPush', () => {
     const prisma = {
       user: { findUnique: jest.fn().mockResolvedValue({ fcmToken: 'fcm-xyz', name: 'Alice', phone: '+243999' }) },
     };
-    const service = new BackofficeService(prisma as never, {} as never, fcm as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, fcm as never, null as never, undefined as never, undefined as never);
     const result = await service.sendTestPush({ userId: 'u1' }, 'Hello', 'World');
     expect(fcm.send).toHaveBeenCalledWith({ token: 'fcm-xyz', title: 'Hello', body: 'World' });
     expect(result).toMatchObject({ via: 'userId', user: { name: 'Alice' } });
@@ -439,12 +439,12 @@ describe('BackofficeService sendTestPush', () => {
 
   it('throws NotFoundException when user has no FCM token', async () => {
     const prisma = { user: { findUnique: jest.fn().mockResolvedValue({ fcmToken: null }) } };
-    const service = new BackofficeService(prisma as never, {} as never, makeFcm() as never, null as never);
+    const service = new BackofficeService(prisma as never, {} as never, makeFcm() as never, null as never, undefined as never, undefined as never);
     await expect(service.sendTestPush({ userId: 'u1' }, 'T', 'B')).rejects.toThrow(NotFoundException);
   });
 
   it('throws BadRequestException when neither token nor userId is given', async () => {
-    const service = new BackofficeService({} as never, {} as never, makeFcm() as never, null as never);
+    const service = new BackofficeService({} as never, {} as never, makeFcm() as never, null as never, undefined as never, undefined as never);
     await expect(service.sendTestPush({}, 'T', 'B')).rejects.toThrow(BadRequestException);
   });
 });

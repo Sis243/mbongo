@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { CardsService } from '../cards/cards.service';
@@ -7,6 +7,7 @@ import { FcmService } from '../notifications/fcm.service';
 import { BrevoEmailService } from '../common/brevo-email.service';
 import { InboxService } from '../inbox/inbox.service';
 import type { AdminJwtPayload } from '../admin-auth/admin-auth.types';
+import type { SmsAdapter } from '../sms/sms-adapter.interface';
 
 type ChannelMode = 'sandbox' | 'live';
 type ChannelHealth = 'healthy' | 'warning' | 'offline';
@@ -145,6 +146,7 @@ export class BackofficeService {
     private readonly fcm: FcmService,
     private readonly inbox: InboxService,
     @Optional() private readonly brevoEmail: BrevoEmailService,
+    @Optional() @Inject('SMS_ADAPTER') private readonly sms: SmsAdapter | undefined,
   ) {}
 
   private parseJsonArray(value?: string | null): string[] {
@@ -749,6 +751,14 @@ export class BackofficeService {
       this.brevoEmail
         .sendKycStatusEmail(user.email, user.name, body.status, body.rejectionReason)
         .catch((err: Error) => this.logger.warn(`KYC email failed: ${err.message}`));
+    }
+
+    // SMS Brevo (non bloquant)
+    if (user?.phone && this.sms) {
+      const kycSms = isApproved
+        ? `MBONGO: Votre identite a ete verifiee. Votre compte est maintenant actif.`
+        : `MBONGO: Votre dossier KYC a ete rejete. Motif: ${body.rejectionReason ?? 'voir application'}.`;
+      this.sms.send(user.phone, kycSms).catch(() => {});
     }
 
     return reviewed;

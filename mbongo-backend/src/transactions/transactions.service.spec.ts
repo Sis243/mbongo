@@ -41,7 +41,7 @@ describe('TransactionsService KYC guard', () => {
     };
 
     return {
-      service: new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never),
+      service: new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never),
       prisma,
     };
   };
@@ -105,7 +105,7 @@ describe('TransactionsService cash agents', () => {
         ]),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(service.listActiveCashAgents()).resolves.toEqual([
       expect.objectContaining({
@@ -147,7 +147,7 @@ describe('TransactionsService atomic wallet debit', () => {
       },
       $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)),
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createWithdrawal({
@@ -202,7 +202,7 @@ describe('TransactionsService cash operation rules', () => {
       },
       $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)),
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await service.createDeposit({
       userId: 'user-1',
@@ -240,7 +240,7 @@ describe('TransactionsService cash operation rules', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createDeposit({
@@ -261,7 +261,7 @@ describe('TransactionsService cash operation rules', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createWithdrawal({
@@ -286,7 +286,7 @@ describe('TransactionsService amount limits', () => {
         create: jest.fn(),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createDeposit({
@@ -308,7 +308,7 @@ describe('TransactionsService amount limits', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createTransfer({
@@ -326,7 +326,7 @@ describe('TransactionsService amount limits', () => {
         findFirst: jest.fn(),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createTvPayment({
@@ -358,7 +358,7 @@ describe('TransactionsService idempotency', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createDeposit({
@@ -393,7 +393,7 @@ describe('TransactionsService idempotency', () => {
         findUnique: jest.fn(),
       },
     };
-    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never);
+    const service = new TransactionsService(prisma as never, { send: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }) } as never, null as never, { send: jest.fn() } as never);
 
     await expect(
       service.createTransfer({

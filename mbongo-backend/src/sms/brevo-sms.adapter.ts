@@ -23,7 +23,9 @@ export class BrevoSmsAdapter implements SmsAdapter {
       return;
     }
 
-    const phone = to.replace(/\s+/g, '').replace(/^00/, '+');
+    const cleaned = to.replace(/\s+/g, '').replace(/^00/, '+');
+    // Numéro local congolais 0XXXXXXXXX → +243XXXXXXXXX
+    const phone = /^0[7-9]\d{8}$/.test(cleaned) ? `+243${cleaned.slice(1)}` : cleaned;
 
     const resp = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
       method: 'POST',

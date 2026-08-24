@@ -6,6 +6,7 @@ import {
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { FcmService } from '../notifications/fcm.service';
+import { InboxService } from '../inbox/inbox.service';
 import { CreateAirtimePurchaseDto } from './dto/create-airtime-purchase.dto';
 import { CreateBillPaymentDto } from './dto/create-bill-payment.dto';
 import { CreateDepositDto } from './dto/create-deposit.dto';
@@ -33,6 +34,7 @@ export class TransactionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fcm: FcmService,
+    private readonly inbox: InboxService,
   ) {}
 
   private async loadFeeRule(feeId: string) {
@@ -186,18 +188,28 @@ export class TransactionsService {
       return transaction;
     });
 
-    // FCM push to receiver — non-blocking, outside DB transaction
+    // Notifications — non-bloquant, hors transaction Prisma
     const [senderUser, receiverUser] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: senderId }, select: { name: true } }),
-      this.prisma.user.findUnique({ where: { id: receiverUserId }, select: { fcmToken: true } }),
+      this.prisma.user.findUnique({ where: { id: senderId }, select: { name: true, fcmToken: true } }),
+      this.prisma.user.findUnique({ where: { id: receiverUserId }, select: { name: true, fcmToken: true } }),
     ]);
+    const currency = 'CDF';
+    const amountFmt = body.amount.toLocaleString();
+
+    // Envoyeur — TRANSFER_OUT
+    const outTitle = 'Virement envoyé';
+    const outBody = `Vous avez envoyé ${amountFmt} ${currency} à ${receiverUser?.name ?? 'un utilisateur'}`;
+    this.inbox.push(senderId, 'TRANSFER_OUT', outTitle, outBody, { txId: createdTx.id, amount: body.amount }).catch(() => undefined);
+    if (senderUser?.fcmToken) {
+      this.fcm.send({ token: senderUser.fcmToken, title: outTitle, body: outBody, data: { type: 'TRANSFER_OUT', txId: createdTx.id } }).catch(() => {});
+    }
+
+    // Receveur — TRANSFER_IN
+    const inTitle = 'Virement reçu';
+    const inBody = `${senderUser?.name ?? 'Un utilisateur'} vous a envoyé ${amountFmt} ${currency}`;
+    this.inbox.push(receiverUserId, 'TRANSFER_IN', inTitle, inBody, { txId: createdTx.id, amount: body.amount }).catch(() => undefined);
     if (receiverUser?.fcmToken) {
-      this.fcm.send({
-        token: receiverUser.fcmToken,
-        title: 'Virement reçu',
-        body: `${senderUser?.name ?? 'Un utilisateur'} vous a envoyé ${body.amount.toLocaleString()} CDF`,
-        data: { type: 'TRANSFER_RECEIVED', txId: createdTx.id },
-      }).catch(() => {});
+      this.fcm.send({ token: receiverUser.fcmToken, title: inTitle, body: inBody, data: { type: 'TRANSFER_IN', txId: createdTx.id } }).catch(() => {});
     }
 
     return this.serializeTransaction(createdTx);
@@ -320,15 +332,13 @@ export class TransactionsService {
       return transaction;
     });
 
-    // FCM — confirm deposit to user (non-blocking)
+    // Inbox + FCM — confirm deposit to user (non-blocking)
     const depositUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+    const depTitle = 'Dépôt confirmé';
+    const depBody = `${body.amount.toLocaleString()} CDF ont été crédités sur votre compte.`;
+    this.inbox.push(userId, 'CREDIT', depTitle, depBody, { txId: confirmedDeposit.id, amount: body.amount, source: body.source }).catch(() => undefined);
     if (depositUser?.fcmToken) {
-      this.fcm.send({
-        token: depositUser.fcmToken,
-        title: 'Dépôt confirmé',
-        body: `${body.amount.toLocaleString()} CDF ont été crédités sur votre compte.`,
-        data: { type: 'DEPOSIT_SUCCESS', txId: confirmedDeposit.id },
-      }).catch(() => {});
+      this.fcm.send({ token: depositUser.fcmToken, title: depTitle, body: depBody, data: { type: 'DEPOSIT_SUCCESS', txId: confirmedDeposit.id } }).catch(() => {});
     }
 
     return this.serializeTransaction(confirmedDeposit);
@@ -473,15 +483,13 @@ export class TransactionsService {
       return transaction;
     });
 
-    // FCM — confirm withdrawal to user (non-blocking)
+    // Inbox + FCM — confirm withdrawal to user (non-blocking)
     const withdrawUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
+    const wdTitle = 'Retrait effectué';
+    const wdBody = `Retrait de ${body.amount.toLocaleString()} CDF traité avec succès.`;
+    this.inbox.push(userId, 'DEBIT', wdTitle, wdBody, { txId: confirmedWithdrawal.id, amount: body.amount, channel: body.channel }).catch(() => undefined);
     if (withdrawUser?.fcmToken) {
-      this.fcm.send({
-        token: withdrawUser.fcmToken,
-        title: 'Retrait effectué',
-        body: `Retrait de ${body.amount.toLocaleString()} CDF traité avec succès.`,
-        data: { type: 'WITHDRAWAL_SUCCESS', txId: confirmedWithdrawal.id },
-      }).catch(() => {});
+      this.fcm.send({ token: withdrawUser.fcmToken, title: wdTitle, body: wdBody, data: { type: 'WITHDRAWAL_SUCCESS', txId: confirmedWithdrawal.id } }).catch(() => {});
     }
 
     return this.serializeTransaction(confirmedWithdrawal);
@@ -506,14 +514,12 @@ export class TransactionsService {
 
     const txResult = result as unknown as { id: string; status: string };
     if (txResult.status === 'SUCCESS') {
+      const airtimeTitle = 'Recharge effectuée';
+      const airtimeBody = `Recharge ${body.operatorName} de ${body.amount.toLocaleString()} CDF traitée.`;
+      this.inbox.push(userId, 'DEBIT', airtimeTitle, airtimeBody, { txId: txResult.id, amount: body.amount, operator: body.operatorName }).catch(() => undefined);
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
       if (user?.fcmToken) {
-        this.fcm.send({
-          token: user.fcmToken,
-          title: 'Recharge effectuée',
-          body: `Votre recharge ${body.operatorName} de ${body.amount.toLocaleString()} CDF a été traitée.`,
-          data: { type: 'AIRTIME_SUCCESS', txId: txResult.id },
-        }).catch(() => {});
+        this.fcm.send({ token: user.fcmToken, title: airtimeTitle, body: airtimeBody, data: { type: 'AIRTIME_SUCCESS', txId: txResult.id } }).catch(() => {});
       }
     }
     return result;
@@ -539,14 +545,12 @@ export class TransactionsService {
 
     const txResult = result as unknown as { id: string; status: string };
     if (txResult.status === 'SUCCESS') {
+      const tvTitle = 'Abonnement TV payé';
+      const tvBody = `Abonnement ${body.providerName} renouvelé avec succès.`;
+      this.inbox.push(userId, 'DEBIT', tvTitle, tvBody, { txId: txResult.id, amount: body.amount, provider: body.providerName }).catch(() => undefined);
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
       if (user?.fcmToken) {
-        this.fcm.send({
-          token: user.fcmToken,
-          title: 'Abonnement TV payé',
-          body: `Votre abonnement ${body.providerName} a été renouvelé avec succès.`,
-          data: { type: 'TV_PAYMENT_SUCCESS', txId: txResult.id },
-        }).catch(() => {});
+        this.fcm.send({ token: user.fcmToken, title: tvTitle, body: tvBody, data: { type: 'TV_PAYMENT_SUCCESS', txId: txResult.id } }).catch(() => {});
       }
     }
     return result;
@@ -590,17 +594,15 @@ export class TransactionsService {
       },
     });
 
-    // FCM push confirmation — non-blocking
+    // Inbox + FCM push confirmation — non-blocking
     const txResult = result as unknown as { id: string; status: string };
     if (txResult.status === 'SUCCESS') {
+      const billTitle = 'Paiement effectué';
+      const billBody = `Paiement ${body.methodName} traité avec succès.`;
+      this.inbox.push(userId, 'DEBIT', billTitle, billBody, { txId: txResult.id, amount: body.amount, method: body.methodName }).catch(() => undefined);
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
       if (user?.fcmToken) {
-        this.fcm.send({
-          token: user.fcmToken,
-          title: 'Paiement effectué',
-          body: `Votre paiement ${body.methodName} a été traité avec succès.`,
-          data: { type: 'BILL_PAYMENT_SUCCESS', txId: txResult.id },
-        }).catch(() => {});
+        this.fcm.send({ token: user.fcmToken, title: billTitle, body: billBody, data: { type: 'BILL_PAYMENT_SUCCESS', txId: txResult.id } }).catch(() => {});
       }
     }
 

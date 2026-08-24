@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/storage/app_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../features/auth/presentation/auth_notifier.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/common/app_scaffold.dart';
 
 class ChangePinScreen extends ConsumerStatefulWidget {
@@ -57,8 +59,16 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
             currentPin: currentPin,
             newPin: newPin,
           );
+
+      // Mettre à jour les credentials biométriques avec le nouveau PIN
+      final creds = await AppStorage().getBioCredentials();
+      final bioEnabled = await AuthService.isBiometricEnabled();
+      if (bioEnabled && creds.phone != null && creds.phone!.isNotEmpty) {
+        await AppStorage().saveBioCredentials(creds.phone!, newPin);
+      }
+
       if (!mounted) return;
-      _toast('Code PIN mis a jour.');
+      _toast('Code PIN mis à jour. La biométrie utilise désormais votre nouveau PIN.');
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-
 import '../core/storage/app_storage.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/phone_validator.dart';
@@ -97,16 +95,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> loginWithBiometric() async {
-    final ok = await BiometricService.authenticate();
-    if (!ok) {
-      if (mounted) _toast('Identification echouee. Utilisez votre PIN.');
-      return;
-    }
-
+    // Vérifier que des credentials sont stockés avant de déclencher le capteur
     final creds = await AppStorage().getBioCredentials();
     if (creds.phone == null || creds.phone!.isEmpty ||
         creds.pin == null || creds.pin!.isEmpty) {
-      if (mounted) _toast('Aucun identifiant enregistre. Connectez-vous avec votre PIN.');
+      if (mounted) _toast('Activez d\'abord la biométrie en vous connectant avec votre PIN.');
+      return;
+    }
+
+    final ok = await BiometricService.authenticate();
+    if (!ok) {
+      if (mounted) _toast('Authentification biométrique annulée ou échouée. Utilisez votre PIN.');
       return;
     }
 
@@ -117,13 +116,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         phone: creds.phone!,
         pin: creds.pin!,
       );
-      if (!mounted) return;
-      setState(() => loading = false);
-      context.go('/home');
+      // Pas de context.go ici — GoRouter redirige automatiquement
+      // quand authProvider passe en AsyncData(user)
     } catch (_) {
       if (!mounted) return;
       setState(() => loading = false);
-      _toast('Session expiree. Reconnectez-vous avec votre PIN.');
+      // Le PIN stocké ne correspond plus — on vide les credentials biométriques
+      await AppStorage().clearBioCredentials();
+      await AuthService.setBiometricEnabled(false);
+      _toast('PIN modifié ou session expirée. Reconnectez-vous avec votre PIN pour réactiver la biométrie.');
     }
   }
 

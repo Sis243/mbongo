@@ -365,6 +365,26 @@ class ApiService {
   }) =>
       _client.post('/transactions/account-to-wallet', {'accountId': accountId, 'amount': amount});
 
+  // ── Support tickets ──────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> createSupportTicket({
+    required String subject,
+    required String message,
+  }) =>
+      _client.post('/support/tickets', {'subject': subject, 'message': message});
+
+  static Future<Map<String, dynamic>> getSupportTickets({int page = 1}) =>
+      _client.get('/support/tickets?page=$page');
+
+  static Future<Map<String, dynamic>> getSupportTicket(String id) =>
+      _client.get('/support/tickets/$id');
+
+  static Future<Map<String, dynamic>> addSupportMessage(String ticketId, String content) =>
+      _client.post('/support/tickets/$ticketId/messages', {'content': content});
+
+  static Future<void> closeSupportTicket(String id) =>
+      _client.patch('/support/tickets/$id/close', {});
+
   // ── FAQ ─────────────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getFaq() async {

@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { jwtAccessSecret } from '../config/runtime-config';
 import { InboxModule } from '../inbox/inbox.module';
 import { FaqModule } from '../faq/faq.module';
+import { SupportModule } from '../support/support.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { FaqModule } from '../faq/faq.module';
     }),
     InboxModule,
     FaqModule,
+    SupportModule,
   ],
   controllers: [BackofficeController],
   providers: [BackofficeService, CardsService, PrismaService, AdminJwtGuard, AdminPermissionGuard],

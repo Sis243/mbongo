@@ -27,6 +27,7 @@ import { UpsertCashAgentDto } from './dto/upsert-cash-agent.dto';
 import { UpsertMerchantDto } from './dto/upsert-merchant.dto';
 import { BackofficeService } from './backoffice.service';
 import { FaqService } from '../faq/faq.service';
+import { SupportService } from '../support/support.service';
 
 @ApiTags('Backoffice')
 @ApiBearerAuth('access-token')
@@ -36,6 +37,7 @@ export class BackofficeController {
   constructor(
     private readonly backofficeService: BackofficeService,
     private readonly faqService: FaqService,
+    private readonly supportService: SupportService,
   ) {}
 
   @Get('dashboard')
@@ -693,6 +695,50 @@ export class BackofficeController {
   @RequireAdminPermissions('MANAGE_SETTINGS')
   deleteFaqItem(@Param('id') id: string) {
     return this.faqService.deleteItem(id);
+  }
+
+  // ── Support tickets ───────────────────────────────────────────────────────
+
+  @Get('support-tickets')
+  @RequireAdminPermissions('VIEW_DASHBOARD')
+  listSupportTickets(
+    @Query('page') page?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.supportService.listAllTickets(Number(page) || 1, status);
+  }
+
+  @Get('support-tickets/stats')
+  @RequireAdminPermissions('VIEW_DASHBOARD')
+  supportTicketStats() {
+    return this.supportService.countByStatus();
+  }
+
+  @Get('support-tickets/:id')
+  @RequireAdminPermissions('VIEW_DASHBOARD')
+  getSupportTicket(@Param('id') id: string) {
+    return this.supportService.getTicketAdmin(id);
+  }
+
+  @Post('support-tickets/:id/reply')
+  @RequireAdminPermissions('VIEW_DASHBOARD')
+  adminReply(
+    @Param('id') id: string,
+    @Body() body: { content: string },
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    const adminName = (admin as any).name ?? admin.phone;
+    return this.supportService.adminReply(admin.sub, adminName, id, body.content);
+  }
+
+  @Patch('support-tickets/:id/status')
+  @RequireAdminPermissions('VIEW_DASHBOARD')
+  updateSupportStatus(
+    @Param('id') id: string,
+    @Body() body: { status: 'OPEN' | 'IN_PROGRESS' | 'CLOSED' },
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    return this.supportService.updateTicketStatus(admin.sub, id, body.status);
   }
 }
 

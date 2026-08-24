@@ -23,6 +23,7 @@ import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filte
 import { BrevoModule } from './common/brevo.module';
 import { InboxModule } from './inbox/inbox.module';
 import { FaqModule } from './faq/faq.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { FaqModule } from './faq/faq.module';
     BrevoModule,
     InboxModule,
     FaqModule,
+    SupportModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

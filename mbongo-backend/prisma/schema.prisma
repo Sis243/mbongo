@@ -127,6 +127,7 @@ model User {
   notifications       Notification[]
   linkedBankAccounts  LinkedBankAccount[]
   inboxItems          UserInboxItem[]
+  supportTickets      SupportTicket[]
 
   @@index([status])
 }
@@ -690,6 +691,40 @@ model BillPayMethod {
   updatedAt      DateTime @updatedAt
 
   @@index([category, isActive])
+}
+
+// ── Support tickets ───────────────────────────────────────────────────────────
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+model SupportTicket {
+  id        String         @id @default(uuid())
+  userId    String
+  subject   String
+  status    TicketStatus   @default(OPEN)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  SupportMessage[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model SupportMessage {
+  id         String        @id @default(uuid())
+  ticketId   String
+  authorType String
+  adminId    String?
+  content    String
+  createdAt  DateTime      @default(now())
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }
 
 // ── FAQ ───────────────────────────────────────────────────────────────────────

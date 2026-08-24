@@ -11,6 +11,7 @@ import '../../models/account_model.dart';
 import '../../widgets/cards/wallet_card.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/transaction_confirm_sheet.dart';
 
 class ExchangeMoneyScreen extends ConsumerStatefulWidget {
   const ExchangeMoneyScreen({super.key});
@@ -97,6 +98,19 @@ class _ExchangeMoneyScreenState extends ConsumerState<ExchangeMoneyScreen> {
       return;
     }
 
+    final converted = _convertedAmount(amount);
+    final confirmed = await showTransactionConfirmSheet(
+      context: context,
+      title: 'Échange de devises',
+      icon: Icons.currency_exchange_rounded,
+      rows: [
+        ConfirmRow(label: 'Vous envoyez', value: '${Money.format(amount, fromCurrency)} $fromCurrency', bold: true, valueColor: const Color(0xFFD4A843)),
+        ConfirmRow(label: 'Vous recevez', value: '${converted.toStringAsFixed(converted < 1 ? 4 : 2)} $toCurrency', bold: true, valueColor: const Color(0xFF4CAF50)),
+        ConfirmRow(label: 'Taux appliqué', value: _rateText()),
+      ],
+    );
+    if (!confirmed || !mounted) return;
+
     setState(() => isLoading = true);
     try {
       await ref.read(walletRepositoryProvider).exchange(
@@ -108,11 +122,10 @@ class _ExchangeMoneyScreenState extends ConsumerState<ExchangeMoneyScreen> {
       if (!mounted) return;
       setState(() => isLoading = false);
 
-      final converted = _convertedAmount(amount);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Echange effectue : ${Money.symbol(fromCurrency)} $amount -> ${Money.symbol(toCurrency)} ${converted.toStringAsFixed(2)}",
+            "Échange effectué : $amount $fromCurrency → ${converted.toStringAsFixed(2)} $toCurrency",
           ),
         ),
       );
@@ -124,7 +137,7 @@ class _ExchangeMoneyScreenState extends ConsumerState<ExchangeMoneyScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => isLoading = false);
-      _toast("Echange impossible pour le moment.");
+      _toast("Échange impossible pour le moment.");
     }
   }
 

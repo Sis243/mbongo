@@ -4,10 +4,13 @@ import { PrismaClient } from '@prisma/client';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
-    // Prefer the unpooled (direct) Neon connection for runtime queries.
-    // DATABASE_URL_UNPOOLED is set by Vercel's Neon integration and bypasses
-    // pgBouncer, which Prisma's default driver does not support in transaction mode.
-    const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
+    // MBONGO_URL = connexion poolée Neon (Vercel integration, prefix MBONGO)
+    // Fallback sur DATABASE_URL* pour compatibilité ancienne config
+    const url =
+      process.env.MBONGO_URL ??
+      process.env.DATABASE_URL ??
+      process.env.MBONGO_URL_UNPOOLED ??
+      process.env.DATABASE_URL_UNPOOLED;
     super({ datasources: { db: { url } } });
   }
 

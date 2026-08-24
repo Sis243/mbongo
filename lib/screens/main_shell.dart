@@ -199,8 +199,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final darkMode = MbongoThemeController.darkModeEnabled.value;
     final activeText = darkMode ? AppColors.text : AppColors.darkText;
     final inactiveText = darkMode ? AppColors.muted : AppColors.darkMuted;
-    final unreadAsync = ref.watch(unreadCountProvider);
-    final unreadCount = unreadAsync.valueOrNull ?? 0;
+    final unreadCount = ref.watch(unreadCountProvider);
     return Scaffold(
       backgroundColor: palette.shellBottom,
       floatingActionButton: null,

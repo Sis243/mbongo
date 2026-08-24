@@ -365,6 +365,17 @@ class ApiService {
   }) =>
       _client.post('/transactions/account-to-wallet', {'accountId': accountId, 'amount': amount});
 
+  // ── FAQ ─────────────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getFaq() async {
+    try {
+      final r = await _client.get('/faq');
+      return _toList(r['data'] ?? []);
+    } catch (_) {
+      return [];
+    }
+  }
+
   // ── Inbox notifications ──────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getInbox({int page = 1}) =>

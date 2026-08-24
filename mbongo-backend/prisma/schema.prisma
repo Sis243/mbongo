@@ -692,6 +692,32 @@ model BillPayMethod {
   @@index([category, isActive])
 }
 
+// ── FAQ ───────────────────────────────────────────────────────────────────────
+
+model FaqCategory {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  items     FaqItem[]
+}
+
+model FaqItem {
+  id          String      @id @default(uuid())
+  categoryId  String
+  question    String
+  answer      String
+  order       Int         @default(0)
+  isPublished Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  category    FaqCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId, order])
+}
+
 // ── Inbox notifications utilisateur ──────────────────────────────────────────
 
 enum InboxItemType {

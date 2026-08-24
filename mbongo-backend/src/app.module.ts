@@ -22,6 +22,7 @@ import { BillPayModule } from './bill-pay/bill-pay.module';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { BrevoModule } from './common/brevo.module';
 import { InboxModule } from './inbox/inbox.module';
+import { FaqModule } from './faq/faq.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { InboxModule } from './inbox/inbox.module';
     BillPayModule,
     BrevoModule,
     InboxModule,
+    FaqModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

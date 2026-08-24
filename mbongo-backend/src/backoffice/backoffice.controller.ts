@@ -26,13 +26,17 @@ import { UpsertAdminRoleDto } from './dto/upsert-admin-role.dto';
 import { UpsertCashAgentDto } from './dto/upsert-cash-agent.dto';
 import { UpsertMerchantDto } from './dto/upsert-merchant.dto';
 import { BackofficeService } from './backoffice.service';
+import { FaqService } from '../faq/faq.service';
 
 @ApiTags('Backoffice')
 @ApiBearerAuth('access-token')
 @Controller('backoffice')
 @UseGuards(AdminJwtGuard, AdminPermissionGuard)
 export class BackofficeController {
-  constructor(private readonly backofficeService: BackofficeService) {}
+  constructor(
+    private readonly backofficeService: BackofficeService,
+    private readonly faqService: FaqService,
+  ) {}
 
   @Get('dashboard')
   @RequireAdminPermissions('VIEW_DASHBOARD')
@@ -631,6 +635,64 @@ export class BackofficeController {
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
     return this.backofficeService.creditUserWallet(userId, body, admin);
+  }
+
+  // ── FAQ ──────────────────────────────────────────────────────────────────
+
+  @Get('faq/categories')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  listFaqCategories() {
+    return this.faqService.listCategories();
+  }
+
+  @Post('faq/categories')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  createFaqCategory(@Body() body: { name: string; slug: string; order?: number }) {
+    return this.faqService.createCategory(body);
+  }
+
+  @Put('faq/categories/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  updateFaqCategory(
+    @Param('id') id: string,
+    @Body() body: { name?: string; slug?: string; order?: number },
+  ) {
+    return this.faqService.updateCategory(id, body);
+  }
+
+  @Delete('faq/categories/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  deleteFaqCategory(@Param('id') id: string) {
+    return this.faqService.deleteCategory(id);
+  }
+
+  @Get('faq/items')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  listFaqItems(@Query('categoryId') categoryId?: string) {
+    return this.faqService.listItems(categoryId);
+  }
+
+  @Post('faq/items')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  createFaqItem(
+    @Body() body: { categoryId: string; question: string; answer: string; order?: number; isPublished?: boolean },
+  ) {
+    return this.faqService.createItem(body);
+  }
+
+  @Put('faq/items/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  updateFaqItem(
+    @Param('id') id: string,
+    @Body() body: { question?: string; answer?: string; order?: number; isPublished?: boolean; categoryId?: string },
+  ) {
+    return this.faqService.updateItem(id, body);
+  }
+
+  @Delete('faq/items/:id')
+  @RequireAdminPermissions('MANAGE_SETTINGS')
+  deleteFaqItem(@Param('id') id: string) {
+    return this.faqService.deleteItem(id);
   }
 }
 

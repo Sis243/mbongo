@@ -34,10 +34,24 @@ export class OtpService {
       VALUES (gen_random_uuid()::text, ${phone}, ${code}, ${purpose}, ${expiresAt})
     `;
 
+    // Résoudre l'email depuis la DB si non fourni explicitement
+    let resolvedEmail = emailAddress;
+    let resolvedName = name;
+    if (!resolvedEmail && this.email) {
+      try {
+        const user = await this.prisma.user.findUnique({
+          where: { phone },
+          select: { email: true, name: true },
+        });
+        resolvedEmail = user?.email ?? undefined;
+        resolvedName = resolvedName ?? user?.name ?? undefined;
+      } catch (_) {}
+    }
+
     let smsSent = false;
     let emailSent = false;
 
-    // Envoi SMS — non bloquant : si Brevo SMS n'est pas activé, on continue
+    // Envoi SMS — non bloquant
     try {
       await this.sms.send(phone, `Votre code Mbongo: ${code}`);
       smsSent = true;
@@ -45,10 +59,10 @@ export class OtpService {
       this.logger.warn(`SMS OTP failed (${(err as Error).message}) — fallback email`);
     }
 
-    // Fallback email si SMS échoue et email fourni
-    if (!smsSent && emailAddress && this.email) {
+    // Fallback email si SMS échoue et email disponible
+    if (!smsSent && resolvedEmail && this.email) {
       try {
-        await this.email.sendOtp(emailAddress, name ?? 'Client', code);
+        await this.email.sendOtp(resolvedEmail, resolvedName ?? 'Client', code);
         emailSent = true;
       } catch (err) {
         this.logger.error(`Email OTP failed: ${(err as Error).message}`);

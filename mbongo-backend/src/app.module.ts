@@ -21,6 +21,7 @@ import { CoreBankingModule } from './core-banking/core-banking.module';
 import { BillPayModule } from './bill-pay/bill-pay.module';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { BrevoModule } from './common/brevo.module';
+import { InboxModule } from './inbox/inbox.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { BrevoModule } from './common/brevo.module';
     CoreBankingModule,
     BillPayModule,
     BrevoModule,
+    InboxModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

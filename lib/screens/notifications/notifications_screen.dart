@@ -5,17 +5,49 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../features/notifications/data/notifications_repository.dart';
 import '../../features/notifications/presentation/notifications_provider.dart';
-import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+import '../../widgets/common/mbongo_money_particles.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
+
+  IconData _icon(String type) {
+    switch (type) {
+      case 'CREDIT': return Icons.arrow_downward_rounded;
+      case 'DEBIT': return Icons.arrow_upward_rounded;
+      case 'TRANSFER_IN': return Icons.call_received_rounded;
+      case 'TRANSFER_OUT': return Icons.call_made_rounded;
+      case 'KYC_APPROVED': return Icons.verified_user_rounded;
+      case 'KYC_REJECTED': return Icons.gpp_bad_rounded;
+      default: return Icons.notifications_rounded;
+    }
+  }
+
+  Color _iconColor(String type, MbongoThemePalette palette) {
+    switch (type) {
+      case 'CREDIT':
+      case 'TRANSFER_IN':
+      case 'KYC_APPROVED': return const Color(0xFF4CAF50);
+      case 'DEBIT':
+      case 'TRANSFER_OUT': return palette.accentStrong;
+      case 'KYC_REJECTED': return const Color(0xFFC44040);
+      default: return palette.accent;
+    }
+  }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return "À l'instant";
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
+    if (diff.inDays < 7) return 'Il y a ${diff.inDays} j';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = MbongoThemeController.current;
     final notifsAsync = ref.watch(notificationsProvider);
-    final readIds = ref.watch(readNotificationIdsProvider);
 
     return Scaffold(
       backgroundColor: palette.shellBottom,
@@ -23,281 +55,152 @@ class NotificationsScreen extends ConsumerWidget {
         title: 'Notifications',
         actions: [
           notifsAsync.whenOrNull(
-            data: (list) {
-              final unread = list.where((n) => !readIds.contains(n.id)).toList();
-              if (unread.isEmpty) return const SizedBox.shrink();
+            data: (r) {
+              if (r.unread == 0) return const SizedBox.shrink();
               return TextButton(
-                onPressed: () {
-                  ref
-                      .read(readNotificationIdsProvider.notifier)
-                      .markAllRead(list.map((n) => n.id).toList());
+                onPressed: () async {
+                  await ref.read(notificationsRepositoryProvider).markAllRead();
+                  ref.invalidate(notificationsProvider);
                 },
-                child: const Text(
+                child: Text(
                   'Tout lire',
-                  style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: palette.accentStrong,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                 ),
               );
             },
-          ) ?? const SizedBox.shrink(),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [palette.shellTop, palette.shellBottom],
           ),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: MbongoMoneyParticles(
-                  color: palette.accent,
-                  count: 14,
-                  opacity: 0.07,
-                  height: 0,
-                ),
+        ].whereType<Widget>().toList(),
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: MbongoMoneyParticles(
+                color: palette.accent,
+                count: 8,
+                opacity: 0.05,
               ),
             ),
-            SafeArea(
-              child: notifsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
+          ),
+          notifsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Text('Erreur: $e',
+                  style: const TextStyle(color: AppColors.muted)),
+            ),
+            data: (r) {
+              final items = r.items;
+              if (items.isEmpty) {
+                return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.wifi_off_rounded, color: AppColors.muted, size: 48),
+                      Icon(Icons.notifications_off_outlined,
+                          size: 56, color: AppColors.muted),
                       const SizedBox(height: 12),
-                      Text(
-                        'Impossible de charger les notifications.',
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => ref.refresh(notificationsProvider),
-                        child: const Text('Reessayer'),
-                      ),
+                      const Text('Aucune notification',
+                          style: TextStyle(color: AppColors.muted, fontSize: 15)),
                     ],
                   ),
-                ),
-                data: (list) {
-                  if (list.isEmpty) {
-                    return _buildEmpty(palette);
-                  }
-                  return RefreshIndicator(
-                    onRefresh: () => ref.refresh(notificationsProvider.future),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: list.length,
-                      itemBuilder: (_, i) {
-                        final n = list[i];
-                        final isRead = readIds.contains(n.id);
-                        return _NotificationTile(
-                          notification: n,
-                          isRead: isRead,
-                          onTap: () {
-                            ref.read(readNotificationIdsProvider.notifier).markRead(n.id);
-                          },
-                        );
+                );
+              }
+              return RefreshIndicator(
+                color: palette.accent,
+                onRefresh: () async => ref.invalidate(notificationsProvider),
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: items.length,
+                  itemBuilder: (ctx, i) {
+                    final n = items[i];
+                    final iconColor = _iconColor(n.type, palette);
+                    return GestureDetector(
+                      onTap: () async {
+                        if (!n.isRead) {
+                          await ref
+                              .read(notificationsRepositoryProvider)
+                              .markRead(n.id);
+                          ref.invalidate(notificationsProvider);
+                        }
                       },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty(MbongoThemePalette palette) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: palette.panelAlt,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border.withValues(alpha: 0.24)),
-              ),
-              child: Icon(
-                Icons.notifications_none_rounded,
-                size: 52,
-                color: palette.accent.withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Aucune notification',
-              style: TextStyle(
-                color: AppColors.darkText,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Vous serez notifie ici de toutes les activites importantes sur votre compte.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.darkMuted,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationTile extends StatelessWidget {
-  final AppNotification notification;
-  final bool isRead;
-  final VoidCallback onTap;
-
-  const _NotificationTile({
-    required this.notification,
-    required this.isRead,
-    required this.onTap,
-  });
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inMinutes < 1) return "A l'instant";
-    if (diff.inHours < 1) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inDays < 1) return 'Il y a ${diff.inHours}h';
-    if (diff.inDays == 1) return 'Hier';
-    if (diff.inDays < 7) return 'Il y a ${diff.inDays} jours';
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    return '$d/$m/${date.year}';
-  }
-
-  IconData _channelIcon(String channel) {
-    switch (channel.toUpperCase()) {
-      case 'PUSH':
-        return Icons.notifications_active_rounded;
-      case 'EMAIL':
-        return Icons.email_rounded;
-      case 'SMS':
-        return Icons.sms_rounded;
-      default:
-        return Icons.notifications_rounded;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = MbongoThemeController.current;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isRead ? palette.panelAlt : const Color(0xFF102A55),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isRead
-                    ? AppColors.border.withValues(alpha: 0.24)
-                    : palette.accent.withValues(alpha: 0.5),
-                width: isRead ? 1 : 1.4,
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: palette.accent.withValues(alpha: isRead ? 0.10 : 0.20),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _channelIcon(notification.channel),
-                    color: isRead ? palette.accent : Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              notification.title,
-                              style: TextStyle(
-                                color: isRead ? AppColors.darkText : Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                              ),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: !n.isRead
+                              ? palette.accent.withValues(alpha: 0.07)
+                              : palette.panel,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: !n.isRead
+                                ? palette.accent.withValues(alpha: 0.25)
+                                : AppColors.border.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 4),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: iconColor.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(_icon(n.type),
+                                color: iconColor, size: 20),
+                          ),
+                          title: Text(
+                            n.title,
+                            style: TextStyle(
+                              color: AppColors.text,
+                              fontWeight: !n.isRead
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                              fontSize: 14,
                             ),
                           ),
-                          if (!isRead)
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: palette.accent,
-                                shape: BoxShape.circle,
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 2),
+                              Text(n.body,
+                                  style: const TextStyle(
+                                      color: AppColors.muted, fontSize: 13)),
+                              const SizedBox(height: 4),
+                              Text(
+                                _timeAgo(n.createdAt),
+                                style: TextStyle(
+                                  color:
+                                      palette.accent.withValues(alpha: 0.7),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        notification.body,
-                        style: TextStyle(
-                          color: isRead ? AppColors.darkMuted : const Color(0xFFB8CDE8),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          height: 1.35,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _formatDate(notification.createdAt),
-                        style: TextStyle(
-                          color: isRead
-                              ? AppColors.darkMuted
-                              : const Color(0xFF8AABC8),
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
+                            ],
+                          ),
+                          trailing: !n.isRead
+                              ? Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: palette.accentStrong,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              ],
-            ),
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
   }

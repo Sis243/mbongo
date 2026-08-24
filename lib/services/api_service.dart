@@ -365,6 +365,20 @@ class ApiService {
   }) =>
       _client.post('/transactions/account-to-wallet', {'accountId': accountId, 'amount': amount});
 
+  // ── Inbox notifications ──────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getInbox({int page = 1}) =>
+      _client.get('/inbox?page=$page');
+
+  static Future<Map<String, dynamic>> getInboxUnreadCount() =>
+      _client.get('/inbox/unread-count');
+
+  static Future<void> markInboxRead(String id) =>
+      _client.patch('/inbox/$id/read', {});
+
+  static Future<void> markAllInboxRead() =>
+      _client.patch('/inbox/read-all', {});
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   static List<Map<String, dynamic>> _toList(dynamic value) {

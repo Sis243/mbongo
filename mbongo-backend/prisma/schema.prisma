@@ -126,6 +126,7 @@ model User {
   disputes            Dispute[]
   notifications       Notification[]
   linkedBankAccounts  LinkedBankAccount[]
+  inboxItems          UserInboxItem[]
 
   @@index([status])
 }
@@ -689,4 +690,32 @@ model BillPayMethod {
   updatedAt      DateTime @updatedAt
 
   @@index([category, isActive])
+}
+
+// ── Inbox notifications utilisateur ──────────────────────────────────────────
+
+enum InboxItemType {
+  CREDIT
+  DEBIT
+  TRANSFER_IN
+  TRANSFER_OUT
+  KYC_APPROVED
+  KYC_REJECTED
+  SYSTEM
+}
+
+model UserInboxItem {
+  id        String        @id @default(uuid())
+  userId    String
+  type      InboxItemType
+  title     String
+  body      String
+  data      String?
+  readAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }

@@ -5,6 +5,7 @@ import { CardsService } from '../cards/cards.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FcmService } from '../notifications/fcm.service';
 import { BrevoEmailService } from '../common/brevo-email.service';
+import { InboxService } from '../inbox/inbox.service';
 import type { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 
 type ChannelMode = 'sandbox' | 'live';
@@ -142,6 +143,7 @@ export class BackofficeService {
     private readonly prisma: PrismaService,
     private readonly cardsService: CardsService,
     private readonly fcm: FcmService,
+    private readonly inbox: InboxService,
     @Optional() private readonly brevoEmail: BrevoEmailService,
   ) {}
 
@@ -720,14 +722,24 @@ export class BackofficeService {
     const user = reviewed.user as { id: string; name: string; phone: string; email?: string | null; fcmToken?: string | null };
     const isApproved = body.status === 'APPROVED';
 
+    const kycTitle = isApproved ? 'Compte vérifié ✓' : 'Vérification KYC';
+    const kycBody = isApproved
+      ? 'Votre identité a été vérifiée. Votre compte MBONGO est maintenant actif.'
+      : `Votre dossier KYC a été rejeté. Motif : ${body.rejectionReason ?? "voir l'application"}.`;
+
+    this.inbox
+      .push(user.id, isApproved ? 'KYC_APPROVED' : 'KYC_REJECTED', kycTitle, kycBody, {
+        submissionId: reviewed.id,
+        status: body.status,
+      })
+      .catch(() => undefined);
+
     // Push notification FCM (non bloquant)
     if (user?.fcmToken) {
       this.fcm.send({
         token: user.fcmToken,
-        title: isApproved ? 'Compte vérifié ✓' : 'Vérification KYC',
-        body: isApproved
-          ? 'Votre identité a été vérifiée. Votre compte MBONGO est maintenant actif.'
-          : `Votre dossier KYC a été rejeté. Motif : ${body.rejectionReason ?? "voir l'application"}.`,
+        title: kycTitle,
+        body: kycBody,
         data: { type: 'KYC_REVIEW', status: body.status, submissionId: reviewed.id },
       }).catch(() => {});
     }
@@ -3257,12 +3269,23 @@ export class BackofficeService {
       return { transaction, wallet: updatedWallet };
     });
 
+    const notifTitle = 'Crédit reçu';
+    const notifBody = `Votre compte a été crédité de ${body.amount.toLocaleString()} ${currency}`;
+
+    this.inbox
+      .push(userId, 'CREDIT', notifTitle, notifBody, {
+        amount: body.amount,
+        currency,
+        transactionId: result.transaction.id,
+      })
+      .catch(() => undefined);
+
     if (user.fcmToken) {
       this.fcm
         .send({
           token: user.fcmToken,
-          title: 'Crédit reçu',
-          body: `Votre compte a été crédité de ${body.amount.toLocaleString()} ${currency}`,
+          title: notifTitle,
+          body: notifBody,
           data: { type: 'ADMIN_CREDIT', amount: String(body.amount) },
         })
         .catch(() => undefined);

@@ -8,6 +8,7 @@ import { AdminPermissionGuard } from '../admin-auth/guards/admin-permission.guar
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
 import { ConfigService } from '@nestjs/config';
 import { jwtAccessSecret } from '../config/runtime-config';
+import { InboxModule } from '../inbox/inbox.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { jwtAccessSecret } from '../config/runtime-config';
         signOptions: { expiresIn: '1d' },
       }),
     }),
+    InboxModule,
   ],
   controllers: [BackofficeController],
   providers: [BackofficeService, CardsService, PrismaService, AdminJwtGuard, AdminPermissionGuard],

@@ -206,8 +206,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String profile,
     MbongoThemePalette palette,
   ) {
-    final unreadAsync = ref.watch(unreadCountProvider);
-    final unreadCount = unreadAsync.valueOrNull ?? 0;
+    final unreadCount = ref.watch(unreadCountProvider);
 
     return Row(
         children: [

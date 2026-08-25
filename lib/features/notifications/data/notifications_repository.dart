@@ -27,8 +27,8 @@ class AppNotification {
         id: m['id']?.toString() ?? '',
         title: m['title']?.toString() ?? '',
         body: m['body']?.toString() ?? '',
-        type: m['type']?.toString() ?? 'SYSTEM',
-        isRead: m['readAt'] != null,
+        type: (m['channel'] ?? m['type'])?.toString() ?? 'SYSTEM',
+        isRead: m['read'] == true || m['readAt'] != null,
         createdAt: DateTime.tryParse(m['createdAt']?.toString() ?? '') ?? DateTime.now(),
       );
 }
@@ -38,14 +38,16 @@ class NotificationsRepository {
   const NotificationsRepository(this._client);
 
   Future<({List<AppNotification> items, int unread})> fetchInbox({int page = 1}) async {
-    final resp = await _client.get('/inbox?page=$page');
-    final list = resp['items'];
+    final resp = await _client.get('/notifications/me');
+    final list = resp['data'];
     final items = list is List
         ? list.map((e) => AppNotification.fromMap(Map<String, dynamic>.from(e as Map))).toList()
         : <AppNotification>[];
-    return (items: items, unread: (resp['unread'] as num?)?.toInt() ?? 0);
+    final unreadResp = await _client.get('/notifications/unread-count');
+    final unread = (unreadResp['count'] as num?)?.toInt() ?? 0;
+    return (items: items, unread: unread);
   }
 
-  Future<void> markRead(String id) => _client.patch('/inbox/$id/read', {});
-  Future<void> markAllRead() => _client.patch('/inbox/read-all', {});
+  Future<void> markRead(String id) => _client.patch('/notifications/$id/read', {});
+  Future<void> markAllRead() => _client.post('/notifications/read-all', {});
 }

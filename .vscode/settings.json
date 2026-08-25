@@ -10,5 +10,7 @@
       "path": "C:\\Program Files\\Android\\Android Studio\\jbr",
       "default": true
     }
-  ]
+  ],
+  "gradle.javaHome": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.gradle.buildServer.enabled": "on"
 }

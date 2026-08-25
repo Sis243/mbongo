@@ -217,6 +217,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 name: name,
                 photoVerified: photoVerified,
               ),
+              if (currentUser?.email == null || (currentUser?.email ?? '').isEmpty) ...[
+                const SizedBox(height: 14),
+                _buildEmailPromptBanner(context),
+              ],
                                   const SizedBox(height: 18),
                                   _buildKycPanel(context),
                                   const SizedBox(height: 18),
@@ -514,6 +518,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEmailPromptBanner(BuildContext context) {
+    final palette = MbongoThemeController.current;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UpdateProfileScreen())),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.gold.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.email_outlined, color: AppColors.gold, size: 20),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Ajoutez votre email pour recevoir les codes OTP par email en cas de besoin.',
+              style: TextStyle(color: AppColors.gold, fontSize: 12.5, fontWeight: FontWeight.w700, height: 1.3),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.arrow_forward_ios_rounded, color: palette.accent, size: 14),
+        ]),
+      ),
     );
   }
 

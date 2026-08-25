@@ -67,6 +67,7 @@ class AuthRepository {
     required String phone,
     required String pin,
     String? email,
+    String? referralCode,
   }) async {
     final fcmToken = await _getFcmToken();
     final data = await _client.post(
@@ -77,6 +78,7 @@ class AuthRepository {
         'pin': pin,
         if (email != null && email.isNotEmpty) 'email': email,
         if (fcmToken != null) 'fcmToken': fcmToken,
+        if (referralCode != null && referralCode.isNotEmpty) 'referralCode': referralCode,
       },
       auth: false,
     );

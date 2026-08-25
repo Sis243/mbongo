@@ -218,6 +218,7 @@ class _AuthInterceptor extends Interceptor {
       final refreshToken = await _storage.getRefreshToken();
       if (refreshToken == null || refreshToken.isEmpty) {
         await _storage.clearSession();
+        DioClient._sessionExpiredCtrl.add(null);
         handler.next(err);
         return;
       }

@@ -24,6 +24,7 @@ import { BrevoModule } from './common/brevo.module';
 import { InboxModule } from './inbox/inbox.module';
 import { FaqModule } from './faq/faq.module';
 import { SupportModule } from './support/support.module';
+import { BankModule } from './bank/bank.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SupportModule } from './support/support.module';
     InboxModule,
     FaqModule,
     SupportModule,
+    BankModule,
   ],
   controllers: [AppController, MerchantController],
   providers: [

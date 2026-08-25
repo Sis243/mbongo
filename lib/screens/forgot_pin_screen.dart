@@ -23,6 +23,7 @@ class _ForgotPinScreenState extends State<ForgotPinScreen> {
   int _step = 0;
   bool _loading = false;
   String? _testCode;
+  String _sentVia = 'SMS';
 
   @override
   void initState() {
@@ -49,8 +50,14 @@ class _ForgotPinScreenState extends State<ForgotPinScreen> {
     try {
       final res = await ApiService.requestOtp(phone, purpose: 'reset');
       if (!mounted) return;
+      final via = res['via']?.toString() ?? '';
       setState(() {
         _testCode = res['code']?.toString();
+        _sentVia = via.contains('email') && via.contains('sms')
+            ? 'SMS et email'
+            : via.contains('email')
+                ? 'email'
+                : 'SMS';
         _step = 1;
       });
     } catch (e) {
@@ -102,8 +109,8 @@ class _ForgotPinScreenState extends State<ForgotPinScreen> {
     final palette = MbongoThemeController.current;
     final titles = ['Numéro de téléphone', 'Code de vérification', 'Nouveau code PIN'];
     final subs = [
-      'Entrez votre numéro pour recevoir un code de réinitialisation.',
-      'Entrez le code envoyé au ${phoneCtrl.text}.',
+      'Entrez votre numéro pour recevoir un code par SMS et/ou email.',
+      'Entrez le code envoyé par $_sentVia au ${phoneCtrl.text}.',
       'Choisissez un nouveau code PIN.',
     ];
 

@@ -58,7 +58,23 @@ class ServiceTile extends StatelessWidget {
                     child: Icon(item.icon, color: iconColor, size: 22),
                   ),
                   const Spacer(),
-                  if (item.isNew == true)
+                  if (item.isSoon == true)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.muted.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Bientôt',
+                        style: TextStyle(
+                          color: AppColors.muted.withValues(alpha: 0.9),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    )
+                  else if (item.isNew == true)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                       decoration: BoxDecoration(
@@ -96,9 +112,11 @@ class ServiceTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Ouvrir',
+                item.isSoon ? 'En déploiement' : 'Ouvrir',
                 style: TextStyle(
-                  color: iconColor.withValues(alpha: 0.95),
+                  color: item.isSoon
+                      ? AppColors.muted.withValues(alpha: 0.7)
+                      : iconColor.withValues(alpha: 0.95),
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ),

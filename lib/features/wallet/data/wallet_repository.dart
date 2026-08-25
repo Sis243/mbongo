@@ -64,12 +64,14 @@ class WalletRepository {
     required String receiverPhone,
     required double amount,
     required String description,
+    String currency = 'CDF',
     String? idempotencyKey,
   }) =>
       _client.post('/transactions/transfer', {
         'receiverPhone': receiverPhone,
         'amount': amount,
         'description': description,
+        'currency': currency,
         if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
       });
 

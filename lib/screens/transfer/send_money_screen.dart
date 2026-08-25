@@ -228,6 +228,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         receiverPhone: user.phone,
         amount: amount,
         description: reason,
+        currency: _currency,
       );
       if (!mounted) return;
       await Navigator.pushReplacement(

@@ -138,8 +138,18 @@ export class TransactionsService {
       throw new NotFoundException('Wallet emetteur ou recepteur introuvable');
     }
 
-    const fee = this.calculateFee(body.amount, feeRule);
-    const totalDebit = Number((body.amount + fee).toFixed(2));
+    const txCurrency = body.currency === 'USD' ? 'USD' : 'CDF';
+    // Si USD, convertir en CDF pour le wallet (wallets sont CDF-based)
+    let cdfAmount = body.amount;
+    let cdfRate = 1;
+    if (txCurrency === 'USD') {
+      const rateRow = await this.prisma.currency.findUnique({ where: { id: 'CDF' } });
+      cdfRate = Number(rateRow?.rate ?? 2800);
+      cdfAmount = Number((body.amount * cdfRate).toFixed(2));
+    }
+
+    const fee = this.calculateFee(cdfAmount, feeRule);
+    const totalDebit = Number((cdfAmount + fee).toFixed(2));
 
     // Early UX check — the atomic guard is inside the $transaction via debitWallet
     if (senderWallet.balance < totalDebit) {
@@ -150,14 +160,14 @@ export class TransactionsService {
       // Re-read sender wallet inside transaction for a consistent snapshot
       const freshSenderWallet = await tx.wallet.findUnique({ where: { id: senderWallet.id } });
       if (!freshSenderWallet) throw new NotFoundException('Wallet emetteur introuvable');
-      // Débiter montant + frais de l'expéditeur
+      // Débiter montant + frais (en CDF) de l'expéditeur
       const updatedSenderWallet = await this.debitWallet(tx, freshSenderWallet, totalDebit);
 
       const updatedReceiverWallet = await tx.wallet.update({
         where: { id: receiverWallet.id },
         data: {
           balance: {
-            increment: body.amount,
+            increment: cdfAmount,
           },
         },
       });
@@ -166,14 +176,16 @@ export class TransactionsService {
         data: {
           type: body.description?.trim() ? `TRANSFER:${body.description.trim()}` : 'TRANSFER',
           status: 'SUCCESS',
-          amount: body.amount,
+          amount: body.amount,   // montant dans la devise originale
           fee,
+          currency: txCurrency,
           idempotencyKey: idempotencyKey ?? undefined,
           senderId,
           receiverId: receiverUserId,
           reference: this.createReference('TRF'),
           metadata: JSON.stringify({
             description: body.description?.trim() ?? '',
+            ...(txCurrency === 'USD' && { amountCDF: cdfAmount, rate: cdfRate }),
           }),
         },
       });
@@ -213,29 +225,29 @@ export class TransactionsService {
       this.prisma.user.findUnique({ where: { id: senderId }, select: { name: true, phone: true, fcmToken: true } }),
       this.prisma.user.findUnique({ where: { id: receiverUserId }, select: { name: true, phone: true, fcmToken: true } }),
     ]);
-    const currency = 'CDF';
     const amountFmt = body.amount.toLocaleString();
+    const cdfFmt = txCurrency === 'USD' ? ` (≈${cdfAmount.toLocaleString()} CDF)` : '';
 
     // Envoyeur — TRANSFER_OUT
     const outTitle = 'Virement envoyé';
-    const outBody = `Vous avez envoyé ${amountFmt} ${currency} à ${receiverUser?.name ?? 'un utilisateur'}`;
+    const outBody = `Vous avez envoyé ${amountFmt} ${txCurrency}${cdfFmt} à ${receiverUser?.name ?? 'un utilisateur'}`;
     this.inbox.push(senderId, 'TRANSFER_OUT', outTitle, outBody, { txId: createdTx.id, amount: body.amount }).catch(() => undefined);
     if (senderUser?.fcmToken) {
       this.fcm.send({ token: senderUser.fcmToken, title: outTitle, body: outBody, data: { type: 'TRANSFER_OUT', txId: createdTx.id } }).catch(() => {});
     }
     if (senderUser?.phone) {
-      this.sms.send(senderUser.phone, `MBONGO: -${amountFmt} ${currency} vers ${receiverUser?.name ?? 'beneficiaire'}. Ref ${createdTx.reference}`).catch(() => {});
+      this.sms.send(senderUser.phone, `MBONGO: -${amountFmt} ${txCurrency} vers ${receiverUser?.name ?? 'beneficiaire'}. Ref ${createdTx.reference}`).catch(() => {});
     }
 
     // Receveur — TRANSFER_IN
     const inTitle = 'Virement reçu';
-    const inBody = `${senderUser?.name ?? 'Un utilisateur'} vous a envoyé ${amountFmt} ${currency}`;
+    const inBody = `${senderUser?.name ?? 'Un utilisateur'} vous a envoyé ${amountFmt} ${txCurrency}${cdfFmt}`;
     this.inbox.push(receiverUserId, 'TRANSFER_IN', inTitle, inBody, { txId: createdTx.id, amount: body.amount }).catch(() => undefined);
     if (receiverUser?.fcmToken) {
       this.fcm.send({ token: receiverUser.fcmToken, title: inTitle, body: inBody, data: { type: 'TRANSFER_IN', txId: createdTx.id } }).catch(() => {});
     }
     if (receiverUser?.phone) {
-      this.sms.send(receiverUser.phone, `MBONGO: +${amountFmt} ${currency} de ${senderUser?.name ?? 'expediteur'}. Ref ${createdTx.reference}`).catch(() => {});
+      this.sms.send(receiverUser.phone, `MBONGO: +${amountFmt} ${txCurrency} de ${senderUser?.name ?? 'expediteur'}. Ref ${createdTx.reference}`).catch(() => {});
     }
 
     return this.serializeTransaction(createdTx);

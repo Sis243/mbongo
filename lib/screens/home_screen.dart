@@ -64,7 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ServiceItem(title: 'Envoyer', icon: Icons.send_rounded),
       ServiceItem(title: 'Demander', icon: Icons.request_quote_rounded),
       ServiceItem(title: 'Changer', icon: Icons.currency_exchange_rounded),
-      ServiceItem(title: 'International', icon: Icons.public_rounded),
+      ServiceItem(title: 'International', icon: Icons.public_rounded, isSoon: true),
       ServiceItem(title: 'Retirer', icon: Icons.download_rounded, isNew: true),
       ServiceItem(title: 'Mes cartes', icon: Icons.credit_card_rounded),
       ServiceItem(title: 'Unites', icon: Icons.phone_android_rounded),
@@ -733,6 +733,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // QR scan : action directe, pas de screen widget
     if (title.contains('Scanner QR')) {
       await scanAndRoute(context);
+      return;
+    }
+    // Module international en cours de déploiement
+    if (title.contains('International')) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Transfert international — bientôt disponible 🌍'),
+        backgroundColor: AppColors.blueSoft,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+      ));
       return;
     }
     final screen = _screenForService(title);

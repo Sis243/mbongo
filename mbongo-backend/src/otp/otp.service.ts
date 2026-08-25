@@ -51,29 +51,31 @@ export class OtpService {
     let smsSent = false;
     let emailSent = false;
 
-    // Envoi SMS — non bloquant
-    try {
-      await this.sms.send(phone, `Votre code Mbongo: ${code}`);
+    // Envoi SMS + email en parallèle (pas de fallback séquentiel — les deux canaux tentés)
+    const [smsResult, emailResult] = await Promise.allSettled([
+      this.sms.send(phone, `Votre code MBONGO: ${code}. Valable 5 min. Ne le partagez jamais.`),
+      resolvedEmail && this.email
+        ? this.email.sendOtp(resolvedEmail, resolvedName ?? 'Client', code)
+        : Promise.reject(new Error('no email')),
+    ]);
+
+    if (smsResult.status === 'fulfilled') {
       smsSent = true;
-    } catch (err) {
-      this.logger.warn(`SMS OTP failed (${(err as Error).message}) — fallback email`);
+    } else {
+      this.logger.warn(`SMS OTP échoué: ${(smsResult.reason as Error)?.message}`);
     }
 
-    // Fallback email si SMS échoue et email disponible
-    if (!smsSent && resolvedEmail && this.email) {
-      try {
-        await this.email.sendOtp(resolvedEmail, resolvedName ?? 'Client', code);
-        emailSent = true;
-      } catch (err) {
-        this.logger.error(`Email OTP failed: ${(err as Error).message}`);
-      }
+    if (emailResult.status === 'fulfilled') {
+      emailSent = true;
+    } else if (resolvedEmail) {
+      this.logger.warn(`Email OTP échoué: ${(emailResult.reason as Error)?.message}`);
     }
 
     const isTest = process.env.NODE_ENV !== 'production' || process.env.OTP_TEST_MODE === 'true';
 
     return {
       sent: smsSent || emailSent,
-      via: smsSent ? 'sms' : emailSent ? 'email' : 'none',
+      via: smsSent && emailSent ? 'sms+email' : smsSent ? 'sms' : emailSent ? 'email' : 'none',
       phone,
       ...(isTest && { code, note: 'TEST MODE — code visible en clair' }),
     };

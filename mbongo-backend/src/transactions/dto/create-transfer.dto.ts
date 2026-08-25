@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
 
 export class CreateTransferDto {
   @IsOptional()
@@ -26,4 +26,9 @@ export class CreateTransferDto {
   @IsString()
   @MaxLength(80)
   idempotencyKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['CDF', 'USD'])
+  currency?: string;
 }

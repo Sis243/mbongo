@@ -56,6 +56,12 @@ export class AuthService {
     };
   }
 
+  async verifyPin(userId: string, pin: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { pinHash: true } });
+    if (!user) return false;
+    return bcrypt.compare(String(pin).trim(), user.pinHash);
+  }
+
   async refresh({ refreshToken }: RefreshTokenDto, metadata: AuthRequestMetadata = {}) {
     const payload = await this.verifyRefreshToken(refreshToken);
 

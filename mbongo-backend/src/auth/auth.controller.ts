@@ -1,4 +1,4 @@
-﻿import { Body, Controller, Headers, Ip, Post, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Headers, Ip, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AuthService } from './auth.service';
@@ -57,6 +57,18 @@ export class AuthController {
   @Post('reset-pin')
   resetPin(@Body() body: { phone: string; code: string; newPin: string }) {
     return this.authService.resetPin(body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @Post('verify-pin')
+  async verifyPin(
+    @CurrentUser() user: JwtRequestUser,
+    @Body() body: { pin: string },
+  ) {
+    const valid = await this.authService.verifyPin(user.userId, body.pin);
+    if (!valid) throw new UnauthorizedException('Code PIN incorrect');
+    return { valid: true };
   }
 
   @UseGuards(JwtAuthGuard)

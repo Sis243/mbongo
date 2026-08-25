@@ -2,6 +2,7 @@ node_modules/
 dist/
 # Keep environment variables out of version control
 .env
+.env.*
 
 /generated/prisma
 uploads/
@@ -10,3 +11,8 @@ uploads/
 .env*.local
 mbongo-backend/.env.neon
 mbongo-backend/.env.vercel
+
+# Firebase service account — JAMAIS dans git
+*firebase-adminsdk*.json
+*service-account*.json
+firebase-*.json

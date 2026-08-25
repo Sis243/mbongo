@@ -211,8 +211,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   Widget _buildActions(MbongoThemePalette palette) {
     final actions = [
       (Icons.north_east_rounded,  'Envoyer',  palette.accent,       () => _guardedNavigate(const SendMoneyScreen())),
-      (Icons.south_west_rounded,  'Recevoir', AppColors.green,       () => _guardedNavigate(const RequestMoneyScreen())),
-      (Icons.add_rounded,         'Déposer',  AppColors.cyan,        () => _guardedNavigate(const DepositMethodScreen())),
+      (Icons.south_west_rounded,  'Recevoir', AppColors.green,       () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestMoneyScreen()))),
+      (Icons.add_rounded,         'Déposer',  AppColors.cyan,        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DepositMethodScreen()))),
       (Icons.download_rounded,    'Retirer',  AppColors.orange,      () => _guardedNavigate(const WithdrawScreen())),
       (Icons.currency_exchange_rounded, 'Changer', palette.accentStrong, () => _guardedNavigate(const ExchangeMoneyScreen())),
       (Icons.list_alt_rounded,    'Historique', AppColors.muted,     () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionsScreen()))),

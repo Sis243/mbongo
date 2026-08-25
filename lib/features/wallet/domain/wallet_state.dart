@@ -29,13 +29,23 @@ class TxEntry {
         type == 'depot' ||
         type == 'reception' ||
         type == 'demande_argent';
+    final counterparty = m['counterpartyName']?.toString();
+    final senderName = m['senderName']?.toString();
+    final receiverName = m['receiverName']?.toString();
+    final label = _buildLabel(type, isCredit, counterparty, senderName, receiverName)
+        ?? m['label']?.toString()
+        ?? m['description']?.toString()
+        ?? type;
     return TxEntry(
       id: m['id']?.toString() ?? '',
       type: type,
-      label: m['label']?.toString() ?? m['description']?.toString() ?? type,
+      label: label,
       amount: ((m['amount'] ?? 0) as num).toDouble(),
       currency: m['currency']?.toString() ?? 'CDF',
-      target: m['target']?.toString() ?? m['receiverPhone']?.toString() ?? '',
+      target: m['counterpartyPhone']?.toString()
+          ?? m['target']?.toString()
+          ?? m['receiverPhone']?.toString()
+          ?? '',
       motif: m['motif']?.toString() ?? m['description']?.toString() ?? '',
       status: m['status']?.toString() ?? 'SUCCESS',
       isCredit: isCredit,
@@ -45,6 +55,28 @@ class TxEntry {
               ? DateTime.tryParse(m['createdAt'].toString()) ?? DateTime.now()
               : DateTime.now(),
     );
+  }
+
+  static String? _buildLabel(
+    String type, bool isCredit,
+    String? counterparty, String? senderName, String? receiverName,
+  ) {
+    if (type.contains('transfer')) {
+      if (isCredit && senderName != null && senderName.isNotEmpty) return 'Reçu de $senderName';
+      if (!isCredit && receiverName != null && receiverName.isNotEmpty) return 'Envoyé à $receiverName';
+      if (counterparty != null && counterparty.isNotEmpty) {
+        return isCredit ? 'Reçu de $counterparty' : 'Envoyé à $counterparty';
+      }
+    }
+    if (type.contains('deposit') || type.contains('add-money')) return 'Dépôt';
+    if (type.contains('withdraw')) return 'Retrait';
+    if (type.contains('airtime')) return 'Recharge airtime';
+    if (type.contains('tv')) return 'Abonnement TV';
+    if (type.contains('merchant') || type.contains('pos')) return 'Paiement marchand';
+    if (type.contains('bill')) return 'Paiement facture';
+    if (type.contains('exchange')) return 'Change de devises';
+    if (type.contains('request') || type.contains('demande')) return 'Demande d\'argent';
+    return null;
   }
 
   Map<String, dynamic> toMap() => {

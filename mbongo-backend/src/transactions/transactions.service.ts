@@ -70,9 +70,26 @@ export class TransactionsService {
       orderBy: {
         createdAt: 'desc',
       },
+      include: {
+        sender: { select: { id: true, name: true, phone: true } },
+        receiver: { select: { id: true, name: true, phone: true } },
+      },
     });
 
-    return transactions.map((transaction) => this.serializeTransaction(transaction));
+    return transactions.map((t) => {
+      const isCredit = !!userId && t.receiverId === userId;
+      const counterpartyName = isCredit ? (t.sender?.name ?? null) : (t.receiver?.name ?? null);
+      const counterpartyPhone = isCredit ? (t.sender?.phone ?? null) : (t.receiver?.phone ?? null);
+      const { sender, receiver, ...rest } = t;
+      return {
+        ...this.serializeTransaction(rest),
+        senderName: sender?.name ?? null,
+        receiverName: receiver?.name ?? null,
+        counterpartyName,
+        counterpartyPhone,
+        isCredit,
+      };
+    });
   }
 
   async listActiveCashAgents() {

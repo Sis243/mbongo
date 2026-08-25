@@ -8,7 +8,8 @@ export type InboxItemType =
   | 'TRANSFER_OUT'
   | 'KYC_APPROVED'
   | 'KYC_REJECTED'
-  | 'SYSTEM';
+  | 'SYSTEM'
+  | 'MONEY_REQUEST';
 
 @Injectable()
 export class InboxService {

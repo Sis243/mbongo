@@ -13,6 +13,7 @@ export class UsersService {
     const pin = data.pin.trim();
     const email = data.email?.trim() || null;
     const fcmToken = data.fcmToken?.trim() || null;
+    const referralCode = data.referralCode?.trim() || null;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { phone },
@@ -24,6 +25,15 @@ export class UsersService {
 
     const pinHash = await bcrypt.hash(pin, 10);
 
+    let referredBy: string | null = null;
+    if (referralCode) {
+      const referrer = await this.prisma.user.findFirst({
+        where: { phone: { endsWith: referralCode } },
+        select: { id: true },
+      });
+      if (referrer) referredBy = referrer.id;
+    }
+
     const user = await this.prisma.user.create({
       data: {
         name,
@@ -31,6 +41,7 @@ export class UsersService {
         email,
         pinHash,
         ...(fcmToken && { fcmToken }),
+        ...(referredBy && { referredBy }),
         wallet: { create: { balance: 0 } },
         kycSubmissions: { create: { status: 'DRAFT' } },
       },

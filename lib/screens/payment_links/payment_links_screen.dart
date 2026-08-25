@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
@@ -70,6 +72,14 @@ class _PaymentLinksScreenState extends ConsumerState<PaymentLinksScreen> {
     await Clipboard.setData(ClipboardData(text: _generatedLink!));
     setState(() => _copied = true);
     _toast('Lien copié dans le presse-papier.');
+  }
+
+  Future<void> _shareLink() async {
+    if (_generatedLink == null) return;
+    await Share.share(
+      'Paiement MBONGO\n${reasonController.text.trim()}\n\n$_generatedLink',
+      subject: 'Lien de paiement MBONGO',
+    );
   }
 
   void _reset() {
@@ -167,20 +177,27 @@ class _PaymentLinksScreenState extends ConsumerState<PaymentLinksScreen> {
                     ),
                   ] else ...[
                     _buildResultCard(palette, currency),
-                    const SizedBox(height: 14),
-                    ElevatedButton.icon(
-                      onPressed: _copyLink,
-                      icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded),
-                      label: Text(_copied ? 'Lien copie !' : 'Copier le lien'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _copied ? AppColors.green : palette.accentStrong,
-                      ),
-                    ),
                     const SizedBox(height: 10),
-                    OutlinedButton(
-                      onPressed: _reset,
-                      child: const Text('Creer un nouveau lien'),
-                    ),
+                    Row(children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _copyLink,
+                          icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded, size: 18),
+                          label: Text(_copied ? 'Copié !' : 'Copier'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _copied ? AppColors.green : palette.accent,
+                            side: BorderSide(color: _copied ? AppColors.green : palette.accent),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _reset,
+                          child: const Text('Nouveau lien'),
+                        ),
+                      ),
+                    ]),
                   ],
                   const SizedBox(height: 18),
                   _buildInfoCard(palette),
@@ -430,28 +447,32 @@ class _PaymentLinksScreenState extends ConsumerState<PaymentLinksScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: palette.accent.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 14),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: palette.accent.withValues(alpha: 0.3)),
+              ),
+              child: QrImageView(
+                data: _generatedLink!,
+                version: QrVersions.auto,
+                size: 180,
+                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF111111)),
+                dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF111111)),
+              ),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.share_rounded, color: palette.accent, size: 18),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Partagez ce lien par WhatsApp, SMS, email ou reseaux sociaux.',
-                    style: TextStyle(
-                      color: AppColors.darkMuted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _shareLink,
+              icon: const Icon(Icons.share_rounded),
+              label: const Text('Partager le lien'),
+              style: ElevatedButton.styleFrom(backgroundColor: palette.accentStrong),
             ),
           ),
         ],

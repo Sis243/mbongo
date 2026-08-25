@@ -720,6 +720,22 @@ export class TransactionsService {
         }),
       },
     });
+
+    if (targetUserId) {
+      const [requesterUser, targetUser] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: requesterId }, select: { name: true } }),
+        this.prisma.user.findUnique({ where: { id: targetUserId }, select: { fcmToken: true } }),
+      ]);
+      const reqName = requesterUser?.name ?? 'Quelqu\'un';
+      const amountFmt = body.amount.toLocaleString();
+      const notifTitle = 'Demande d\'argent';
+      const notifBody = `${reqName} vous demande ${amountFmt} CDF${body.reason ? ' — ' + body.reason : ''}`;
+      this.inbox.push(targetUserId, 'MONEY_REQUEST', notifTitle, notifBody, { txId: transaction.id }).catch(() => undefined);
+      if (targetUser?.fcmToken) {
+        this.fcm.send({ token: targetUser.fcmToken, title: notifTitle, body: notifBody, data: { type: 'MONEY_REQUEST', txId: transaction.id } }).catch(() => {});
+      }
+    }
+
     return this.serializeTransaction(transaction);
   }
 

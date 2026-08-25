@@ -14,6 +14,7 @@ import '../deposit/deposit_method_screen.dart';
 import '../exchange/exchange_money_screen.dart';
 import '../profile/kyc_status_screen.dart';
 import '../profile/share_profile_screen.dart';
+import '../appro/approvals_screen.dart';
 import '../request_money/request_money_screen.dart';
 import '../transactions_screen.dart';
 import '../transfer/send_money_screen.dart';
@@ -216,6 +217,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       (Icons.download_rounded,    'Retirer',  AppColors.orange,      () => _guardedNavigate(const WithdrawScreen())),
       (Icons.currency_exchange_rounded, 'Changer', palette.accentStrong, () => _guardedNavigate(const ExchangeMoneyScreen())),
       (Icons.list_alt_rounded,    'Historique', AppColors.muted,     () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionsScreen()))),
+      (Icons.task_alt_rounded,    'Demandes',   AppColors.orange,    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ApprovalsScreen()))),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

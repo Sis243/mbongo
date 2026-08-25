@@ -15,6 +15,7 @@ class ForgotPinScreen extends StatefulWidget {
 
 class _ForgotPinScreenState extends State<ForgotPinScreen> {
   final phoneCtrl = TextEditingController();
+  final emailCtrl = TextEditingController();
   final otpCtrl = TextEditingController();
   final pinCtrl = TextEditingController();
   final confirmCtrl = TextEditingController();
@@ -34,6 +35,7 @@ class _ForgotPinScreenState extends State<ForgotPinScreen> {
   @override
   void dispose() {
     phoneCtrl.dispose();
+    emailCtrl.dispose();
     otpCtrl.dispose();
     pinCtrl.dispose();
     confirmCtrl.dispose();
@@ -48,7 +50,8 @@ class _ForgotPinScreenState extends State<ForgotPinScreen> {
     if (phone.isEmpty) { _snack('Entrez votre numéro.'); return; }
     setState(() => _loading = true);
     try {
-      final res = await ApiService.requestOtp(phone, purpose: 'reset');
+      final email = emailCtrl.text.trim();
+      final res = await ApiService.requestOtp(phone, purpose: 'reset', email: email.isNotEmpty ? email : null);
       if (!mounted) return;
       final via = res['via']?.toString() ?? '';
       setState(() {
@@ -170,6 +173,16 @@ class _ForgotPinScreenState extends State<ForgotPinScreen> {
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(labelText: 'Numéro de téléphone', prefixIcon: Icon(Icons.phone_outlined)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email (optionnel)',
+                    hintText: 'Pour recevoir le code par email aussi',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
                 ),
                 const SizedBox(height: 18),
                 _btn('Envoyer le code', _sendOtp),

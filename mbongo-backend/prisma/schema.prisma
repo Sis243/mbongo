@@ -116,6 +116,7 @@ model User {
   status               UserStatus @default(ACTIVE)
   merchantApiKey       String?    @unique
   merchantApiKeyPreview String?
+  referredBy           String?
   createdAt            DateTime   @default(now())
 
   wallet              Wallet?
@@ -763,6 +764,7 @@ enum InboxItemType {
   KYC_APPROVED
   KYC_REJECTED
   SYSTEM
+  MONEY_REQUEST
 }
 
 model UserInboxItem {

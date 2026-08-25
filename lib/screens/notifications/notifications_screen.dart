@@ -7,6 +7,7 @@ import '../../features/notifications/data/notifications_repository.dart';
 import '../../features/notifications/presentation/notifications_provider.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
+import '../appro/approvals_screen.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -19,6 +20,7 @@ class NotificationsScreen extends ConsumerWidget {
       case 'TRANSFER_OUT': return Icons.call_made_rounded;
       case 'KYC_APPROVED': return Icons.verified_user_rounded;
       case 'KYC_REJECTED': return Icons.gpp_bad_rounded;
+      case 'MONEY_REQUEST': return Icons.request_page_rounded;
       default: return Icons.notifications_rounded;
     }
   }
@@ -31,6 +33,7 @@ class NotificationsScreen extends ConsumerWidget {
       case 'DEBIT':
       case 'TRANSFER_OUT': return palette.accentStrong;
       case 'KYC_REJECTED': return const Color(0xFFC44040);
+      case 'MONEY_REQUEST': return const Color(0xFFFF9800);
       default: return palette.accent;
     }
   }
@@ -124,6 +127,9 @@ class NotificationsScreen extends ConsumerWidget {
                               .read(notificationsRepositoryProvider)
                               .markRead(n.id);
                           ref.invalidate(notificationsProvider);
+                        }
+                        if (n.type == 'MONEY_REQUEST' && context.mounted) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ApprovalsScreen()));
                         }
                       },
                       child: Container(

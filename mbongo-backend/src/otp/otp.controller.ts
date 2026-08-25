@@ -8,8 +8,8 @@ export class OtpController {
   constructor(private readonly otpService: OtpService) {}
 
   @Post('request')
-  request(@Body() body: { phone: string; purpose?: 'register' | 'login' | 'reset' }) {
-    return this.otpService.requestOtp(body.phone, body.purpose ?? 'register');
+  request(@Body() body: { phone: string; purpose?: 'register' | 'login' | 'reset'; email?: string; name?: string }) {
+    return this.otpService.requestOtp(body.phone, body.purpose ?? 'register', body.email, body.name);
   }
 
   @Post('verify')

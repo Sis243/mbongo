@@ -27,8 +27,12 @@ class ApiService {
   }) =>
       _client.post('/auth/register', {'name': name, 'phone': phone, 'pin': pin}, auth: false);
 
-  static Future<Map<String, dynamic>> requestOtp(String phone, {String purpose = 'login'}) =>
-      _client.post('/otp/request', {'phone': phone, 'purpose': purpose}, auth: false);
+  static Future<Map<String, dynamic>> requestOtp(String phone, {String purpose = 'login', String? email, String? name}) {
+    final body = <String, dynamic>{'phone': phone, 'purpose': purpose};
+    if (email != null && email.isNotEmpty) body['email'] = email;
+    if (name != null && name.isNotEmpty) body['name'] = name;
+    return _client.post('/otp/request', body, auth: false);
+  }
 
   static Future<Map<String, dynamic>> verifyOtp(String phone, String code, {String purpose = 'login'}) =>
       _client.post('/otp/verify', {'phone': phone, 'code': code, 'purpose': purpose}, auth: false);

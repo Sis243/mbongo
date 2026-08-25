@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
+import '../../core/api/dio_client.dart';
 import '../../core/storage/app_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
@@ -100,20 +101,30 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
     setState(() { _loading = true; _error = null; });
 
     try {
+      // Try local bio credentials first (faster, offline)
       final creds = await AppStorage().getBioCredentials();
-      if (creds.pin == null || creds.pin!.isEmpty) {
-        if (mounted) Navigator.of(context).pop(false);
+      if (creds.pin != null && creds.pin!.isNotEmpty) {
+        if (pin == creds.pin) {
+          HapticFeedback.heavyImpact();
+          if (mounted) Navigator.of(context).pop(true);
+        } else {
+          HapticFeedback.vibrate();
+          if (mounted) setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
+        }
         return;
       }
-      if (pin == creds.pin) {
-        HapticFeedback.heavyImpact();
-        if (mounted) Navigator.of(context).pop(true);
-      } else {
-        HapticFeedback.vibrate();
-        if (mounted) setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
-      }
+
+      // No local credentials — verify via API
+      final client = DioClient(AppStorage());
+      await client.post('/auth/verify-pin', {'pin': pin});
+      HapticFeedback.heavyImpact();
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      HapticFeedback.vibrate();
+      if (mounted) setState(() { _loading = false; _error = e.message; });
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _error = 'Erreur de vérification.'; });
+      HapticFeedback.vibrate();
+      if (mounted) setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
     }
   }
 

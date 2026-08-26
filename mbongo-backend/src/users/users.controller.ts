@@ -122,7 +122,14 @@ export class UsersController {
       update.email = email || null;
     }
 
-    return this.usersService.updateProfile(user.userId, update);
+    try {
+      return await this.usersService.updateProfile(user.userId, update);
+    } catch (e: unknown) {
+      // Re-throw BadRequestExceptions (P2002 email duplicate, validation errors)
+      if (e instanceof BadRequestException) throw e;
+      // Any other DB/infra error → generic 400 rather than 500
+      throw new BadRequestException('Impossible de mettre à jour le profil. Réessayez.');
+    }
   }
 
   @UseGuards(JwtAuthGuard)

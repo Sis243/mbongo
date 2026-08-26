@@ -66,12 +66,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
       final pin = await _askPinDialog();
       if (pin == null || pin.isEmpty) return;
 
-      final confirmed = await BiometricService.authenticate();
-      if (!confirmed) {
-        if (mounted) _toast('Confirmation biometrique echouee. Reessayez.');
-        return;
-      }
-
       final user = await AppStorage().getCurrentUser();
       final phone = user?['phone'] as String?;
       if (phone != null && phone.isNotEmpty) {

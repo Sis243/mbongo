@@ -21,6 +21,10 @@ export class AdminPermissionGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<{ admin?: AdminJwtPayload }>();
+
+    // Super admin bypasses all permission checks regardless of JWT permissions
+    if ((request.admin?.roles ?? []).includes('SUPER_ADMIN')) return true;
+
     const adminPermissions = request.admin?.permissions ?? [];
 
     const allowed = requiredPermissions.every((permission) => adminPermissions.includes(permission));

@@ -155,6 +155,7 @@ class _CommissionBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,##0', 'fr_FR');
     final balance = (agent['commissionBalance'] as num?)?.toDouble() ?? 0;
+    final balanceUSD = (agent['commissionBalanceUSD'] as num?)?.toDouble();
     final code = agent['agentCode']?.toString() ?? '';
     final cashIn = (agent['dailyCashInLimit'] as num?)?.toDouble() ?? 0;
     final cashOut = (agent['dailyCashOutLimit'] as num?)?.toDouble() ?? 0;
@@ -181,6 +182,12 @@ class _CommissionBanner extends StatelessWidget {
                     Text('${fmt.format(balance)} CDF',
                         style: const TextStyle(
                             color: AppColors.orange, fontSize: 20, fontWeight: FontWeight.w900)),
+                    if (balanceUSD != null)
+                      Text('≈ \$${balanceUSD.toStringAsFixed(2)} USD',
+                          style: TextStyle(
+                              color: AppColors.orange.withValues(alpha: 0.7),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),

@@ -475,7 +475,9 @@ class _ReceiveSheetState extends State<_ReceiveSheet> {
   Widget build(BuildContext context) {
     final palette = MbongoThemeController.current;
     final amount = _amountCtrl.text.trim();
-    final qrData = 'MBONGO:MERCHANT:${widget.merchant['id']}:${amount.isEmpty ? '0' : amount}';
+    final merchantId = widget.merchant['id']?.toString() ?? '';
+    final merchantName = Uri.encodeComponent(widget.merchant['name']?.toString() ?? '');
+    final qrData = 'mbongo://pay?merchantId=$merchantId&name=$merchantName&role=merchant${amount.isNotEmpty ? '&amount=$amount' : ''}';
 
     return Container(
       margin: const EdgeInsets.all(12),

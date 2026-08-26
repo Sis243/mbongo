@@ -32,10 +32,14 @@ class QrScanResult {
       final uri = Uri.parse(raw.trim());
       if (uri.scheme == 'mbongo' && uri.host == 'pay') {
         final phone = uri.queryParameters['phone'] ?? '';
-        if (phone.isEmpty) return null;
         final name = Uri.decodeComponent(uri.queryParameters['name'] ?? '');
         final roleStr = uri.queryParameters['role'] ?? 'client';
         final role = _parseRole(roleStr);
+        final merchantId = uri.queryParameters['merchantId'];
+        // Merchant QRs may omit phone if merchantId is present
+        if (phone.isEmpty && !(role == QrRole.merchant && merchantId != null && merchantId.isNotEmpty)) {
+          return null;
+        }
         final amountStr = uri.queryParameters['amount'];
         final amount = amountStr != null ? double.tryParse(amountStr) : null;
         return QrScanResult(
@@ -44,7 +48,7 @@ class QrScanResult {
           role: role,
           amount: amount,
           agentCode: uri.queryParameters['agentCode'],
-          merchantId: uri.queryParameters['merchantId'],
+          merchantId: merchantId,
         );
       }
       // Fallback : numéro brut

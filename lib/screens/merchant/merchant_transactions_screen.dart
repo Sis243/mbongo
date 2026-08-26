@@ -10,7 +10,7 @@ import '../../widgets/common/mbongo_sub_app_bar.dart';
 final _merchantTxnsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final client = ref.read(dioClientProvider);
   try {
-    final resp = await client.get('/transactions');
+    final resp = await client.get('/merchant/my-receipts');
     final list = resp['data'];
     if (list is List) {
       return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -57,7 +57,7 @@ class _MerchantTransactionsScreenState
 
       final s = (tx['status'] ?? '').toString().toUpperCase();
       bool matchStatus = true;
-      if (_status == 'Succès') { matchStatus = s == 'SUCCESS'; }
+      if (_status == 'Succès') { matchStatus = s == 'COMPLETED'; }
       else if (_status == 'En attente') { matchStatus = s == 'PENDING'; }
       else if (_status == 'Échoué') { matchStatus = s == 'FAILED'; }
 
@@ -67,7 +67,7 @@ class _MerchantTransactionsScreenState
 
   Color _statusColor(String s) {
     switch (s.toUpperCase()) {
-      case 'SUCCESS': return AppColors.green;
+      case 'COMPLETED': return AppColors.green;
       case 'FAILED': return AppColors.red;
       case 'PENDING': return AppColors.gold;
       default: return AppColors.textSoft;
@@ -76,7 +76,7 @@ class _MerchantTransactionsScreenState
 
   String _statusLabel(String s) {
     switch (s.toUpperCase()) {
-      case 'SUCCESS': return 'Succès';
+      case 'COMPLETED': return 'Succès';
       case 'FAILED': return 'Échoué';
       case 'PENDING': return 'En attente';
       default: return s;
@@ -176,7 +176,7 @@ class _MerchantTransactionsScreenState
 
                   // Summary row
                   final total = filtered
-                      .where((t) => (t['status'] ?? '').toString().toUpperCase() == 'SUCCESS')
+                      .where((t) => (t['status'] ?? '').toString().toUpperCase() == 'COMPLETED')
                       .fold(0.0, (s, t) => s + ((t['amount'] as num?)?.toDouble() ?? 0));
 
                   return RefreshIndicator(

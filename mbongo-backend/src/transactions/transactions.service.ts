@@ -629,6 +629,7 @@ export class TransactionsService {
       idempotencyKey: this.normalizeIdempotencyKey(body.idempotencyKey),
       metadata: {
         merchant: body.merchant,
+        merchantId: body.merchantId ?? '',
         method: body.method,
         terminalLabel: body.terminalLabel ?? '',
         location: body.location ?? '',

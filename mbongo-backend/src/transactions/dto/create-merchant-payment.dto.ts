@@ -8,6 +8,10 @@ export class CreateMerchantPaymentDto {
   @IsString()
   merchant: string;
 
+  @IsOptional()
+  @IsString()
+  merchantId?: string;
+
   @IsNumber()
   @Min(0.01)
   amount: number;

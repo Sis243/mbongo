@@ -13,6 +13,31 @@ import { PrismaService } from './prisma/prisma.service';
 export class MerchantController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Get('my-receipts')
+  async getMyReceipts(@CurrentUser() user: JwtRequestUser) {
+    const u = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    if (!u) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const merchant = await (this.prisma.merchant as any).findFirst({ where: { phone: u.phone } });
+    if (!merchant) return [];
+    const receipts = await this.prisma.merchantReceipt.findMany({
+      where: { merchantId: merchant.id },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: { id: true, amount: true, currency: true, status: true, method: true, location: true, customerRef: true, createdAt: true },
+    });
+    return receipts.map((r) => ({
+      id: r.id,
+      amount: r.amount,
+      currency: r.currency,
+      status: r.status,
+      type: r.method,
+      createdAt: r.createdAt.toISOString(),
+      location: r.location,
+      customerRef: r.customerRef,
+    }));
+  }
+
   @Get('me')
   async getMyMerchant(@CurrentUser() user: JwtRequestUser) {
     const u = await this.prisma.user.findUnique({ where: { id: user.userId } });

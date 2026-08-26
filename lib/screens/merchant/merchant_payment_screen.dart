@@ -446,6 +446,7 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
       final client = ref.read(dioClientProvider);
       await client.post('/transactions/merchant-pay', {
         'merchant': (widget.merchant['name'] ?? '').toString(),
+        'merchantId': (widget.merchant['id'] ?? '').toString(),
         'amount': amount,
         'method': _method,
         'location': (widget.merchant['location'] ?? '').toString(),

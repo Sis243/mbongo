@@ -404,7 +404,7 @@ class _StatusDot extends StatelessWidget {
   Widget build(BuildContext context) {
     Color color;
     switch (status.toUpperCase()) {
-      case 'COMPLETED': color = AppColors.green; break;
+      case 'SUCCESS': color = AppColors.green; break;
       case 'PENDING': color = AppColors.gold; break;
       default: color = AppColors.red;
     }

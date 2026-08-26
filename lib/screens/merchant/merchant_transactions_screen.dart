@@ -57,7 +57,7 @@ class _MerchantTransactionsScreenState
 
       final s = (tx['status'] ?? '').toString().toUpperCase();
       bool matchStatus = true;
-      if (_status == 'Succès') { matchStatus = s == 'COMPLETED'; }
+      if (_status == 'Succès') { matchStatus = s == 'SUCCESS'; }
       else if (_status == 'En attente') { matchStatus = s == 'PENDING'; }
       else if (_status == 'Échoué') { matchStatus = s == 'FAILED'; }
 
@@ -67,7 +67,7 @@ class _MerchantTransactionsScreenState
 
   Color _statusColor(String s) {
     switch (s.toUpperCase()) {
-      case 'COMPLETED': return AppColors.green;
+      case 'SUCCESS': return AppColors.green;
       case 'FAILED': return AppColors.red;
       case 'PENDING': return AppColors.gold;
       default: return AppColors.textSoft;
@@ -76,7 +76,7 @@ class _MerchantTransactionsScreenState
 
   String _statusLabel(String s) {
     switch (s.toUpperCase()) {
-      case 'COMPLETED': return 'Succès';
+      case 'SUCCESS': return 'Succès';
       case 'FAILED': return 'Échoué';
       case 'PENDING': return 'En attente';
       default: return s;
@@ -176,7 +176,7 @@ class _MerchantTransactionsScreenState
 
                   // Summary row
                   final total = filtered
-                      .where((t) => (t['status'] ?? '').toString().toUpperCase() == 'COMPLETED')
+                      .where((t) => (t['status'] ?? '').toString().toUpperCase() == 'SUCCESS')
                       .fold(0.0, (s, t) => s + ((t['amount'] as num?)?.toDouble() ?? 0));
 
                   return RefreshIndicator(

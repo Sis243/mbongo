@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/dio_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
 import '../../features/auth/presentation/auth_notifier.dart';
 import '../../widgets/common/mbongo_money_particles.dart';
 import '../../widgets/common/mbongo_sub_app_bar.dart';
+
+final _referralsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final resp = await ref.read(dioClientProvider).get('/users/me/referrals');
+  return resp;
+});
 
 class ReferralScreen extends ConsumerStatefulWidget {
   const ReferralScreen({super.key});
@@ -20,10 +26,8 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
   bool _linkCopied = false;
 
   String _referralCode(String phone) {
-    return phone.replaceAll(RegExp(r'[^0-9]'), '').substring(
-          (phone.replaceAll(RegExp(r'[^0-9]'), '').length - 6)
-              .clamp(0, phone.replaceAll(RegExp(r'[^0-9]'), '').length),
-        );
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.length >= 6 ? digits.substring(digits.length - 6) : digits;
   }
 
   Future<void> _copyCode(String code) async {
@@ -48,6 +52,8 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
     final name = user?.name ?? 'Utilisateur';
     final code = _referralCode(phone);
     final link = 'https://mbongo.app/register?ref=$code&name=${Uri.encodeComponent(name)}';
+
+    final referralsAsync = ref.watch(_referralsProvider);
 
     return Scaffold(
       backgroundColor: palette.shellBottom,
@@ -81,6 +87,13 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                   _buildCodeCard(palette, code),
                   const SizedBox(height: 14),
                   _buildLinkCard(palette, link),
+                  const SizedBox(height: 18),
+                  // Stats réelles depuis l'API
+                  referralsAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (data) => _buildStatsCard(palette, data),
+                  ),
                   const SizedBox(height: 18),
                   _buildHowItWorksCard(palette),
                   const SizedBox(height: 18),
@@ -279,6 +292,107 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCard(MbongoThemePalette palette, Map<String, dynamic> data) {
+    final total = (data['total'] as num?)?.toInt() ?? 0;
+    final totalBonus = (data['totalBonus'] as num?)?.toInt() ?? 0;
+    final bonusPer = (data['bonusPerReferral'] as num?)?.toInt() ?? 500;
+    final referrals = List<Map<String, dynamic>>.from(
+      (data['referrals'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: palette.panelAlt,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: palette.accent.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bar_chart_rounded, color: palette.accent),
+              const SizedBox(width: 8),
+              const Text('Mes parrainages', style: TextStyle(color: AppColors.darkText, fontSize: 16, fontWeight: FontWeight.w900)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _statCell(palette, '$total', 'Filleuls')),
+              const SizedBox(width: 10),
+              Expanded(child: _statCell(palette, '$totalBonus CDF', 'Bonus reçus')),
+              const SizedBox(width: 10),
+              Expanded(child: _statCell(palette, '$bonusPer CDF', 'Par filleul')),
+            ],
+          ),
+          if (referrals.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text('Derniers filleuls', style: TextStyle(color: AppColors.darkMuted, fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            ...referrals.take(5).map((r) {
+              final joinedAt = r['joinedAt'] != null
+                  ? DateTime.tryParse(r['joinedAt'].toString())
+                  : null;
+              final date = joinedAt != null
+                  ? '${joinedAt.day.toString().padLeft(2, '0')}/${joinedAt.month.toString().padLeft(2, '0')}/${joinedAt.year}'
+                  : '';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34, height: 34,
+                      decoration: BoxDecoration(color: palette.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+                      child: Center(
+                        child: Text(
+                          (r['name']?.toString() ?? '?').substring(0, 1).toUpperCase(),
+                          style: TextStyle(color: palette.accent, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(r['name']?.toString() ?? '', style: const TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w800, fontSize: 13.5)),
+                          Text(r['phone']?.toString() ?? '', style: const TextStyle(color: AppColors.darkMuted, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Text(date, style: const TextStyle(color: AppColors.darkMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              );
+            }),
+          ] else ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Aucun filleul pour l\'instant. Partagez votre code !',
+              style: TextStyle(color: AppColors.darkMuted, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _statCell(MbongoThemePalette palette, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(color: palette.panel, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        children: [
+          Text(value, style: TextStyle(color: palette.accent, fontSize: 15, fontWeight: FontWeight.w900), textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(color: AppColors.darkMuted, fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
         ],
       ),
     );

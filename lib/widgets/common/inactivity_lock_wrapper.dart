@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/storage/app_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/mbongo_theme.dart';
+import '../../features/auth/presentation/auth_notifier.dart';
 import '../../services/auth_service.dart';
 import '../../services/biometric_service.dart';
 import '../../services/inactivity_lock_service.dart';
@@ -51,14 +53,14 @@ class _InactivityLockWrapperState extends State<InactivityLockWrapper> {
   }
 }
 
-class _LockScreen extends StatefulWidget {
+class _LockScreen extends ConsumerStatefulWidget {
   const _LockScreen();
 
   @override
-  State<_LockScreen> createState() => _LockScreenState();
+  ConsumerState<_LockScreen> createState() => _LockScreenState();
 }
 
-class _LockScreenState extends State<_LockScreen> {
+class _LockScreenState extends ConsumerState<_LockScreen> {
   final _pinCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
@@ -86,10 +88,8 @@ class _LockScreenState extends State<_LockScreen> {
   }
 
   Future<void> _forceLogout() async {
-    await Future.wait([
-      AuthService.logout(),
-      AppStorage().clearBioCredentials(),
-    ]);
+    await AppStorage().clearBioCredentials();
+    await ref.read(authProvider.notifier).logout();
     if (!mounted) return;
     inactivityLock.unlock();
     if (context.mounted) context.go('/auth/login');
@@ -102,8 +102,10 @@ class _LockScreenState extends State<_LockScreen> {
 
     try {
       final creds = await AppStorage().getBioCredentials();
+      // No stored PIN means bio was never set up — just unlock the inactivity timer
       if (creds.pin == null || creds.pin!.isEmpty) {
-        await _forceLogout();
+        if (!mounted) return;
+        inactivityLock.unlock();
         return;
       }
       if (pin == creds.pin) {

@@ -28,6 +28,12 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/referrals')
+  getMyReferrals(@CurrentUser() user: JwtRequestUser) {
+    return this.usersService.getMyReferrals(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(@CurrentUser() user: JwtRequestUser) {
     return this.usersService.getOne(user.userId);

@@ -48,7 +48,49 @@ export class UsersService {
       include: { wallet: true },
     });
 
+    // Credit referrer with 500 CDF bonus (non-blocking)
+    if (referredBy) {
+      const bonus = 500;
+      this.prisma.$transaction([
+        this.prisma.wallet.update({
+          where: { userId: referredBy },
+          data: { balance: { increment: bonus } },
+        }),
+        this.prisma.userInboxItem.create({
+          data: {
+            userId: referredBy,
+            type: 'SYSTEM',
+            title: 'Bonus de parrainage',
+            body: `Votre filleul ${name} a rejoint MBONGO. Vous recevez ${bonus} CDF de bonus !`,
+          },
+        }),
+      ]).catch(() => undefined);
+    }
+
     return this.toPublicUser(user);
+  }
+
+  async getMyReferrals(userId: string) {
+    const referrals = await this.prisma.user.findMany({
+      where: { referredBy: userId },
+      select: { id: true, name: true, phone: true, createdAt: true, status: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const bonusPerReferral = 500;
+    return {
+      referrals: referrals.map((r) => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone.length > 6
+          ? r.phone.substring(0, 4) + '****' + r.phone.slice(-2)
+          : r.phone,
+        joinedAt: r.createdAt,
+        status: r.status,
+      })),
+      total: referrals.length,
+      bonusPerReferral,
+      totalBonus: referrals.length * bonusPerReferral,
+    };
   }
 
   async findAll() {

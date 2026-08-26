@@ -151,18 +151,29 @@ class DioClient {
     if (e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.sendTimeout) {
+      return const ApiException('Connexion impossible. Vérifiez votre réseau.');
+    }
+    final status = e.response?.statusCode;
+    if (status == 401) {
       return const ApiException(
-        'API Mbongo inaccessible. Verifiez que le backend tourne.',
+        'Session expirée. Veuillez vous reconnecter.',
+        statusCode: 401,
+      );
+    }
+    if (status == 403) {
+      return const ApiException(
+        'Accès refusé pour cette action.',
+        statusCode: 403,
       );
     }
     final data = e.response?.data;
-    String msg = 'Erreur API';
+    String msg = 'Une erreur est survenue. Réessayez.';
     if (data is Map) {
       final m = data['message'];
       if (m is String && m.isNotEmpty) msg = m;
       if (m is List && m.isNotEmpty) msg = m.join(', ');
     }
-    return ApiException(msg, statusCode: e.response?.statusCode);
+    return ApiException(msg, statusCode: status);
   }
 }
 

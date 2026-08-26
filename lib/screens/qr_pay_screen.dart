@@ -7,6 +7,7 @@ import '../core/theme/mbongo_theme.dart';
 import '../features/wallet/presentation/wallet_notifier.dart';
 import '../services/auth_service.dart';
 import 'merchant/pos_ticket_details_screen.dart';
+import 'transfer/qr_scanner_screen.dart';
 import '../widgets/common/mbongo_money_particles.dart';
 import '../widgets/common/mbongo_sub_app_bar.dart';
 import '../widgets/common/transaction_confirm_sheet.dart';
@@ -55,10 +56,14 @@ class QrPayScreen extends ConsumerStatefulWidget {
 }
 
 class _QrPayScreenState extends ConsumerState<QrPayScreen> {
-  final merchantCtrl = TextEditingController(text: 'Marchand demo');
-  final terminalCtrl = TextEditingController(text: 'POS-KIN-07');
-  final amountCtrl = TextEditingController(text: '25000');
-  final locationCtrl = TextEditingController(text: 'Point de vente A');
+  final merchantCtrl = TextEditingController();
+  final terminalCtrl = TextEditingController();
+  final amountCtrl = TextEditingController();
+  final locationCtrl = TextEditingController();
+
+  // Customer info from QR scan
+  String? _clientPhone;
+  String? _clientName;
 
   String selectedMethod = 'Appareil';
   bool faceReady = false;
@@ -84,8 +89,43 @@ class _QrPayScreenState extends ConsumerState<QrPayScreen> {
     faceReady = await AuthService.isFaceRecognitionEnabled();
     palmReady = await AuthService.isPalmRecognitionEnabled();
     nfcReady = await AuthService.isNfcPaymentsEnabled();
+    // Pre-fill first merchant and terminal if available
+    try {
+      final mResp = await ref.read(dioClientProvider).get('/merchant/accounts');
+      final mList = mResp['data'];
+      if (mList is List && mList.isNotEmpty) {
+        final first = Map<String, dynamic>.from(mList.first as Map);
+        merchantCtrl.text = first['name']?.toString() ?? '';
+        locationCtrl.text = first['location']?.toString() ?? '';
+      }
+    } catch (_) {}
+    try {
+      final tResp = await ref.read(dioClientProvider).get('/merchant/terminals');
+      final tList = tResp['data'];
+      if (tList is List && tList.isNotEmpty) {
+        final first = Map<String, dynamic>.from(tList.first as Map);
+        terminalCtrl.text = first['id']?.toString() ?? '';
+        if (locationCtrl.text.isEmpty) {
+          locationCtrl.text = first['location']?.toString() ?? '';
+        }
+      }
+    } catch (_) {}
     if (!mounted) return;
     setState(() => loading = false);
+  }
+
+  Future<void> _scanClientQr() async {
+    final result = await Navigator.push<QrScanResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _clientPhone = result.phone;
+      _clientName = result.name.isNotEmpty ? result.name : result.phone;
+      if (result.amount != null) amountCtrl.text = result.amount!.toStringAsFixed(0);
+    });
+    _toast('Client identifié : ${_clientName ?? result.phone}');
   }
 
   @override
@@ -155,6 +195,8 @@ class _QrPayScreenState extends ConsumerState<QrPayScreen> {
         'amount': amount,
         'method': selectedMethod,
         'location': location,
+        if (_clientPhone != null) 'customerPhone': _clientPhone,
+        if (_clientName != null) 'customerName': _clientName,
       });
       ref.refresh(walletProvider.future).ignore();
       ref.refresh(_posReceiptsProvider.future).ignore();
@@ -697,7 +739,18 @@ class _QrPayScreenState extends ConsumerState<QrPayScreen> {
               prefixIcon: Icon(Icons.payments_rounded),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _scanClientQr,
+              icon: const Icon(Icons.qr_code_scanner_rounded),
+              label: Text(_clientPhone != null
+                  ? 'Client : ${_clientName ?? _clientPhone!}'
+                  : 'Scanner le QR du client'),
+            ),
+          ),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(

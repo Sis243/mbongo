@@ -26,7 +26,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool _loading = true;
   bool notifications = true;
-  bool darkMode = true;
   bool transactionSounds = true;
   String selectedLanguage = 'Francais';
   String selectedTheme = 'cadeco';
@@ -42,7 +41,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadPreferences() async {
     notifications = await AuthService.isNotificationsEnabled();
-    darkMode = await AuthService.isDarkModeEnabled();
     transactionSounds = await AuthService.isTransactionSoundsEnabled();
     selectedLanguage = await AuthService.getSelectedLanguage();
     selectedTheme = await AuthService.getSelectedTheme();
@@ -57,18 +55,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _setBiometric(bool value) async {
     if (value) {
-      // Require biometric auth before enabling
-      final ok = await BiometricService.authenticate();
-      if (!ok || !mounted) return;
-      // Need PIN to save credentials — ask via dialog
+      // Ask PIN first — we need it to store credentials
       final pin = await _askPinDialog();
       if (pin == null || pin.isEmpty) return;
-      final creds = await AppStorage().getBioCredentials();
-      final phone = creds.phone ?? await AppStorage().getLastPhone() ?? '';
+
+      // Get phone: prefer current user, then last phone, then existing bio creds
+      final userMap = await AppStorage().getCurrentUser();
+      final phone = (userMap?['phone'] as String?)?.trim().isNotEmpty == true
+          ? userMap!['phone'] as String
+          : (await AppStorage().getLastPhone() ?? '');
       if (phone.isEmpty) {
         if (mounted) _snack('Impossible de récupérer votre numéro. Reconnectez-vous.');
         return;
       }
+
+      // Verify biometric works before saving credentials
+      final ok = await BiometricService.authenticate();
+      if (!ok || !mounted) return;
+
       await AppStorage().saveBioCredentials(phone, pin);
       await AuthService.setBiometricEnabled(true);
     } else {
@@ -109,12 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _setNotifications(bool value) async {
     setState(() => notifications = value);
     await AuthService.setNotificationsEnabled(value);
-  }
-
-  Future<void> _setDarkMode(bool value) async {
-    setState(() => darkMode = value);
-    MbongoThemeController.setDarkMode(value);
-    await AuthService.setDarkModeEnabled(value);
   }
 
   Future<void> _setTransactionSounds(bool value) async {
@@ -215,8 +213,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _band(
                     title: 'Securite',
                     child: _switchTile(
-                      title: biometricLabel,
-                      subtitle: 'Connexion rapide sans saisir le PIN a chaque ouverture',
+                      title: 'Deverrouillage biometrique',
+                      subtitle: '$biometricLabel — connexion rapide sans saisir le PIN',
                       value: biometricEnabled,
                       onChanged: _setBiometric,
                     ),
@@ -248,13 +246,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Interface',
                   child: Column(
                     children: [
-                      _switchTile(
-                        title: 'Mode sombre',
-                        subtitle: 'Conserver l interface visuelle sombre',
-                        value: darkMode,
-                        onChanged: _setDarkMode,
-                      ),
-                      const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(

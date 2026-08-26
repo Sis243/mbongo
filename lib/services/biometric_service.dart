@@ -5,9 +5,14 @@ class BiometricService {
 
   static Future<bool> canCheck() async {
     try {
+      // canCheckBiometrics = hardware present AND at least one biometric enrolled
       final canCheckBiometrics = await _auth.canCheckBiometrics;
+      if (canCheckBiometrics) return true;
+      // Fallback: device supports authentication AND has biometrics available
       final isDeviceSupported = await _auth.isDeviceSupported();
-      return canCheckBiometrics || isDeviceSupported;
+      if (!isDeviceSupported) return false;
+      final available = await _auth.getAvailableBiometrics();
+      return available.isNotEmpty;
     } catch (_) {
       return false;
     }
@@ -37,10 +42,10 @@ class BiometricService {
     final hasFace = await supportsFaceRecognition();
     final hasFingerprint = await supportsFingerprint();
 
-    if (hasFace && hasFingerprint) return 'Empreinte et visage';
-    if (hasFace) return 'Visage local';
-    if (hasFingerprint) return 'Empreinte locale';
-    return 'Biometrie locale';
+    if (hasFace && hasFingerprint) return 'Empreinte digitale et visage';
+    if (hasFace) return 'Reconnaissance faciale';
+    if (hasFingerprint) return 'Empreinte digitale';
+    return 'Biometrie';
   }
 
   static Future<bool> authenticate() async {
@@ -48,8 +53,9 @@ class BiometricService {
       return await _auth.authenticate(
         localizedReason: 'Authentifiez-vous pour accéder à Mbongo',
         options: const AuthenticationOptions(
-          biometricOnly: true,
+          biometricOnly: false,
           stickyAuth: true,
+          useErrorDialogs: true,
         ),
       );
     } catch (_) {

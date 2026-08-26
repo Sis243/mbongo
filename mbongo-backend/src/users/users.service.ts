@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -156,12 +157,19 @@ export class UsersService {
 
   async updateProfile(userId: string, update: { name?: string; email?: string | null }) {
     if (Object.keys(update).length === 0) return this.getOne(userId);
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: update,
-      include: { wallet: true },
-    });
-    return this.toPublicUser(user);
+    try {
+      const user = await this.prisma.user.update({
+        where: { id: userId },
+        data: update,
+        include: { wallet: true },
+      });
+      return this.toPublicUser(user);
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new BadRequestException('Cette adresse email est déjà utilisée par un autre compte');
+      }
+      throw e;
+    }
   }
 
   toPublicUser<T extends { pinHash?: string }>(user: T) {

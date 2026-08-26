@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -164,8 +163,9 @@ export class UsersService {
         include: { wallet: true },
       });
       return this.toPublicUser(user);
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+    } catch (e: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((e as any)?.code === 'P2002') {
         throw new BadRequestException('Cette adresse email est déjà utilisée par un autre compte');
       }
       throw e;

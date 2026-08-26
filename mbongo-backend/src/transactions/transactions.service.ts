@@ -70,19 +70,29 @@ export class TransactionsService {
       orderBy: {
         createdAt: 'desc',
       },
-      include: {
-        sender: { select: { id: true, name: true, phone: true } },
-        receiver: { select: { id: true, name: true, phone: true } },
-      },
     });
+
+    const userIds = new Set<string>();
+    for (const t of transactions) {
+      if (t.senderId) userIds.add(t.senderId);
+      if (t.receiverId) userIds.add(t.receiverId);
+    }
+    const users = userIds.size > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: Array.from(userIds) } },
+          select: { id: true, name: true, phone: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
 
     return transactions.map((t) => {
       const isCredit = !!userId && t.receiverId === userId;
-      const counterpartyName = isCredit ? (t.sender?.name ?? null) : (t.receiver?.name ?? null);
-      const counterpartyPhone = isCredit ? (t.sender?.phone ?? null) : (t.receiver?.phone ?? null);
-      const { sender, receiver, ...rest } = t;
+      const sender = t.senderId ? (userMap.get(t.senderId) ?? null) : null;
+      const receiver = t.receiverId ? (userMap.get(t.receiverId) ?? null) : null;
+      const counterpartyName = isCredit ? (sender?.name ?? null) : (receiver?.name ?? null);
+      const counterpartyPhone = isCredit ? (sender?.phone ?? null) : (receiver?.phone ?? null);
       return {
-        ...this.serializeTransaction(rest),
+        ...this.serializeTransaction(t),
         senderName: sender?.name ?? null,
         receiverName: receiver?.name ?? null,
         counterpartyName,

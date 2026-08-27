@@ -3219,6 +3219,14 @@ export class BackofficeService {
 
     const currency = body.currency ?? 'CDF';
 
+    // Convert USD amount to CDF equivalent for wallet update (wallets are CDF-based)
+    let cdfAmount = body.amount;
+    if (currency === 'USD') {
+      const rateRow = await this.prisma.currency.findUnique({ where: { id: 'CDF' } });
+      const cdfRate = Number(rateRow?.rate ?? 2800);
+      cdfAmount = Number((body.amount * cdfRate).toFixed(2));
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
         data: {
@@ -3233,12 +3241,13 @@ export class BackofficeService {
             reason: body.reason,
             adminId: admin.sub,
             adminPhone: admin.phone,
+            ...(currency === 'USD' && { amountCDF: cdfAmount }),
           }),
         },
       });
 
       const balanceBefore = user.wallet!.balance;
-      const balanceAfter = balanceBefore + body.amount;
+      const balanceAfter = balanceBefore + cdfAmount;
 
       const updatedWallet = await tx.wallet.update({
         where: { id: user.wallet!.id },
@@ -3251,11 +3260,11 @@ export class BackofficeService {
           transactionId: transaction.id,
           entryType: 'ADMIN_CREDIT',
           direction: 'CREDIT',
-          amount: body.amount,
+          amount: cdfAmount,
           balanceBefore,
           balanceAfter,
           description: body.reason,
-          metadata: JSON.stringify({ adminId: admin.sub }),
+          metadata: JSON.stringify({ adminId: admin.sub, currency, originalAmount: body.amount }),
         },
       });
 

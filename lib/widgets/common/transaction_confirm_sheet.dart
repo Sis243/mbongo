@@ -101,20 +101,15 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
     setState(() { _loading = true; _error = null; });
 
     try {
-      // Try local bio credentials first (faster, offline)
+      // Try local bio credentials first (fast, offline)
       final creds = await AppStorage().getBioCredentials();
-      if (creds.pin != null && creds.pin!.isNotEmpty) {
-        if (pin == creds.pin) {
-          HapticFeedback.heavyImpact();
-          if (mounted) Navigator.of(context).pop(true);
-        } else {
-          HapticFeedback.vibrate();
-          if (mounted) setState(() { _loading = false; _error = 'Code PIN incorrect.'; });
-        }
+      if (creds.pin != null && creds.pin!.isNotEmpty && pin == creds.pin) {
+        HapticFeedback.heavyImpact();
+        if (mounted) Navigator.of(context).pop(true);
         return;
       }
 
-      // No local credentials — verify via API
+      // Local credentials absent or mismatch — verify via API (authoritative)
       final client = DioClient(AppStorage());
       await client.post('/auth/verify-pin', {'pin': pin});
       HapticFeedback.heavyImpact();

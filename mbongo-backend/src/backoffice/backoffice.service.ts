@@ -644,8 +644,8 @@ export class BackofficeService {
       throw new NotFoundException('Soumission KYC introuvable');
     }
 
-    if (submission.status !== 'SUBMITTED') {
-      throw new BadRequestException('Seules les soumissions KYC en attente peuvent etre revisees');
+    if (submission.status === 'APPROVED') {
+      throw new BadRequestException('Ce dossier KYC est déjà approuvé');
     }
 
     if (body.status === 'REJECTED' && !body.rejectionReason?.trim()) {

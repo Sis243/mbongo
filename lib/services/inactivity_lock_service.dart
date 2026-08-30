@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-class InactivityLockService extends ChangeNotifier {
+class InactivityLockService extends ChangeNotifier with WidgetsBindingObserver {
   static const _timeout = Duration(minutes: 2);
 
   Timer? _timer;
@@ -10,12 +10,21 @@ class InactivityLockService extends ChangeNotifier {
   bool get isLocked => _locked;
 
   void start() {
+    WidgetsBinding.instance.addObserver(this);
     _resetTimer();
   }
 
   void recordActivity() {
     if (_locked) return;
     _resetTimer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _lock();
+    }
   }
 
   void _resetTimer() {
@@ -37,6 +46,7 @@ class InactivityLockService extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }

@@ -48,7 +48,7 @@ class _AgentCashInScreenState extends ConsumerState<AgentCashInScreen> {
             ? _descCtrl.text.trim()
             : 'Cash-In via agent',
         'agentName': me?.name ?? '',
-        'agentId': me?.id ?? '',
+        'agentId': me?.phone ?? '',
       });
 
       if (!mounted) return;
@@ -218,7 +218,7 @@ class _AgentCashOutScreenState extends ConsumerState<AgentCashOutScreen> {
         'reference': 'AGENT-${DateTime.now().millisecondsSinceEpoch}',
         'phone': phone,
         'agentName': me?.name ?? '',
-        'agentId': me?.id ?? '',
+        'agentId': me?.phone ?? '',
       });
 
       if (!mounted) return;

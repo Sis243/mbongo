@@ -17,7 +17,4 @@ export class CreateExchangeDto {
   @IsString()
   @MaxLength(80)
   idempotencyKey?: string;
-
-  // Injected par le controller
-  userId?: string;
 }

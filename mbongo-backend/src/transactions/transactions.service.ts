@@ -981,11 +981,12 @@ export class TransactionsService {
   }
 
   private async findActiveCashAgent(agentId?: string | null) {
-    const cleanAgentId = agentId?.trim();
-    if (!cleanAgentId) return null;
+    const clean = agentId?.trim();
+    if (!clean) return null;
 
-    const agent = await this.prisma.cashAgent.findUnique({
-      where: { id: cleanAgentId },
+    // Accept UUID id OR phone number
+    const agent = await this.prisma.cashAgent.findFirst({
+      where: { OR: [{ id: clean }, { phone: clean }] },
     });
 
     if (!agent) {

@@ -6,11 +6,13 @@ import '../common/mbongo_money_particles.dart';
 class WalletCard extends StatefulWidget {
   final dynamic wallet;
   final List<Color> gradient;
+  final bool hideBalance;
 
   const WalletCard({
     super.key,
     required this.wallet,
     required this.gradient,
+    this.hideBalance = false,
   });
 
   @override
@@ -168,9 +170,9 @@ class _WalletCardState extends State<WalletCard>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      currency == 'USD'
-                          ? '\$ ${_money(amount)}'
-                          : 'CDF ${_money(amount)}',
+                      widget.hideBalance
+                          ? (currency == 'USD' ? '\$ ••••••••' : 'CDF ••••••••')
+                          : (currency == 'USD' ? '\$ ${_money(amount)}' : 'CDF ${_money(amount)}'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,

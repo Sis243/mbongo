@@ -134,7 +134,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               const SizedBox(height: 14),
 
               // ── Wallet principal (CDF) ───────────────────────────────
-              WalletCard(wallet: mainWallet, gradient: palette.cardGradient),
+              WalletCard(wallet: mainWallet, gradient: palette.cardGradient, hideBalance: _hideBalance),
 
               // ── Wallets supplémentaires (USD etc.) ───────────────────
               if (extraWallets.isNotEmpty) ...[
@@ -177,6 +177,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       child: WalletCard(
         wallet: extraModel,
         gradient: [palette.cardGradient.first, color.withValues(alpha: 0.25), palette.cardGradient.last],
+        hideBalance: _hideBalance,
       ),
     );
   }
